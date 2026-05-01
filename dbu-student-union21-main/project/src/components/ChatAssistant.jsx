@@ -4,7 +4,7 @@ import { apiService } from '../services/api';
 const ChatAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', text: "Hello! I am the DBU Student Union Pilot Assistant for the '21' system. How can I help you today?" }
+    { role: 'assistant', text: "I am your assistance what can I help you?" }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
