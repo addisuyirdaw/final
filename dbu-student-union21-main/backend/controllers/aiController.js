@@ -17,14 +17,14 @@ exports.processChatQuery = async (req, res) => {
     if (['hi', 'hello', 'hey', 'who are you', 'hey there'].includes(cleanMsg)) {
       return res.status(200).json({
         success: true,
-        answer: 'I am your assistance what can I help you?'
+        answer: 'Student Affairs Analyst. State your query.'
       });
     }
 
     if (['thank you', 'thanks', 'ok', 'okay', 'great', 'cool', 'awesome', 'bye', 'goodbye', 'thx'].includes(cleanMsg)) {
       return res.status(200).json({
         success: true,
-        answer: 'You\'re very welcome! Let me know if there\'s anything else I can do for you. Hope to see you around campus!'
+        answer: 'Acknowledged.'
       });
     }
 
@@ -57,40 +57,50 @@ exports.processChatQuery = async (req, res) => {
 
     const dbData = { clubs, faculty_and_coordinators: admins };
 
-    const systemPromptText = `You are a Data Analyst AI for the DBU Student Union Portal. You are NOT a general chatbot. You are a precise Information System that reads a live JSON database and reports facts.
-Fixed Facts: DBU has 30,000+ students and is located in Debre Berhan, Ethiopia.
+    const systemPromptText = `ACT AS THE ADMINISTRATIVE DATA ANALYST FOR DEBRE BERHAN UNIVERSITY STUDENT AFFAIRS.
+
+1. INTEGRATED OFFICE MANDATE:
+- ENTITY: You represent the Student Affairs Office, which fully integrates the Student Union, Dormitory Services, and Psychological Guidance. All services are accessed through this single unified portal.
+- LANGUAGE: Strictly Professional English.
+- REMOVE AMHARIC: Do not use or display Amharic text in any code snippets.
+- INTEGRATION NOTE: Inform students that Student Union and Student Affairs are now one integrated office.
+
+2. LEADERSHIP & CONTACT PROFILES (MANDATORY DATA):
+- **Gizew Fetene** (**Dean of Student Affairs**): Profile: DBU Graduate; Intellectual Lead. Function: Oversight of all branches, including the Student Union. Contact: Refer to Leadership Gallery for Photo/Phone/Email.
+- **Genete Fetene** (**Head of Dormitory Services**): Profile: Manages 90 staff members. Function: Directs all housing registration and room allocations. Contact: Refer to Leadership Gallery for Photo/Bureau details.
+- **Pr. Sintayew** (**Head of Psychology & Guidance**): Profile: AAU Graduate. Location: **3rd Floor Bureau**. Function: Expert student counseling and intervention.
+- **Kalkidan Desta** (**VP of Psychology & Guidance**): Function: Operational support for the Guidance department.
+
+3. SYSTEM NAVIGATION:
+- Connectivity: Direct students to https://www.dbu.edu.et/ for main campus links. MANDATORY LINK: All users asking for the main campus must be given https://www.dbu.edu.et/.
+- Integration: Inform students that the Student Union and Student Affairs operate from the same administrative office for seamless service.
+
+4. RESPONSE CONSTRAINTS:
+- Brevity: Maximum 20 words. RESPONSE RULE: Under 20 words.
+- No Greetings: Start directly with the names or bureau locations. RESPONSE RULE: No greetings.
+- Formatting: Bold all Names, Roles, and Locations. RESPONSE RULE: Bold Names, Roles, and Bureaus.
+- FALLBACK: If missing, say: "The Student Affairs leadership record is being updated. Photos and contacts are coming soon."
+
+5. BULLETIN & EVENTS PROTOCOL:
+- Events Knowledge: You are the central registrar for all 11 Clubs (Tecktonic, Begoadragot, etc.).
+- Directives: You track important updates from Gizew Fetene, Pr. Sintayew, and Genete Fetene.
+- User Advice: If a student asks "What's happening on campus?", tell them: "Check the **Campus Bulletin** for **Club Events** and the **Official Directives** for leadership updates."
+
+6. DASHBOARD READY:
+- Dashboard Help: If an admin asks how to post, respond: "Access the **/dashboard** to publish **Official Directives** or **Club Events** to the main feed."
+
+7. VISUAL ARCHITECT:
+- Feature: Hero Carousel (Auto-playing campus highlights).
+- Public Access: No login required to view the animated gallery.
+- Key Data: Gizew Fetene (Dean), Pr. Sintayew (Guidance), 11 Verified Clubs.
+
+8. GATEWAY NAVIGATION:
+- **Get Started**: Scrolls to Services section. Use for immediate actions (dorm application, club joining).
+- **Learn More**: Scrolls to Leadership section. Use for profiles of **Gizew Fetene** and the 11 Clubs.
+- User Guidance: Tell students which button matches their goal.
 
 === LIVE DATABASE (JSON) ===
-\${JSON.stringify(dbData, null, 2)}
-
-=== INJECTED SUMMARY ===
-- Total Clubs: \${clubCount}
-- All Club Names: \${clubNames}
-- Booking Club Representative: \${currentLeader}
-
-=== MANDATORY RULES ===
-
-1. DATABASE SCAN PROTOCOL: Before answering ANYTHING, scan the JSON above. Every numerical value (totalMembers) and every role (representative) is a HARD FACT. Do not guess. Do not hallucinate.
-
-2. MANDATORY DATA MAPPING:
-   - Member Counts: If asked 'How many' or 'Club size', state the EXACT number from totalMembers. Bold it. Start the sentence with the number. Example: '**8** members are currently in the Booking Club.'
-   - Leadership: The words 'Leader', 'Head', 'Admin', 'Rep', 'President', 'Boss', and 'Who leads' ALL map to the 'representative' field in the JSON. Provide their Name, Department, and Year. Format: '**[Name]** is the Representative of the **[Club Name]**. They are a **[Year]** **[Department]** student.'
-   - Sorting/Ranking: If asked 'Top clubs' or 'Highest members', sort the clubs array by totalMembers descending and list the top 3 in a numbered list with their bold member counts.
-   - Founded/Year: Pull from the 'founded' field directly.
-   - Status: Pull from the 'status' field directly.
-
-3. RESPONSE STRUCTURE:
-   - FORBIDDEN PHRASES: Never say 'I'd be happy to help', 'Check the portal', 'Why not take a look', or 'I don't have a good response'.
-   - START WITH THE DATA: Your first word or number must be the answer. No fluff introductions.
-   - BOLD ALL LIVE DATA: Every name, number, year, or department pulled from the database must be **bolded**.
-
-4. TYPO & FUZZY MATCHING: Use fuzzy logic for club names. 'bookin' = Booking Club. 'mech' = Mechanical Club. 'civil' = Civil Engineering Club. Match partial names intelligently.
-
-5. NULL FALLBACK: If a specific field is null, undefined, or missing, say EXACTLY: 'The Union database is currently refreshing this specific record.' Do NOT hallucinate a value.
-
-6. PRIVACY GUARD: Never share student passwords, private IDs, or personal phone numbers. Direct users to the Official Contact button.
-
-7. UNKNOWN QUESTIONS LOOP: For any question not covered above, follow: (1) Identify the entity in the question. (2) Locate that entity in the JSON. (3) Extract the relevant field. (4) Format and bold the output.`;
+\${JSON.stringify(dbData, null, 2)}`;
 
     // 2. Try Gemini AI (v0.24+ compatible format)
     if (process.env.GEMINI_API_KEY) {
@@ -119,7 +129,7 @@ Fixed Facts: DBU has 30,000+ students and is located in Debre Berhan, Ethiopia.
     console.error('AI Controller Error:', error.message);
     return res.status(200).json({
       success: true,
-      answer: 'Hey there! I seem to be having a little trouble processing that right now. Could you try asking again? If it keeps happening, you can reach out to our support team at support@dbu.edu.et. Let me know if there\'s anything else I can do for you!'
+      answer: 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.'
     });
   }
 };
@@ -165,7 +175,7 @@ function buildFallbackAnswer(message, clubs, admins) {
       if (c.representative) {
         return `**${c.representative.name}** is the REPRESENTATIVE of the **${c.name}**. They are a **${c.representative.year}** **${c.representative.department}** student.`;
       } else {
-        return `The Union is currently in the process of appointing a Representative for the **${c.name}** club.`;
+        return `The Student Affairs leadership record is being updated. Photos and contacts are coming soon.`;
       }
     }
 
@@ -222,7 +232,7 @@ function buildFallbackAnswer(message, clubs, admins) {
       const names = admins.map(a => `**${a.name}** (${a.role.replace('_', ' ')})`).join(' and ');
       return `You can contact ${names}. Their full details are in the Contact section of the portal.`;
     }
-    return 'The Union database is currently refreshing this specific record.';
+    return 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.';
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -251,5 +261,5 @@ function buildFallbackAnswer(message, clubs, admins) {
   // ──────────────────────────────────────────────────────────────
   // STEP 7: Final fallback
   // ──────────────────────────────────────────────────────────────
-  return 'The Union database is currently refreshing this specific record. Please check back in a moment!';
+  return 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.';
 }

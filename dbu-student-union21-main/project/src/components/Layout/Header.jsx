@@ -16,6 +16,21 @@ export function Header() {
 	const navigate = useNavigate();
 	const location = useLocation(); // ✅ Get current route
 	const notifRef = useRef(null);
+	const [selectedClub, setSelectedClub] = useState(null);
+
+	const clubsData = [
+		{ id: "tecktonic", name: "Tecktonic", desc: "The hub for digital transformation. Focuses on software engineering, AI research, and competitive coding.", activities: "Hackathons, Tech-Talks, and Hardware Prototyping." },
+		{ id: "begoadragot", name: "Begoadragot", desc: "The heart of campus volunteerism. Dedicated to blood drives, supporting low-income students, and local community service.", activities: "Charity Auctions and Humanitarian Campaigns." },
+		{ id: "hohe-tesfa", name: "Hohe Tesfa", desc: "Focused on \"Alpha Hope.\" Provides peer-to-peer mentorship for freshmen and mental health awareness.", activities: "Guidance Workshops and \"Hope\" Seminars." },
+		{ id: "law-club", name: "Law Club", desc: "The center for advocacy. Promotes legal literacy and student rights.", activities: "Mock Trials, Legal Debates, and Charter Education." },
+		{ id: "career-dev", name: "Career Development", desc: "The bridge to the future. Specializes in professional branding and workplace readiness.", activities: "CV Building, Mock Interviews, and Job Fairs." },
+		{ id: "idea-hub", name: "Idea Hub", desc: "An innovation incubator. Helps students turn creative thoughts into viable business models.", activities: "Pitch Competitions and Entrepreneurship Bootcamps." },
+		{ id: "truth-culture", name: "Truth Culture", desc: "Preserving integrity and heritage. Focuses on ethical leadership and celebrating Ethiopia's diverse cultural history.", activities: "Cultural Festivals and Ethics Forums." },
+		{ id: "booking", name: "Booking Club", desc: "An academic resource network. Facilitates the exchange of rare textbooks, research journals, and peer-to-peer tutoring.", activities: "Book Swaps and Study Groups." },
+		{ id: "civil-eng", name: "Civil Engineering", desc: "Professional building and design. Focuses on structural integrity and modern urban planning.", activities: "Site Visits, CAD Design Competitions, and Bridge Building." },
+		{ id: "mech-club", name: "Mechanical Club", desc: "Technical and industrial innovation. Specializes in automotive design, robotics, and machine maintenance.", activities: "Robot Wars and Workshop Training." },
+		{ id: "food-eng", name: "Food Engineering", desc: "Science for the future. Researches food safety, processing technology, and nutritional security.", activities: "Lab Experiments and Food Safety Seminars." }
+	];
 
 	const totalNotifications = Object.values(notifications).reduce((a, b) => a + b, 0);
 
@@ -39,8 +54,9 @@ export function Header() {
 			? []
 			: [
 				{ name: "Home", href: "/" },
-				{ name: "About", href: "/about" },
-				{ name: "Contact", href: "/contact" },
+				{ name: "Leadership", href: "/#leadership" },
+				{ name: "Guidance", href: "/#guidance" },
+				{ name: "Dormitory", href: "/#dormitory" },
 			]),
 	];
 
@@ -66,10 +82,10 @@ export function Header() {
 						<div className="flex space-x-6">
 							<span>
 								<i className="fas fa-map-marker-alt p-2"></i> DBU Campus,
-								Student Union Building
+								Student Affairs Office
 							</span>
 							<span>
-								<i className="fas fa-envelope p-2"></i> studentunion@dbu.edu.et
+								<i className="fas fa-envelope p-2"></i> studentaffairs@dbu.edu.et
 							</span>
 							<span>
 								<i className="fas fa-phone p-2"></i> +251940414243
@@ -93,32 +109,66 @@ export function Header() {
 				</div>
 			</div>
 
-			{/* Logo */}
-			<div>
-				<div className="w-full h-auto">
-					<img
-						src="/images/logo.png"
-						alt="Logo"
-						className="w-full h-auto object-cover"
-					/>
-				</div>
-				<hr />
-			</div>
+			{/* Logo removed per request */}
 
 			{/* Main Header */}
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="flex justify-between items-center py-4">
 					{/* Desktop Navigation */}
-					<nav className="hidden md:flex space-x-8">
+					<nav className="hidden md:flex items-center space-x-8">
 						{navigation.map((item) => (
-							<Link
-								key={item.name}
-								to={item.href}
-								className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
-							>
-								{item.name}
-							</Link>
+							<React.Fragment key={item.name}>
+								{item.href.includes("#") ? (
+									<a
+										href={item.href}
+										className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+									>
+										{item.name}
+									</a>
+								) : (
+									<Link
+										to={item.href}
+										className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+									>
+										{item.name}
+									</Link>
+								)}
+								{item.name === "Leadership" && (
+									<div className="relative group">
+										<button className="text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-1">
+											Clubs <span className="text-xs">▼</span>
+										</button>
+										<div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden max-h-96 overflow-y-auto">
+											<div className="py-2">
+												{clubsData.map(club => (
+													<button key={club.id} onClick={() => setSelectedClub(club)} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">
+														{club.name}
+													</button>
+												))}
+											</div>
+										</div>
+									</div>
+								)}
+							</React.Fragment>
 						))}
+						
+						{/* Student Union Dropdown */}
+						<div className="relative group">
+							<button className="text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-1">
+								Student Union <span className="text-xs">▼</span>
+							</button>
+							<div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+								<div className="py-2">
+									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">President</a>
+									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Vice President</a>
+									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Secretary</a>
+									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Afegubaye</a>
+									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">General Service</a>
+									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Audit</a>
+								</div>
+							</div>
+						</div>
+
 						{user &&
 							protectedNavigation.map((item) => (
 								<Link
@@ -129,6 +179,14 @@ export function Header() {
 									{item.name}
 								</Link>
 							))}
+						<a 
+							href="https://www.dbu.edu.et/" 
+							target="_blank" 
+							rel="noreferrer" 
+							className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm border border-blue-200"
+						>
+							Main University
+						</a>
 					</nav>
 
 					{/* User Menu */}
@@ -206,18 +264,51 @@ export function Header() {
 
 			{/* Mobile Navigation */}
 			{isMenuOpen && (
-				<div className="md:hidden bg-white border-t border-gray-200">
+				<div className="md:hidden bg-white border-t border-gray-200 overflow-y-auto max-h-[80vh]">
 					<div className="px-4 py-2 space-y-1">
 						{navigation.map((item) => (
-							<Link
-								key={item.name}
-								to={item.href}
-								className="block px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
-								onClick={() => setIsMenuOpen(false)}
-							>
-								{item.name}
-							</Link>
+							<React.Fragment key={item.name}>
+								{item.href.includes("#") ? (
+									<a
+										href={item.href}
+										className="block px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+										onClick={() => setIsMenuOpen(false)}
+									>
+										{item.name}
+									</a>
+								) : (
+									<Link
+										to={item.href}
+										className="block px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+										onClick={() => setIsMenuOpen(false)}
+									>
+										{item.name}
+									</Link>
+								)}
+								{item.name === "Leadership" && (
+									<div className="pt-2 pb-1 border-t border-gray-100 mt-2">
+										<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Clubs</p>
+										{clubsData.map(club => (
+											<button key={club.id} onClick={() => { setIsMenuOpen(false); setSelectedClub(club); }} className="w-full text-left block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">
+												{club.name}
+											</button>
+										))}
+									</div>
+								)}
+							</React.Fragment>
 						))}
+
+						{/* Mobile Student Union Menu */}
+						<div className="pt-2 pb-1 border-t border-gray-100 mt-2">
+							<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Union</p>
+							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">President</a>
+							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Vice President</a>
+							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Secretary</a>
+							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Afegubaye</a>
+							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">General Service</a>
+							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Audit</a>
+						</div>
+
 						{user &&
 							protectedNavigation.map((item) => (
 								<Link
@@ -229,6 +320,39 @@ export function Header() {
 									{item.name}
 								</Link>
 							))}
+						<a 
+							href="https://www.dbu.edu.et/" 
+							target="_blank" 
+							rel="noreferrer" 
+							className="block px-3 py-2 text-blue-700 font-medium hover:bg-gray-50 rounded-md"
+							onClick={() => setIsMenuOpen(false)}
+						>
+							Main University
+						</a>
+					</div>
+				</div>
+			)}
+
+			{/* Club Detail Modal */}
+			{selectedClub && (
+				<div className="fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+					<div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+						<button onClick={() => setSelectedClub(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+							<X className="w-6 h-6" />
+						</button>
+						<h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedClub.name}</h2>
+						<p className="text-gray-700 mb-3">{selectedClub.desc}</p>
+						<div className="bg-blue-50 p-3 rounded-lg mb-6">
+							<p className="text-sm text-blue-800"><span className="font-bold">Activities:</span> {selectedClub.activities}</p>
+						</div>
+						<div className="flex gap-4">
+							<button onClick={() => { setSelectedClub(null); navigate("/login"); }} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex-1">
+								Join Club
+							</button>
+							<button onClick={() => setSelectedClub(null)} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+								Close
+							</button>
+						</div>
 					</div>
 				</div>
 			)}

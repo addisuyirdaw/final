@@ -16,7 +16,7 @@ export function Footer() {
 								<span className="text-white font-bold">DBU</span>
 							</div>
 							<div>
-								<h3 className="text-lg font-bold">Student Union</h3>
+								<h3 className="text-lg font-bold">Student Affairs</h3>
 								<p className="text-gray-400 text-sm">Debre Berhan University</p>
 							</div>
 						</div>
@@ -41,10 +41,10 @@ export function Footer() {
 						</div>
 					</div>
 
-					{/* Quick Links */}
+					{/* Quick Links & Network */}
 					<div>
 						<h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-						<ul className="space-y-2">
+						<ul className="space-y-2 mb-6">
 							<li>
 								<Link
 									to="/elections"
@@ -68,6 +68,14 @@ export function Footer() {
 								</Link>
 							</li>
 						</ul>
+						<h4 className="text-lg font-semibold mb-4">Campus Network</h4>
+						<ul className="space-y-2">
+							<li>
+								<a href="https://www.dbu.edu.et/" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
+									Visit DBU Main Website
+								</a>
+							</li>
+						</ul>
 					</div>
 
 					{/* Contact Info */}
@@ -76,12 +84,12 @@ export function Footer() {
 						<ul className="space-y-2 text-gray-400">
 							<li className="flex items-center space-x-2">
 								<i class="fas fa-map-marker-alt p-2 text-white"></i>
-								<span>DBU Campus, Student Union Building</span>
+								<span>DBU Campus, Student Affairs Office</span>
 							</li>
 							<li className="flex items-center space-x-2">
 								<i class="fas fa-envelope p-2 text-white"></i>
 
-								<span>studentunion@dbu.edu.et</span>
+								<span>studentaffairs@dbu.edu.et</span>
 							</li>
 							<li className="flex items-center space-x-2">
 								<i class="fas fa-phone p-2 text-white"></i>
@@ -94,7 +102,7 @@ export function Footer() {
 				<div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
 					<p>
 						&copy; {new Date().getFullYear()} Debre Berhan University Student
-						Union. All rights reserved.
+						Affairs. All rights reserved.
 					</p>
 				</div>
 			</div>

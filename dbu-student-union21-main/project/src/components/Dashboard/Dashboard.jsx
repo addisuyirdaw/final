@@ -16,6 +16,9 @@ import {
 	AlertCircle,
 	FileText,
 	CheckCircle,
+	PenTool,
+	Trash2,
+	Archive
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -85,6 +88,13 @@ export function Dashboard() {
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [error, setError] = useState(null);
 	const [lastUpdated, setLastUpdated] = useState(null);
+	
+	// Posting Form States
+	const [showDirectiveForm, setShowDirectiveForm] = useState(false);
+	const [showEventForm, setShowEventForm] = useState(false);
+	const [directiveForm, setDirectiveForm] = useState({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+	const [eventForm, setEventForm] = useState({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+
 	const [stats, setStats] = useState([
 		{
 			title: "Active Students",
@@ -283,6 +293,29 @@ export function Dashboard() {
 		if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
 		return lastUpdated.toLocaleTimeString();
 	};
+
+	const handlePostDirective = (e) => {
+		e.preventDefault();
+		// Mock storing to localStorage for immediate cross-page sync
+		const current = JSON.parse(localStorage.getItem('official_directives') || '[]');
+		current.unshift({ ...directiveForm, id: Date.now(), author: user?.name || 'Admin', timestamp: new Date().toISOString() });
+		localStorage.setItem('official_directives', JSON.stringify(current));
+		setShowDirectiveForm(false);
+		setDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+		alert("Directive published successfully to the main feed.");
+	};
+
+	const handlePostEvent = (e) => {
+		e.preventDefault();
+		const current = JSON.parse(localStorage.getItem('club_events') || '[]');
+		current.unshift({ ...eventForm, id: Date.now(), author: user?.name || 'Club Leader', timestamp: new Date().toISOString() });
+		localStorage.setItem('club_events', JSON.stringify(current));
+		setShowEventForm(false);
+		setEventForm({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+		alert("Club Event published successfully.");
+	};
+
+	const mockDirectives = JSON.parse(localStorage.getItem('official_directives') || '[]');
 
 	return (
 		<div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
@@ -537,6 +570,147 @@ export function Dashboard() {
 						</div>
 					)}
 				</motion.div>
+			</div>
+
+			{/* Executive & Club Leader Posting Tools */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
+				{/* Executive Directives Tool */}
+				{(user?.isAdmin || ['Gizew', 'Sintayew', 'Genete', 'Kalkidan'].some(name => user?.name?.includes(name))) && (
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
+						<div className="bg-red-700 p-4 sm:p-6 text-white flex justify-between items-center">
+							<div>
+								<h3 className="text-lg font-bold flex items-center gap-2">
+									<PenTool className="w-5 h-5" /> Executive Posting Tool
+								</h3>
+								<p className="text-red-100 text-sm">Publish Special Directives to the main feed</p>
+							</div>
+							<button onClick={() => setShowDirectiveForm(!showDirectiveForm)} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+								{showDirectiveForm ? 'Cancel' : '+ New Directive'}
+							</button>
+						</div>
+						
+						{showDirectiveForm && (
+							<form onSubmit={handlePostDirective} className="p-4 sm:p-6 border-b border-gray-100 bg-gray-50">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Directive Title</label>
+										<input required value={directiveForm.title} onChange={e => setDirectiveForm({...directiveForm, title: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="e.g. Mandatory Registration" />
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+										<select value={directiveForm.category} onChange={e => setDirectiveForm({...directiveForm, category: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+											<option>Academic</option>
+											<option>Housing</option>
+											<option>Guidance</option>
+										</select>
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
+										<select value={directiveForm.priority} onChange={e => setDirectiveForm({...directiveForm, priority: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+											<option>Normal</option>
+											<option>Urgent</option>
+										</select>
+									</div>
+								</div>
+								<div className="mb-4">
+									<label className="block text-sm font-medium text-gray-700 mb-1">Message Body</label>
+									<textarea required value={directiveForm.message} onChange={e => setDirectiveForm({...directiveForm, message: e.target.value})} rows="3" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Write the official directive here..."></textarea>
+								</div>
+								<button type="submit" className="bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors">
+									Publish Directive
+								</button>
+							</form>
+						)}
+
+						<div className="p-4 sm:p-6 bg-white">
+							<h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Recent Directives</h4>
+							<div className="space-y-4">
+								{mockDirectives.length > 0 ? mockDirectives.slice(0,3).map(dir => (
+									<div key={dir.id} className="border border-gray-100 rounded-lg p-4 flex justify-between items-start group hover:bg-gray-50">
+										<div>
+											<span className={`text-xs font-bold px-2 py-1 rounded-full mb-2 inline-block ${dir.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{dir.priority}</span>
+											<h5 className="font-bold text-gray-900">{dir.title}</h5>
+											<p className="text-xs text-gray-500 mt-1">Posted {Math.floor((Date.now() - new Date(dir.timestamp).getTime()) / 60000)} minutes ago by {dir.author}</p>
+										</div>
+										<div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+											<button className="p-1.5 text-gray-400 hover:text-red-600 rounded bg-white shadow-sm border border-gray-200"><Trash2 className="w-4 h-4" /></button>
+											<button className="p-1.5 text-gray-400 hover:text-blue-600 rounded bg-white shadow-sm border border-gray-200"><Archive className="w-4 h-4" /></button>
+										</div>
+									</div>
+								)) : (
+									<p className="text-gray-500 text-sm">No recent directives posted.</p>
+								)}
+							</div>
+						</div>
+					</motion.div>
+				)}
+
+				{/* Club Leader Tool */}
+				{(user?.role === 'club_leader' || user?.isAdmin) && (
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ delay: 0.1 }}
+						className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+						<div className="bg-blue-600 p-4 sm:p-6 text-white flex justify-between items-center">
+							<div>
+								<h3 className="text-lg font-bold flex items-center gap-2">
+									<PenTool className="w-5 h-5" /> Club Leader Posting Tool
+								</h3>
+								<p className="text-blue-100 text-sm">Schedule events on the Campus Bulletin</p>
+							</div>
+							<button onClick={() => setShowEventForm(!showEventForm)} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+								{showEventForm ? 'Cancel' : '+ Post Event'}
+							</button>
+						</div>
+						
+						{showEventForm && (
+							<form onSubmit={handlePostEvent} className="p-4 sm:p-6 border-b border-gray-100 bg-gray-50">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
+										<input required value={eventForm.name} onChange={e => setEventForm({...eventForm, name: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="e.g. AI Hackathon" />
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Club Name</label>
+										<select value={eventForm.club} onChange={e => setEventForm({...eventForm, club: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+											<option>Tecktonic</option>
+											<option>Idea Hub</option>
+											<option>Law Club</option>
+											<option>Begoadragot</option>
+											<option>Career Development</option>
+										</select>
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+										<input required value={eventForm.date} onChange={e => setEventForm({...eventForm, date: e.target.value})} type="datetime-local" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+										<input required value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="e.g. Main Hall" />
+									</div>
+								</div>
+								<div className="mb-4">
+									<label className="block text-sm font-medium text-gray-700 mb-1">Event Description</label>
+									<textarea required value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} rows="2" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Describe the event details..."></textarea>
+								</div>
+								<button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+									Publish Event
+								</button>
+							</form>
+						)}
+
+						<div className="p-4 sm:p-6 bg-white">
+							<h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Your Posted Events</h4>
+							<div className="space-y-4">
+								<p className="text-gray-500 text-sm">No recent events posted.</p>
+							</div>
+						</div>
+					</motion.div>
+				)}
 			</div>
 
 			{/* Quick Actions for Admin */}
