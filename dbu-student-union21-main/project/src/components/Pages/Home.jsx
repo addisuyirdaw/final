@@ -30,29 +30,33 @@ export const Home = () => {
 	const [showClubModal, setShowClubModal] = useState(false);
 	const [showConcernsModal, setShowConcernsModal] = useState(false);
 	const [showServicesModal, setShowServicesModal] = useState(false);
+	const [showDeanMore, setShowDeanMore] = useState(false);
+	const [showSintayewMore, setShowSintayewMore] = useState(false);
 
 	// Carousel State
 	const [currentSlide, setCurrentSlide] = useState(0);
 
 	const carouselSlides = [
-		{
-			id: 1,
-			image: "/images/main_campus_entrance.png",
-			title: "Student Affairs",
-			subtitle: "Debre Berhan University"
-		},
-		{
-			id: 2,
-			image: "https://placehold.co/1600x900/1e3a8a/FFFFFF?text=Student+Affairs+Leadership",
-			title: "Dedicated Leadership",
-			subtitle: "Guiding the Future"
-		},
-		{
-			id: 3,
-			image: "https://placehold.co/1600x900/1e3a8a/FFFFFF?text=11+Student+Clubs",
-			title: "Vibrant Campus Life",
-			subtitle: "Tecktonic · Idea Hub · Law Club · and 8 more"
-		}
+		{ id: 1, image: "/image.png/building..jpg" },
+		{ id: 2, image: "/image.png/reward1.jpg" },
+		{ id: 3, image: "/image.png/reward2.jpg" },
+		{ id: 4, image: "/image.png/kal.jpg" },
+		{ id: 5, image: "/image.png/5976613440006589280.jpg" },
+		{ id: 6, image: "/image.png/holiday.jpg" },
+		{ id: 7, image: "/image.png/CAFE.jpg" },
+		{ id: 8, image: "/image.png/drgetnet.jpg" },
+		{ id: 9, image: "/image.png/5976780750457604990.jpg" },
+		{ id: 10, image: "/image.png/5976780750457604994.jpg" },
+		{ id: 11, image: "/image.png/5976780750457605001.jpg" },
+		{ id: 12, image: "/image.png/add.jpg" },
+		{ id: 13, image: "/image.png/gizew.jpg" },
+	];
+
+	const carouselCaptions = [
+		"Celebrating Our Rich Cultural Heritage",
+		"Unity and Diversity at Debre Berhan University",
+		"Empowering Students for a Better Success",
+		"Student Affairs: The Heart of Campus Life",
 	];
 
 	useEffect(() => {
@@ -168,15 +172,32 @@ export const Home = () => {
 						transition={{ duration: 1 }}
 						className={`absolute inset-0 z-0 ${currentSlide === index ? 'pointer-events-auto' : 'pointer-events-none'}`}
 					>
-						{/* Background Image with Overlay */}
-						<div 
-							className="absolute inset-0 bg-cover bg-center transition-transform duration-10000"
-							style={{ 
-								backgroundImage: `url(${slide.image})`,
-								transform: currentSlide === index ? 'scale(1.05)' : 'scale(1)',
+						{/* Blurred fill background to avoid dark side bars */}
+						<img
+							src={slide.image}
+							alt=""
+							aria-hidden="true"
+							className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl transition-transform duration-10000"
+							style={{
+								transform: currentSlide === index ? 'scale(1.15)' : 'scale(1.1)',
+								filter: 'brightness(0.82) saturate(1.08)',
 							}}
 						/>
-						<div className="absolute inset-0 bg-black/60" /> {/* Dark Overlay */}
+						<div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/20 to-black/30" />
+
+						{/* Main clear image */}
+						<img
+							src={slide.image}
+							alt={`Carousel slide ${index + 1}`}
+							className="absolute inset-0 w-full h-full object-contain transition-transform duration-10000"
+							style={{
+								transform: currentSlide === index ? 'scale(1.02)' : 'scale(1)',
+								filter: index < 5
+									? 'brightness(1.12) contrast(1.12) saturate(1.08)'
+									: 'brightness(1.02) contrast(1.04)',
+							}}
+						/>
+						<div className="absolute inset-0 bg-black/10" />
 
 						<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center items-center text-center">
 							<motion.div
@@ -189,7 +210,7 @@ export const Home = () => {
 									animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 40 }}
 									transition={{ duration: 0.7, delay: 0.2 }}
 									className="text-4xl md:text-6xl font-bold mb-3 text-white drop-shadow-lg">
-									{slide.title}
+									{carouselCaptions[index % carouselCaptions.length]}
 								</motion.h1>
 
 								<motion.p
@@ -197,7 +218,7 @@ export const Home = () => {
 									animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 30 }}
 									transition={{ duration: 0.7, delay: 0.35 }}
 									className="text-xl text-blue-200 font-medium tracking-wide uppercase">
-									{slide.subtitle}
+									Debre Berhan University Student Affairs
 								</motion.p>
 							</motion.div>
 						</div>
@@ -471,20 +492,32 @@ export const Home = () => {
 					{/* Leadership Section */}
 					<div id="leadership" className="mb-16 pt-24 -mt-24">
 						<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Office of the Dean</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+						<div className="grid grid-cols-1 gap-8">
 							<motion.div
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ delay: 0.1 }}
-								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
+								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full max-w-3xl mx-auto">
 								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/images/gizew.png" alt="Gizew Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=128" }} />
+									<img src="/image.png/gizew.jpg" alt="Gizew Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=128" }} />
 								</div>
 								<h3 className="text-2xl font-bold text-gray-900 mb-1">Gizew Fetene</h3>
 								<p className="text-blue-600 font-semibold mb-4">Dean of Student Affairs</p>
 								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-									<p className="mb-2"><strong>Background:</strong> DBU Graduate, Intellectual Leader.</p>
-									<p><strong>Function:</strong> Oversight of all university student services, Union activities, and administrative branches.</p>
+									<p className="mb-2"><strong>Background:</strong> DBU graduate and long-serving student affairs leader with a strong focus on student wellbeing, inclusion, and campus service quality.</p>
+									<p className="mb-2"><strong>Function:</strong> Oversees student welfare, guidance coordination, club development, complaint response systems, and branch-level service performance across the university.</p>
+									{showDeanMore && (
+										<>
+											<p className="mb-2"><strong>Office Responsibility:</strong> Ensures services are fair, timely, and student-centered; coordinates with departments to resolve urgent student issues and improve policy implementation.</p>
+											<p><strong>If a student needs help:</strong> Students can report concerns through Student Affairs channels for academic support, personal guidance referrals, accommodation issues, and service follow-up.</p>
+										</>
+									)}
+									<button
+										onClick={() => setShowDeanMore((prev) => !prev)}
+										className="mt-3 text-blue-700 font-semibold hover:underline"
+									>
+										{showDeanMore ? "Show Less" : "Read More..."}
+									</button>
 								</div>
 							</motion.div>
 						</div>
@@ -500,14 +533,26 @@ export const Home = () => {
 								transition={{ delay: 0.2 }}
 								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
 								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/images/sintayew.png" alt="Pr. Sintayew" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Pr+Sintayew&background=EBF5FF&color=1E3A8A&size=128" }} />
+									<img src="/image.png/sint.png" alt="Pr. Sintayew" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Pr+Sintayew&background=EBF5FF&color=1E3A8A&size=128" }} />
 								</div>
 								<h3 className="text-2xl font-bold text-gray-900 mb-1">Pr. Sintayew</h3>
 								<p className="text-blue-600 font-semibold mb-4">Head of Psychology & Guidance</p>
 								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-									<p className="mb-2"><strong>Background:</strong> Addis Ababa University Graduate.</p>
-									<p className="mb-2"><strong>Location:</strong> 3rd Floor Bureau.</p>
-									<p><strong>Function:</strong> Provides expert counseling, intervention, and student advice.</p>
+									<p className="mb-2"><strong>Background:</strong> Senior guidance professional focused on student mental wellness and personal development support.</p>
+									<p className="mb-2"><strong>Location:</strong> Psychology & Guidance Office, 3rd Floor Bureau.</p>
+									<p className="mb-2"><strong>Function:</strong> Provides counseling, crisis intervention, and student advisory services.</p>
+									{showSintayewMore && (
+										<>
+											<p className="mb-2"><strong>Key Support Areas:</strong> Stress management, academic pressure, conflict mediation, and personal guidance referrals.</p>
+											<p><strong>How students can get help:</strong> Visit the office directly or request support through Student Affairs for confidential follow-up.</p>
+										</>
+									)}
+									<button
+										onClick={() => setShowSintayewMore((prev) => !prev)}
+										className="mt-3 text-blue-700 font-semibold hover:underline"
+									>
+										{showSintayewMore ? "Show Less" : "Read More..."}
+									</button>
 								</div>
 							</motion.div>
 							<motion.div
