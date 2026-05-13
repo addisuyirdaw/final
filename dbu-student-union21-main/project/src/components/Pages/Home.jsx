@@ -322,10 +322,10 @@ export const Home = () => {
 								<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
 							</div>
 							<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
-								<img src="/images/sintayew.png" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" />
+								<img src="/image.png/pr sintayew.jpg" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=FFF0F0&color=991B1B&size=48" }} />
 								<div>
-									<h4 className="font-bold text-gray-900">Pr. Sintayew</h4>
-									<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Head of Psychology & Guidance</p>
+									<h4 className="font-bold text-gray-900">Asst. Prof. Sintayehu Ambachew Worku</h4>
+									<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Assistant Professor in Educational Psychology</p>
 								</div>
 							</div>
 							<h3 className="text-xl font-bold text-gray-900 mb-2">Guidance Workshop on the 3rd Floor this Friday.</h3>
@@ -499,7 +499,7 @@ export const Home = () => {
 								transition={{ delay: 0.1 }}
 								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full max-w-3xl mx-auto">
 								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/image.png/gizew.jpg" alt="Gizew Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=128" }} />
+									<img src="/image.png/gizeww.jpg" alt="Gizew Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=128" }} />
 								</div>
 								<h3 className="text-2xl font-bold text-gray-900 mb-1">Gizew Fetene</h3>
 								<p className="text-blue-600 font-semibold mb-4">Dean of Student Affairs</p>
@@ -533,10 +533,10 @@ export const Home = () => {
 								transition={{ delay: 0.2 }}
 								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
 								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/image.png/sint.png" alt="Pr. Sintayew" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Pr+Sintayew&background=EBF5FF&color=1E3A8A&size=128" }} />
+									<img src="/image.png/pr sintayew.jpg" alt="Sintayehu Ambachew Worku" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=EBF5FF&color=1E3A8A&size=128" }} />
 								</div>
-								<h3 className="text-2xl font-bold text-gray-900 mb-1">Pr. Sintayew</h3>
-								<p className="text-blue-600 font-semibold mb-4">Head of Psychology & Guidance</p>
+								<h3 className="text-2xl font-bold text-gray-900 mb-1">Sintayehu Ambachew Worku</h3>
+								<p className="text-blue-600 font-semibold mb-4">Assistant Professor in Educational Psychology</p>
 								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
 									<p className="mb-2"><strong>Background:</strong> Senior guidance professional focused on student mental wellness and personal development support.</p>
 									<p className="mb-2"><strong>Location:</strong> Psychology & Guidance Office, 3rd Floor Bureau.</p>
@@ -561,10 +561,10 @@ export const Home = () => {
 								transition={{ delay: 0.3 }}
 								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
 								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/images/kalkidan.png" alt="Kalkidan Desta" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Kalkidan+Desta&background=EBF5FF&color=1E3A8A&size=128" }} />
+									<img src="/image.png/kalkidan.jpg" alt="Kalkidan Desta" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Kalkidan+Desta&background=EBF5FF&color=1E3A8A&size=128" }} />
 								</div>
-								<h3 className="text-2xl font-bold text-gray-900 mb-1">Kalkidan Desta</h3>
-								<p className="text-blue-600 font-semibold mb-4">VP of Psychology & Guidance</p>
+								<h3 className="text-2xl font-bold text-gray-900 mb-1">Mrs. Kalkidan Desta</h3>
+								<p className="text-blue-600 font-semibold mb-4">Vice Dean for Character and Ethics Development</p>
 								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
 									<p><strong>Function:</strong> Administrative and operational support for the Guidance department.</p>
 								</div>

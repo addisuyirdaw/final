@@ -575,7 +575,7 @@ export function Dashboard() {
 			{/* Executive & Club Leader Posting Tools */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
 				{/* Executive Directives Tool */}
-				{(user?.isAdmin || ['Gizew', 'Sintayew', 'Genete', 'Kalkidan'].some(name => user?.name?.includes(name))) && (
+				{(user?.isAdmin || ['Gizew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'].some(name => user?.name?.includes(name))) && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}

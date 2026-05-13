@@ -2,6 +2,20 @@ const User = require('../models/User');
 const Club = require('../models/Club');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+function toPlainText(text = '') {
+  return String(text)
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/`(.*?)`/g, '$1')
+    .trim();
+}
+
+function sendAnswer(res, answer) {
+  return res.status(200).json({ success: true, answer: toPlainText(answer) });
+}
+
 exports.processChatQuery = async (req, res) => {
   try {
     const { message } = req.body;
@@ -15,17 +29,11 @@ exports.processChatQuery = async (req, res) => {
     // Greetings & Politeness short-circuit
     const cleanMsg = lowerMsg.replace(/[^a-z ]/g, '').trim();
     if (['hi', 'hello', 'hey', 'who are you', 'hey there'].includes(cleanMsg)) {
-      return res.status(200).json({
-        success: true,
-        answer: 'Student Affairs Analyst. State your query.'
-      });
+      return sendAnswer(res, 'Student Affairs Analyst. State your query.');
     }
 
     if (['thank you', 'thanks', 'ok', 'okay', 'great', 'cool', 'awesome', 'bye', 'goodbye', 'thx'].includes(cleanMsg)) {
-      return res.status(200).json({
-        success: true,
-        answer: 'Acknowledged.'
-      });
+      return sendAnswer(res, 'Acknowledged.');
     }
 
     // 1. Fetch live data for RAG context
@@ -52,9 +60,6 @@ exports.processChatQuery = async (req, res) => {
 
     const clubCount = clubs.length;
     const clubNames = clubs.map(c => c.name).join(', ');
-    const bookingClub = clubs.find(c => c.name.toLowerCase().includes('booking'));
-    const currentLeader = bookingClub && bookingClub.representative ? bookingClub.representative.name : 'Unknown';
-
     const dbData = { clubs, faculty_and_coordinators: admins };
 
     const systemPromptText = `ACT AS THE ADMINISTRATIVE DATA ANALYST FOR DEBRE BERHAN UNIVERSITY STUDENT AFFAIRS.
@@ -66,10 +71,10 @@ exports.processChatQuery = async (req, res) => {
 - INTEGRATION NOTE: Inform students that Student Union and Student Affairs are now one integrated office.
 
 2. LEADERSHIP & CONTACT PROFILES (MANDATORY DATA):
-- **Gizew Fetene** (**Dean of Student Affairs**): Profile: DBU Graduate; Intellectual Lead. Function: Oversight of all branches, including the Student Union. Contact: Refer to Leadership Gallery for Photo/Phone/Email.
-- **Genete Fetene** (**Head of Dormitory Services**): Profile: Manages 90 staff members. Function: Directs all housing registration and room allocations. Contact: Refer to Leadership Gallery for Photo/Bureau details.
-- **Pr. Sintayew** (**Head of Psychology & Guidance**): Profile: AAU Graduate. Location: **3rd Floor Bureau**. Function: Expert student counseling and intervention.
-- **Kalkidan Desta** (**VP of Psychology & Guidance**): Function: Operational support for the Guidance department.
+- Gizew Fetene (Dean of Student Affairs): Profile: DBU Graduate; Intellectual Lead. Function: Oversight of all branches, including the Student Union. Contact: Refer to Leadership Gallery for Photo/Phone/Email.
+- Genete Fetene (Head of Dormitory Services): Profile: Manages 90 staff members. Function: Directs all housing registration and room allocations. Contact: Refer to Leadership Gallery for Photo/Bureau details.
+- Sintayehu Ambachew Worku (Assistant Professor in Educational Psychology): Profile: AAU Graduate. Location: Psychology & Guidance Office, 3rd Floor Bureau. Function: Expert student counseling, mental wellness support, and academic guidance.
+- Mrs. Kalkidan Desta (Vice Dean for Character and Ethics Development): Function: Oversees character formation programs and ethics-based student development across the university.
 
 3. SYSTEM NAVIGATION:
 - Connectivity: Direct students to https://www.dbu.edu.et/ for main campus links. MANDATORY LINK: All users asking for the main campus must be given https://www.dbu.edu.et/.
@@ -78,25 +83,25 @@ exports.processChatQuery = async (req, res) => {
 4. RESPONSE CONSTRAINTS:
 - Brevity: Maximum 20 words. RESPONSE RULE: Under 20 words.
 - No Greetings: Start directly with the names or bureau locations. RESPONSE RULE: No greetings.
-- Formatting: Bold all Names, Roles, and Locations. RESPONSE RULE: Bold Names, Roles, and Bureaus.
+- Formatting: Use plain text only. No markdown symbols, no bold, no asterisks.
 - FALLBACK: If missing, say: "The Student Affairs leadership record is being updated. Photos and contacts are coming soon."
 
 5. BULLETIN & EVENTS PROTOCOL:
 - Events Knowledge: You are the central registrar for all 11 Clubs (Tecktonic, Begoadragot, etc.).
-- Directives: You track important updates from Gizew Fetene, Pr. Sintayew, and Genete Fetene.
-- User Advice: If a student asks "What's happening on campus?", tell them: "Check the **Campus Bulletin** for **Club Events** and the **Official Directives** for leadership updates."
+- Directives: You track important updates from Gizew Fetene, Sintayehu Ambachew Worku (Asst. Prof. in Educational Psychology), Kalkidan Desta (Vice Dean for Character & Ethics Development), and Genete Fetene.
+- User Advice: If a student asks "What's happening on campus?", tell them: "Check the Campus Bulletin for Club Events and the Official Directives for leadership updates."
 
 6. DASHBOARD READY:
-- Dashboard Help: If an admin asks how to post, respond: "Access the **/dashboard** to publish **Official Directives** or **Club Events** to the main feed."
+- Dashboard Help: If an admin asks how to post, respond: "Access the /dashboard to publish Official Directives or Club Events to the main feed."
 
 7. VISUAL ARCHITECT:
 - Feature: Hero Carousel (Auto-playing campus highlights).
 - Public Access: No login required to view the animated gallery.
-- Key Data: Gizew Fetene (Dean), Pr. Sintayew (Guidance), 11 Verified Clubs.
+- Key Data: Gizew Fetene (Dean), Sintayehu Ambachew Worku (Asst. Prof. in Educational Psychology), Mrs. Kalkidan Desta (Vice Dean for Character & Ethics), 11 Verified Clubs.
 
 8. GATEWAY NAVIGATION:
-- **Get Started**: Scrolls to Services section. Use for immediate actions (dorm application, club joining).
-- **Learn More**: Scrolls to Leadership section. Use for profiles of **Gizew Fetene** and the 11 Clubs.
+- Get Started: Scrolls to Services section. Use for immediate actions (dorm application, club joining).
+- Learn More: Scrolls to Leadership section. Use for profiles of Gizew Fetene and the 11 Clubs.
 - User Guidance: Tell students which button matches their goal.
 
 === LIVE DATABASE (JSON) ===
@@ -112,8 +117,7 @@ exports.processChatQuery = async (req, res) => {
         const fullPrompt = `${systemPromptText}\n\nUser question: ${message}`;
         const result = await model.generateContent(fullPrompt);
         const responseText = result.response.text();
-
-        return res.status(200).json({ success: true, answer: responseText });
+        return sendAnswer(res, responseText);
 
       } catch (geminiError) {
         console.error('Gemini API Error:', geminiError.message);
@@ -123,14 +127,11 @@ exports.processChatQuery = async (req, res) => {
 
     // 3. Smart keyword fallback (when Gemini is unavailable)
     const fallbackAnswer = buildFallbackAnswer(message, clubs, admins);
-    return res.status(200).json({ success: true, answer: fallbackAnswer });
+    return sendAnswer(res, fallbackAnswer);
 
   } catch (error) {
     console.error('AI Controller Error:', error.message);
-    return res.status(200).json({
-      success: true,
-      answer: 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.'
-    });
+    return sendAnswer(res, 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.');
   }
 };
 
@@ -173,7 +174,7 @@ function buildFallbackAnswer(message, clubs, admins) {
         lower.includes('boss') || lower.includes('who leads') || lower.includes('department') ||
         lower.includes('head') || lower.includes('admin') || lower.includes('study')) {
       if (c.representative) {
-        return `**${c.representative.name}** is the REPRESENTATIVE of the **${c.name}**. They are a **${c.representative.year}** **${c.representative.department}** student.`;
+        return `${c.representative.name} is the representative of ${c.name}. They are a ${c.representative.year} ${c.representative.department} student.`;
       } else {
         return `The Student Affairs leadership record is being updated. Photos and contacts are coming soon.`;
       }
@@ -181,26 +182,26 @@ function buildFallbackAnswer(message, clubs, admins) {
 
     // Member count
     if (lower.includes('how many') || lower.includes('members') || lower.includes('size') || lower.includes('count')) {
-      return `**${c.totalMembers}** approved members are currently in the **${c.name}**.`;
+      return `${c.totalMembers} approved members are currently in ${c.name}.`;
     }
 
     // Founded / Year
     if (lower.includes('founded') || lower.includes('when') || (lower.includes('year') && !lower.includes('study'))) {
-      return `The **${c.name}** was founded in **${c.founded}**.`;
+      return `${c.name} was founded in ${c.founded}.`;
     }
 
     // Status / Active
     if (lower.includes('status') || lower.includes('active') || lower.includes('currently')) {
-      return `The **${c.name}** is currently **${c.status}**.`;
+      return `${c.name} is currently ${c.status}.`;
     }
 
     // Category
     if (lower.includes('category') || lower.includes('type') || lower.includes('kind')) {
-      return `The **${c.name}** falls under the **${c.category}** category.`;
+      return `${c.name} falls under the ${c.category} category.`;
     }
 
     // Generic club info
-    return `The **${c.name}** is an active **${c.category}** community at DBU. It has **${c.totalMembers}** approved members and was founded in **${c.founded}**. Status: **${c.status}**.`;
+    return `${c.name} is an active ${c.category} community at DBU. It has ${c.totalMembers} approved members and was founded in ${c.founded}. Status: ${c.status}.`;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ function buildFallbackAnswer(message, clubs, admins) {
   // ──────────────────────────────────────────────────────────────
   if (lower.includes('top') || lower.includes('highest') || lower.includes('most members') || lower.includes('ranking')) {
     const sorted = [...clubs].sort((a, b) => b.totalMembers - a.totalMembers).slice(0, 3);
-    const list = sorted.map((c, i) => `${i + 1}. **${c.name}** — **${c.totalMembers}** members`).join('\n');
+    const list = sorted.map((c, i) => `${i + 1}. ${c.name} - ${c.totalMembers} members`).join('\n');
     return `Top 3 clubs by approved member count:\n${list}`;
   }
 
@@ -219,8 +220,8 @@ function buildFallbackAnswer(message, clubs, admins) {
       lower.includes('all club') || lower.includes('are there')) {
     const activeClubs = clubs.filter(c => c.status === 'active');
     if (activeClubs.length === 0) return 'There are no active clubs registered at the moment. Please check back shortly.';
-    const names = activeClubs.map(c => `**${c.name}**`).join(', ');
-    return `**${activeClubs.length}** active clubs are currently registered: ${names}.`;
+    const names = activeClubs.map(c => c.name).join(', ');
+    return `${activeClubs.length} active clubs are currently registered: ${names}.`;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ function buildFallbackAnswer(message, clubs, admins) {
   const staffKeywords = ['coordinator', 'cordinator', 'coordinater', 'coord', 'staff', 'contact', 'academic affairs'];
   if (staffKeywords.some(kw => lower.includes(kw))) {
     if (admins.length > 0) {
-      const names = admins.map(a => `**${a.name}** (${a.role.replace('_', ' ')})`).join(' and ');
+      const names = admins.map(a => `${a.name} (${a.role.replace('_', ' ')})`).join(' and ');
       return `You can contact ${names}. Their full details are in the Contact section of the portal.`;
     }
     return 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.';
@@ -239,23 +240,23 @@ function buildFallbackAnswer(message, clubs, admins) {
   // STEP 6: Other specific handlers
   // ──────────────────────────────────────────────────────────────
   if (lower.includes('complaint') || lower.includes('report') || lower.includes('problem') || lower.includes('issue')) {
-    return 'File a formal complaint by navigating to the **Complaints** section in the portal. Our team will review it promptly.';
+    return 'File a formal complaint by navigating to the Complaints section in the portal. Our team will review it promptly.';
   }
 
   if (lower.includes('election') || lower.includes('vote') || lower.includes('voting') || lower.includes('candidate')) {
-    return 'Student elections are managed from the **Elections** tab in the portal. View active candidates and cast your vote there.';
+    return 'Student elections are managed from the Elections tab in the portal. View active candidates and cast your vote there.';
   }
 
   if (lower.includes('join') || lower.includes('apply') || lower.includes('membership')) {
-    return 'To join a club, go to the **Clubs** section, find your community, and click **"Join"**. The club representative will review your application.';
+    return 'To join a club, go to the Clubs section, find your community, and click Join. The club representative will review your application.';
   }
 
   if (lower.includes('password') || lower.includes('login') || lower.includes('forgot') || lower.includes('sign in')) {
-    return 'Use the **"Forgot Password"** link on the login page. Your username must start with **"dbu"** followed by 8 digits.';
+    return 'Use the Forgot Password link on the login page. Your username must start with dbu followed by 8 digits.';
   }
 
   if (lower.includes('restricted') || lower.includes('blocked') || lower.includes('hold')) {
-    return 'There is a temporary hold on your account. Contact your **Club Coordinator** directly to resolve it.';
+    return 'There is a temporary hold on your account. Contact your Club Coordinator directly to resolve it.';
   }
 
   // ──────────────────────────────────────────────────────────────

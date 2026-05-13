@@ -1,7 +1,7 @@
 /** @format */
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom"; // ✅ Added useLocation
-import { Menu, X, User, LogOut, Bell } from "lucide-react";
+import { Menu, X, User, LogOut, Bell, MapPin, Mail, CircleUserRound } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { NotificationBadge } from "./NotificationBadge";
@@ -75,41 +75,61 @@ export function Header() {
 
 	return (
 		<header className="bg-white shadow-sm border-b border-gray-200">
-			{/* Top Info Bar */}
-			<div className="bg-blue hidden sm:flex text-white py-2 text-sm">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex justify-between items-center">
-						<div className="flex space-x-6">
-							<span>
-								<i className="fas fa-map-marker-alt p-2"></i> DBU Campus,
-								Student Affairs Office
+			{/* Very Top Utility Bar */}
+			<div className="bg-sky-700 text-white">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
+						<div className="flex flex-wrap items-center gap-4 sm:gap-6">
+							<span className="inline-flex items-center gap-1.5">
+								<MapPin className="w-4 h-4" />
+								Debre Berhan, Amhara, Ethiopia
 							</span>
-							<span>
-								<i className="fas fa-envelope p-2"></i> studentaffairs@dbu.edu.et
-							</span>
-							<span>
-								<i className="fas fa-phone p-2"></i> +251940414243
+							<span className="inline-flex items-center gap-1.5">
+								<Mail className="w-4 h-4" />
+								pro@dbu.edu.et
 							</span>
 						</div>
-						<div className="flex space-x-3">
-							<a href="#" className="hover:text-blue-200">
-								<i className="fab fa-facebook"></i>
-							</a>
-							<a href="#" className="hover:text-blue-200">
-								<i className="fab fa-telegram"></i>
-							</a>
-							<a href="#" className="hover:text-blue-200">
-								<i className="fab fa-instagram"></i>
-							</a>
-							<a href="#" className="hover:text-blue-200">
-								<i className="fab fa-tiktok"></i>
-							</a>
-						</div>
+						<a
+							href="/#leadership"
+							className="inline-flex items-center gap-1.5 hover:text-blue-100 transition-colors"
+						>
+							<CircleUserRound className="w-4 h-4" />
+							Staff Profile
+						</a>
 					</div>
 				</div>
 			</div>
 
-			{/* Logo removed per request */}
+			{/* University Brand Bar */}
+			<div className="bg-white border-b border-gray-200">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+					<div className="flex items-center justify-between gap-4">
+						<div className="flex items-center gap-3">
+							<img
+								src="/image.png/dbu-logo.png"
+								alt="Debre Berhan University Logo"
+								className="w-20 h-20 md:w-24 md:h-24 object-contain rounded-md border border-sky-100 bg-white p-1"
+							/>
+							<div>
+							<p className="text-2xl md:text-4xl font-bold text-sky-700 leading-none">
+								Debre Berhan University
+							</p>
+							<p className="text-xs md:text-sm text-gray-600 mt-1">
+								Practical Education for a Better Success
+							</p>
+							</div>
+						</div>
+						<a
+							href="https://www.dbu.edu.et/"
+							target="_blank"
+							rel="noreferrer"
+							className="hidden sm:inline-flex bg-sky-50 text-sky-700 px-4 py-2 rounded-lg hover:bg-sky-100 transition-colors font-semibold text-sm border border-sky-200"
+						>
+							Main University Site
+						</a>
+					</div>
+				</div>
+			</div>
 
 			{/* Main Header */}
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -179,14 +199,6 @@ export function Header() {
 									{item.name}
 								</Link>
 							))}
-						<a 
-							href="https://www.dbu.edu.et/" 
-							target="_blank" 
-							rel="noreferrer" 
-							className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm border border-blue-200"
-						>
-							Main University
-						</a>
 					</nav>
 
 					{/* User Menu */}

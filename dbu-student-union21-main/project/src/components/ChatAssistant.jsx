@@ -1,6 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiService } from '../services/api';
 
+const toPlainText = (text = '') =>
+  String(text)
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/`(.*?)`/g, '$1')
+    .trim();
+
 const ChatAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -30,7 +38,7 @@ const ChatAssistant = () => {
     try {
       const response = await apiService.sendChatMessage(text.trim());
       if (response && response.answer) {
-        setMessages(prev => [...prev, { role: 'assistant', text: response.answer }]);
+        setMessages(prev => [...prev, { role: 'assistant', text: toPlainText(response.answer) }]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', text: "Sorry, I received an invalid response from the server." }]);
       }
@@ -85,7 +93,7 @@ const ChatAssistant = () => {
           <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col space-y-3">
             {messages.map((msg, idx) => (
               <div key={idx} className={`max-w-[85%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-blue-600 text-white self-end rounded-br-none shadow-md' : 'bg-white text-gray-800 border border-gray-200 self-start rounded-bl-none shadow-sm'}`}>
-                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                <p className="text-sm whitespace-pre-wrap">{toPlainText(msg.text)}</p>
               </div>
             ))}
             {isLoading && (
