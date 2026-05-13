@@ -15,8 +15,10 @@ import {
   UserPlus,
   FileText,
   X,
-  Loader
+  Loader,
+  Image as ImageIcon
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import { motion } from "framer-motion";
@@ -221,6 +223,7 @@ const CreateUserModal = ({ onClose, onSuccess }) => {
 
 export function AdminDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     users: { total: 0, active: 0, admins: 0, students: 0 },
     complaints: { total: 0, pending: 0, resolved: 0, underReview: 0 },
@@ -342,6 +345,20 @@ export function AdminDashboard() {
       icon: Shield,
       color: 'bg-orange-500',
       action: () => toast.info('Permission management would open here')
+    },
+    {
+      title: 'Carousel Manager',
+      description: 'Manage homepage carousel images',
+      icon: ImageIcon,
+      color: 'bg-indigo-500',
+      action: () => navigate('/admin/carousel')
+    },
+    {
+      title: 'Team Manager',
+      description: 'Manage leadership profiles',
+      icon: Users,
+      color: 'bg-teal-500',
+      action: () => navigate('/admin/team')
     },
   ];
 

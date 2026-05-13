@@ -24,6 +24,9 @@ import { CommunicationLog } from "./components/Pages/CommunicationLog";
 import { CollaborationHub } from "./pages/CollaborationHub";
 import RestrictedAccess from "./components/Pages/RestrictedAccess";
 import ChatAssistant from "./components/ChatAssistant";
+import { CarouselAdmin } from "./components/Pages/CarouselAdmin";
+import { LeadershipManager } from "./components/Admin/LeadershipManager";
+import { LeadershipProfile } from "./components/Pages/LeadershipProfile";
 import "./index.css";
 
 function AppContent() {
@@ -169,6 +172,27 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/carousel"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <CarouselAdmin />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/team"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <LeadershipManager />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/profile/:roleSlug" element={<LeadershipProfile />} />
           <Route path="/restricted" element={user?.isRestricted ? <RestrictedAccess /> : <Navigate to="/" replace />} />
           <Route path="/blocked" element={<RestrictedAccess />} />
 

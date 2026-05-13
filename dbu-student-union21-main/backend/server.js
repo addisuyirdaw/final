@@ -19,6 +19,8 @@ const contactRoutes = require("./routes/contact");
 const reportRoutes = require("./routes/reports");
 const messageRoutes = require("./routes/messages");
 const aiRoutes = require("./routes/ai");
+const carouselRoutes = require("./routes/carousel");
+const leadershipRoutes = require("./routes/leadership");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -104,6 +106,8 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/carousel", carouselRoutes);
+app.use("/api/leadership", leadershipRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

@@ -30,13 +30,55 @@ export const Home = () => {
 	const [showClubModal, setShowClubModal] = useState(false);
 	const [showConcernsModal, setShowConcernsModal] = useState(false);
 	const [showServicesModal, setShowServicesModal] = useState(false);
+	const [leadershipProfiles, setLeadershipProfiles] = useState([]);
+	const [leadershipLoading, setLeadershipLoading] = useState(true);
 	const [showDeanMore, setShowDeanMore] = useState(false);
 	const [showSintayewMore, setShowSintayewMore] = useState(false);
+	const [selectedProfile, setSelectedProfile] = useState(null);
+
+	// Static fallback leader profiles
+	const leaderProfiles = {
+		gizew: {
+			name: "Gizew Fetene",
+			title: "Dean of Student Affairs",
+			image: "/image.png/gizeww.jpg",
+			fallback: "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=400",
+			bio: [
+				{ label: "Background", text: "DBU graduate and long-serving student affairs leader with a strong focus on student wellbeing, inclusion, and campus service quality." },
+				{ label: "Function", text: "Oversees student welfare, guidance coordination, club development, complaint response systems, and branch-level service performance across the university." },
+				{ label: "Office Responsibility", text: "Ensures services are fair, timely, and student-centered; coordinates with departments to resolve urgent student issues and improve policy implementation." },
+				{ label: "If a student needs help", text: "Students can report concerns through Student Affairs channels for academic support, personal guidance referrals, accommodation issues, and service follow-up." },
+			]
+		},
+		sintayehu: {
+			name: "Asst. Prof. Sintayehu Ambachew Worku",
+			title: "Assistant Professor in Educational Psychology",
+			image: "/image.png/pr sintayew.jpg",
+			fallback: "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=EBF5FF&color=1E3A8A&size=400",
+			bio: [
+				{ label: "Background", text: "Senior guidance professional focused on student mental wellness and personal development support." },
+				{ label: "Location", text: "Psychology & Guidance Office, 3rd Floor Bureau." },
+				{ label: "Function", text: "Provides counseling, crisis intervention, and student advisory services." },
+				{ label: "Key Support Areas", text: "Stress management, academic pressure, conflict mediation, and personal guidance referrals." },
+				{ label: "How students can get help", text: "Visit the office directly or request support through Student Affairs for confidential follow-up." },
+			]
+		},
+		kalkidan: {
+			name: "Mrs. Kalkidan Desta",
+			title: "Vice Dean for Character and Ethics Development",
+			image: "/image.png/kalkidan.jpg",
+			fallback: "https://ui-avatars.com/api/?name=Kalkidan+Desta&background=EBF5FF&color=1E3A8A&size=400",
+			bio: [
+				{ label: "Role", text: "Vice Dean overseeing character development, ethics programs, and student values across campus life." },
+				{ label: "Function", text: "Administrative and operational support for the Guidance department." },
+			]
+		}
+	};
 
 	// Carousel State
 	const [currentSlide, setCurrentSlide] = useState(0);
 
-	const carouselSlides = [
+	const staticCarouselSlides = [
 		{ id: 1, image: "/image.png/building..jpg" },
 		{ id: 2, image: "/image.png/reward1.jpg" },
 		{ id: 3, image: "/image.png/reward2.jpg" },
@@ -51,6 +93,47 @@ export const Home = () => {
 		{ id: 12, image: "/image.png/add.jpg" },
 		{ id: 13, image: "/image.png/gizew.jpg" },
 	];
+	const [carouselSlides, setCarouselSlides] = useState(staticCarouselSlides);
+
+	// Fetch dynamic carousel slides from API
+	useEffect(() => {
+		const fetchCarousel = async () => {
+			try {
+				const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+				const res = await fetch(`${API_BASE}/api/carousel/get`);
+				const data = await res.json();
+				if (data.success && data.slides && data.slides.length > 0) {
+					setCarouselSlides(data.slides.map((s, i) => ({
+						id: s._id || i,
+						image: s.imageUrl.startsWith("/uploads")
+							? `${API_BASE}${s.imageUrl}`
+							: s.imageUrl,
+						caption: s.caption || ""
+					})));
+				}
+			} catch {
+				// Network error
+			}
+		};
+
+		const fetchLeadership = async () => {
+			try {
+				const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+				const res = await fetch(`${API_BASE}/api/leadership/all`);
+				const data = await res.json();
+				if (data.success && data.profiles) {
+					setLeadershipProfiles(data.profiles);
+				}
+			} catch {
+				// Network error — keep static fallback
+			} finally {
+				setLeadershipLoading(false);
+			}
+		};
+
+		fetchCarousel();
+		fetchLeadership();
+	}, []);
 
 	const carouselCaptions = [
 		"Celebrating Our Rich Cultural Heritage",
@@ -489,109 +572,105 @@ export const Home = () => {
 						</p>
 					</div>
 
-					{/* Leadership Section */}
+					{/* Leadership Section — DB profiles if available, static fallback otherwise */}
 					<div id="leadership" className="mb-16 pt-24 -mt-24">
-						<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Office of the Dean</h3>
-						<div className="grid grid-cols-1 gap-8">
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.1 }}
-								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full max-w-3xl mx-auto">
-								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/image.png/gizeww.jpg" alt="Gizew Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=128" }} />
-								</div>
-								<h3 className="text-2xl font-bold text-gray-900 mb-1">Gizew Fetene</h3>
-								<p className="text-blue-600 font-semibold mb-4">Dean of Student Affairs</p>
-								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-									<p className="mb-2"><strong>Background:</strong> DBU graduate and long-serving student affairs leader with a strong focus on student wellbeing, inclusion, and campus service quality.</p>
-									<p className="mb-2"><strong>Function:</strong> Oversees student welfare, guidance coordination, club development, complaint response systems, and branch-level service performance across the university.</p>
-									{showDeanMore && (
-										<>
-											<p className="mb-2"><strong>Office Responsibility:</strong> Ensures services are fair, timely, and student-centered; coordinates with departments to resolve urgent student issues and improve policy implementation.</p>
-											<p><strong>If a student needs help:</strong> Students can report concerns through Student Affairs channels for academic support, personal guidance referrals, accommodation issues, and service follow-up.</p>
-										</>
-									)}
-									<button
-										onClick={() => setShowDeanMore((prev) => !prev)}
-										className="mt-3 text-blue-700 font-semibold hover:underline"
-									>
-										{showDeanMore ? "Show Less" : "Read More..."}
-									</button>
-								</div>
-							</motion.div>
-						</div>
-					</div>
 
-					{/* Guidance Section */}
-					<div id="guidance" className="mb-16 pt-24 -mt-24">
-						<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Psychology & Guidance Department</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.2 }}
-								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
-								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/image.png/pr sintayew.jpg" alt="Sintayehu Ambachew Worku" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=EBF5FF&color=1E3A8A&size=128" }} />
+						{/* Dynamic DB profiles */}
+						{!leadershipLoading && leadershipProfiles.length > 0 && (
+							<>
+								<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">University Leadership</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+									{leadershipProfiles.map((profile, index) => {
+										const imgSrc = profile.imageUrl?.startsWith("/uploads") ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${profile.imageUrl}` : (profile.imageUrl || "");
+										return (
+											<motion.div key={profile._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}
+												className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+												onClick={() => navigate(`/profile/${profile.roleSlug}`)}>
+												<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
+													<img src={imgSrc} alt={profile.name} className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A&size=192`; }} />
+												</div>
+												<h3 className="text-2xl font-bold text-gray-900 mb-1">{profile.name}</h3>
+												<p className="text-blue-600 font-semibold mb-4">{profile.role}</p>
+												<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg line-clamp-4"><p>{profile.bio || "No biography available."}</p></div>
+												<div className="mt-auto w-full pt-4 border-t border-gray-100"><span className="text-blue-700 font-bold hover:underline flex items-center justify-center gap-1">View Full Profile <ArrowRight className="w-4 h-4" /></span></div>
+											</motion.div>
+										);
+									})}
 								</div>
-								<h3 className="text-2xl font-bold text-gray-900 mb-1">Sintayehu Ambachew Worku</h3>
-								<p className="text-blue-600 font-semibold mb-4">Assistant Professor in Educational Psychology</p>
-								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-									<p className="mb-2"><strong>Background:</strong> Senior guidance professional focused on student mental wellness and personal development support.</p>
-									<p className="mb-2"><strong>Location:</strong> Psychology & Guidance Office, 3rd Floor Bureau.</p>
-									<p className="mb-2"><strong>Function:</strong> Provides counseling, crisis intervention, and student advisory services.</p>
-									{showSintayewMore && (
-										<>
-											<p className="mb-2"><strong>Key Support Areas:</strong> Stress management, academic pressure, conflict mediation, and personal guidance referrals.</p>
-											<p><strong>How students can get help:</strong> Visit the office directly or request support through Student Affairs for confidential follow-up.</p>
-										</>
-									)}
-									<button
-										onClick={() => setShowSintayewMore((prev) => !prev)}
-										className="mt-3 text-blue-700 font-semibold hover:underline"
-									>
-										{showSintayewMore ? "Show Less" : "Read More..."}
-									</button>
-								</div>
-							</motion.div>
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.3 }}
-								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
-								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/image.png/kalkidan.jpg" alt="Kalkidan Desta" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Kalkidan+Desta&background=EBF5FF&color=1E3A8A&size=128" }} />
-								</div>
-								<h3 className="text-2xl font-bold text-gray-900 mb-1">Mrs. Kalkidan Desta</h3>
-								<p className="text-blue-600 font-semibold mb-4">Vice Dean for Character and Ethics Development</p>
-								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-									<p><strong>Function:</strong> Administrative and operational support for the Guidance department.</p>
-								</div>
-							</motion.div>
-						</div>
-					</div>
+							</>
+						)}
 
-					{/* Dormitory Section */}
-					<div id="dormitory" className="mb-16 pt-24 -mt-24">
-						<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Dormitory Services</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.4 }}
-								className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
-								<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-									<img src="/images/genete.png" alt="Genete Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Genete+Fetene&background=EBF5FF&color=1E3A8A&size=128" }} />
+						{/* Static fallback when DB is empty */}
+						{(leadershipLoading || leadershipProfiles.length === 0) && (
+							<>
+								<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Office of the Dean</h3>
+								<div className="grid grid-cols-1 gap-8">
+									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+										className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full max-w-3xl mx-auto cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+										onClick={() => setSelectedProfile(leaderProfiles.gizew)}>
+										<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
+											<img src="/image.png/gizeww.jpg" alt="Gizew Fetene" className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=192"; }} />
+										</div>
+										<h3 className="text-2xl font-bold text-gray-900 mb-1">Gizew Fetene</h3>
+										<p className="text-blue-600 font-semibold mb-4">Dean of Student Affairs</p>
+										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
+											<p className="mb-2"><strong>Background:</strong> DBU graduate and long-serving student affairs leader with a strong focus on student wellbeing, inclusion, and campus service quality.</p>
+											<p className="mb-2"><strong>Function:</strong> Oversees student welfare, guidance coordination, club development, complaint response systems, and branch-level service performance across the university.</p>
+											{showDeanMore && (<><p className="mb-2"><strong>Office Responsibility:</strong> Ensures services are fair, timely, and student-centered.</p><p><strong>If a student needs help:</strong> Students can report concerns through Student Affairs channels.</p></>)}
+											<button onClick={(e) => { e.stopPropagation(); setShowDeanMore(prev => !prev); }} className="mt-3 text-blue-700 font-semibold hover:underline">{showDeanMore ? "Show Less" : "Read More..."}</button>
+										</div>
+									</motion.div>
 								</div>
-								<h3 className="text-2xl font-bold text-gray-900 mb-1">Genete Fetene</h3>
-								<p className="text-blue-600 font-semibold mb-4">Head of Dormitory Services</p>
-								<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-									<p className="mb-2"><strong>Scale:</strong> Leads a team of 90 staff members.</p>
-									<p><strong>Function:</strong> Handles all student housing, registration, and room placements.</p>
+
+								<h3 className="text-2xl font-bold text-gray-800 mt-12 mb-6 border-b pb-2">Psychology &amp; Guidance Department</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+										className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+										onClick={() => setSelectedProfile(leaderProfiles.sintayehu)}>
+										<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
+											<img src="/image.png/pr sintayew.jpg" alt="Sintayehu Ambachew Worku" className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=EBF5FF&color=1E3A8A&size=192"; }} />
+										</div>
+										<h3 className="text-2xl font-bold text-gray-900 mb-1">Sintayehu Ambachew Worku</h3>
+										<p className="text-blue-600 font-semibold mb-4">Assistant Professor in Educational Psychology</p>
+										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
+											<p className="mb-2"><strong>Background:</strong> Senior guidance professional focused on student mental wellness.</p>
+											<p className="mb-2"><strong>Location:</strong> Psychology &amp; Guidance Office, 3rd Floor Bureau.</p>
+											<p className="mb-2"><strong>Function:</strong> Provides counseling, crisis intervention, and student advisory services.</p>
+											{showSintayewMore && (<><p className="mb-2"><strong>Key Support Areas:</strong> Stress management, academic pressure, conflict mediation.</p><p><strong>How to get help:</strong> Visit the office or request support through Student Affairs.</p></>)}
+											<button onClick={(e) => { e.stopPropagation(); setShowSintayewMore(prev => !prev); }} className="mt-3 text-blue-700 font-semibold hover:underline">{showSintayewMore ? "Show Less" : "Read More..."}</button>
+										</div>
+									</motion.div>
+									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+										className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+										onClick={() => setSelectedProfile(leaderProfiles.kalkidan)}>
+										<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
+											<img src="/image.png/kalkidan.jpg" alt="Kalkidan Desta" className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Kalkidan+Desta&background=EBF5FF&color=1E3A8A&size=192"; }} />
+										</div>
+										<h3 className="text-2xl font-bold text-gray-900 mb-1">Mrs. Kalkidan Desta</h3>
+										<p className="text-blue-600 font-semibold mb-4">Vice Dean for Character and Ethics Development</p>
+										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
+											<p><strong>Function:</strong> Administrative and operational support for the Guidance department.</p>
+										</div>
+									</motion.div>
 								</div>
-							</motion.div>
-						</div>
+
+								<h3 className="text-2xl font-bold text-gray-800 mt-12 mb-6 border-b pb-2">Dormitory Services</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+										className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
+										<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
+											<img src="/images/genete.png" alt="Genete Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Genete+Fetene&background=EBF5FF&color=1E3A8A&size=128"; }} />
+										</div>
+										<h3 className="text-2xl font-bold text-gray-900 mb-1">Genete Fetene</h3>
+										<p className="text-blue-600 font-semibold mb-4">Head of Dormitory Services</p>
+										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
+											<p className="mb-2"><strong>Scale:</strong> Leads a team of 90 staff members.</p>
+											<p><strong>Function:</strong> Handles all student housing, registration, and room placements.</p>
+										</div>
+									</motion.div>
+								</div>
+							</>
+						)}
 					</div>
 
 					{/* Student Union Dropdown */}
@@ -789,6 +868,42 @@ export const Home = () => {
 					</motion.div>
 				</div>
 			)}
+
+
+			{/* Presidential Profile Modal — for static fallback cards */}
+			{selectedProfile && (
+				<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedProfile(null)}>
+					<motion.div
+						initial={{ opacity: 0, scale: 0.85, y: 30 }}
+						animate={{ opacity: 1, scale: 1, y: 0 }}
+						transition={{ duration: 0.3, ease: "easeOut" }}
+						className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="relative h-72 overflow-hidden bg-gradient-to-br from-blue-800 to-blue-600">
+							<img src={selectedProfile.image} alt={selectedProfile.name} className="w-full h-full object-cover object-top scale-110" onError={(e) => { e.target.src = selectedProfile.fallback; }} />
+							<div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+							<div className="absolute bottom-5 left-6 right-16 text-white">
+								<h2 className="text-2xl font-bold drop-shadow-lg leading-tight">{selectedProfile.name}</h2>
+								<p className="text-blue-300 font-semibold text-sm mt-1">{selectedProfile.title}</p>
+							</div>
+							<button onClick={() => setSelectedProfile(null)} className="absolute top-4 right-4 w-9 h-9 bg-white/20 hover:bg-white/50 text-white rounded-full flex items-center justify-center text-2xl font-bold transition-colors backdrop-blur-sm" aria-label="Close">&times;</button>
+						</div>
+						<div className="p-6 space-y-3 max-h-60 overflow-y-auto">
+							{selectedProfile.bio.map((item, i) => (
+								<div key={i} className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+									<p className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">{item.label}</p>
+									<p className="text-gray-700 text-sm leading-relaxed">{item.text}</p>
+								</div>
+							))}
+						</div>
+						<div className="px-6 pb-6 pt-2">
+							<button onClick={() => setSelectedProfile(null)} className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-bold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md">Close</button>
+						</div>
+					</motion.div>
+				</div>
+			)}
+
 		</div>
 	);
 };
