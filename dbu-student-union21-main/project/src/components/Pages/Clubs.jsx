@@ -116,15 +116,19 @@ export function Clubs() {
   // Member Reports View for Manager
   const [managerPendingReports, setManagerPendingReports] = useState([]);
   const [showManagerPendingReports, setShowManagerPendingReports] = useState(false);
+
+  // Expandable member panel per card
+  const [expandedClubId, setExpandedClubId] = useState(null);
+  const [expandedClubData, setExpandedClubData] = useState({});
   const categories = [
     "All",
+    ...(user ? ["Joined"] : []),
     "Academic",
     "Sports",
     "Cultural",
     "Technology",
     "Service",
     "Arts",
-    "Religious",
     "Professional",
     "Social",
     "Other",
@@ -168,8 +172,15 @@ export function Clubs() {
   };
 
   const filteredClubs = clubs.filter((club) => {
+    const userId = user?._id || user?.id;
+    const isUserMember = userId && Array.isArray(club?.members) &&
+      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'approved');
+
     const matchesCategory =
-      selectedCategory === "All" || club.category === selectedCategory;
+      selectedCategory === "All" ||
+      (selectedCategory === "Joined" && isUserMember) ||
+      club.category === selectedCategory;
+
     const matchesSearch =
       club.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       club.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -207,8 +218,8 @@ export function Clubs() {
     }
 
     try {
-      await apiService.joinClub(selectedClub._id || selectedClub.id, joinFormData);
-      toast.success("Join request submitted successfully!");
+      const response = await apiService.joinClub(selectedClub._id || selectedClub.id, joinFormData);
+      toast.success(response?.message || "Welcome! You have successfully joined the club.");
       setShowJoinModal(false);
       setJoinFormData({
         fullName: "",
@@ -216,9 +227,10 @@ export function Clubs() {
         year: "",
         background: "",
       });
+      await fetchClubs();
     } catch (error) {
       console.error("Failed to join club:", error);
-      toast.error(error.message || "Failed to submit join request");
+      toast.error(error.message || "Failed to join club");
     }
   };
 
@@ -378,6 +390,23 @@ export function Clubs() {
     } catch (error) {
       console.error("Failed to fetch join requests:", error);
       toast.error("Failed to fetch join requests");
+    }
+  };
+
+  const toggleMemberPanel = async (clubId) => {
+    if (expandedClubId === clubId) {
+      setExpandedClubId(null);
+      return;
+    }
+    setExpandedClubId(clubId);
+    if (expandedClubData[clubId]) return; // already cached
+    try {
+      const detailed = await apiService.getClub(clubId);
+      setExpandedClubData(prev => ({ ...prev, [clubId]: detailed }));
+    } catch (err) {
+      console.error('Failed to load club details:', err);
+      toast.error('Failed to load member list');
+      setExpandedClubId(null);
     }
   };
 
@@ -1095,8 +1124,8 @@ export function Clubs() {
               filteredClubs.map((club, index) => {
                 const userId = user?._id || user?.id;
                 const isLeader = userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId));
-                const activeMember = userId && Array.isArray(club?.members) && 
-                  club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved');
+                const activeMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) && 
+                  club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
 
                 return (
                   <motion.div
@@ -1225,12 +1254,26 @@ export function Clubs() {
                           if ((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) {
                             handleViewMembers(club);
                           } else {
+                            if (activeMember) {
+                              toast.success("You are already an active member of this club!");
+                              return;
+                            }
+                            const isPending = (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
+                              club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
+                            if (isPending) {
+                              toast.error("Your join request is already pending approval.");
+                              return;
+                            }
                             handleJoinClub(club);
                           }
                         }}
                         className={`py-2 rounded-xl font-bold transition-all transform hover:scale-[1.02] shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
                           ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-700 hover:from-green-600 hover:to-emerald-700"
-                          : "bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-800 hover:from-blue-700 hover:to-indigo-800"
+                          : activeMember
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-700 cursor-default"
+                            : ((club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
+                              ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-700 cursor-default"
+                              : "bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-800 hover:from-blue-700 hover:to-indigo-800"
                         }`}
                       >
                         <div className="flex items-center justify-center gap-2">
@@ -1239,6 +1282,11 @@ export function Clubs() {
                             {((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
                               ? "Manage"
                                : (() => {
+                                 if (club.userMembershipStatus) {
+                                   if (club.userMembershipStatus === 'pending') return "Pending";
+                                   if (club.userMembershipStatus === 'approved') return "Joined";
+                                   if (club.userMembershipStatus === 'rejected') return "Rejected";
+                                 }
                                  const membersArr = Array.isArray(club?.members) ? club.members : [];
                                  if (membersArr.length > 0) {
                                    const userId = user?._id || user?.id;
@@ -1293,6 +1341,112 @@ export function Clubs() {
                         </button>
                       )}
                     </div>
+
+                    {/* ── Expandable Member Transparency Panel ── */}
+                    {(activeMember || (user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) && (
+                      <div className="mt-3 border-t border-gray-100 pt-3">
+                        <button
+                          onClick={async (e) => { e.stopPropagation(); await toggleMemberPanel(club._id || club.id); }}
+                          className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors py-1 px-1 rounded-lg hover:bg-blue-50"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            {expandedClubId === (club._id || club.id) ? 'Hide Members' : 'View All Members'}
+                          </span>
+                          <span className="text-gray-400">{expandedClubId === (club._id || club.id) ? '▲' : '▼'}</span>
+                        </button>
+
+                        {expandedClubId === (club._id || club.id) && (() => {
+                          const detail = expandedClubData[club._id || club.id];
+                          if (!detail) return (
+                            <div className="mt-2 text-center py-4">
+                              <div className="inline-block w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          );
+
+                          const president = detail.leadership?.president;
+                          const vp = detail.leadership?.vicePresident;
+                          const secretary = detail.leadership?.secretary;
+                          const treasurer = detail.leadership?.treasurer;
+
+                          const leadershipRoles = [
+                            { label: 'President', person: president, color: 'bg-indigo-100 text-indigo-700' },
+                            { label: 'Vice President', person: vp, color: 'bg-purple-100 text-purple-700' },
+                            { label: 'Secretary', person: secretary, color: 'bg-teal-100 text-teal-700' },
+                            { label: 'Treasurer', person: treasurer, color: 'bg-amber-100 text-amber-700' },
+                          ].filter(r => r.person);
+
+                          const approvedMembers = Array.isArray(detail.members)
+                            ? detail.members.filter(m => ['approved', 'restricted'].includes(m?.status) && m?.user)
+                            : [];
+
+                          return (
+                            <div className="mt-3 space-y-3">
+                              {/* Leadership Grid */}
+                              {leadershipRoles.length > 0 && (
+                                <div>
+                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Leadership</p>
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    {leadershipRoles.map(r => (
+                                      <div key={r.label} className={`rounded-lg px-2.5 py-2 ${r.color}`}>
+                                        <p className="text-[9px] font-bold uppercase tracking-wider opacity-70">{r.label}</p>
+                                        <p className="text-xs font-bold truncate">{r.person?.name || r.person?.username || '—'}</p>
+                                        {r.person?.username && (
+                                          <p className="text-[9px] opacity-60 truncate">@{r.person.username}</p>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Members Table */}
+                              <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                  All Members · <span className="text-blue-500">{approvedMembers.length}</span>
+                                </p>
+                                <div className="max-h-52 overflow-y-auto rounded-xl border border-gray-100">
+                                  <table className="w-full text-xs">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                      <tr>
+                                        <th className="px-2 py-1.5 text-left text-[9px] text-gray-400 font-black uppercase">#</th>
+                                        <th className="px-2 py-1.5 text-left text-[9px] text-gray-400 font-black uppercase">Name</th>
+                                        <th className="px-2 py-1.5 text-left text-[9px] text-gray-400 font-black uppercase">ID</th>
+                                        <th className="px-2 py-1.5 text-left text-[9px] text-gray-400 font-black uppercase">Dept</th>
+                                        <th className="px-2 py-1.5 text-left text-[9px] text-gray-400 font-black uppercase">Yr</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                      {approvedMembers.length === 0 ? (
+                                        <tr><td colSpan="5" className="text-center py-3 text-gray-400 italic">No members yet</td></tr>
+                                      ) : approvedMembers.map((m, idx) => {
+                                        const presId = String(detail.leadership?.president?._id || detail.leadership?.president || '');
+                                        const isPres = presId && String(m.user?._id || m.user) === presId;
+                                        return (
+                                          <tr key={m._id || idx} className={`${isPres ? 'bg-indigo-50/60' : 'hover:bg-gray-50/60'} transition-colors`}>
+                                            <td className="px-2 py-2 text-gray-400 font-mono">{idx + 1}</td>
+                                            <td className="px-2 py-2 font-semibold text-gray-800">
+                                              <div className="flex items-center gap-1">
+                                                {m.fullName || m.user?.name || '—'}
+                                                {isPres && <span className="text-[7px] bg-indigo-600 text-white px-1 py-0.5 rounded font-black uppercase">Rep</span>}
+                                                {m.status === 'restricted' && <span className="text-[7px] bg-orange-500 text-white px-1 py-0.5 rounded font-black uppercase">⚠</span>}
+                                              </div>
+                                            </td>
+                                            <td className="px-2 py-2 text-gray-500 font-mono text-[10px]">{m.user?.username || m.user?.studentId || '—'}</td>
+                                            <td className="px-2 py-2 text-gray-500 truncate max-w-[60px]">{m.department || '—'}</td>
+                                            <td className="px-2 py-2 text-gray-500">{m.year || '—'}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
                 )
@@ -1622,11 +1776,6 @@ export function Clubs() {
                   )}
                   {(user?.isAdmin || isCoordinator || ((user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id)))) && (
                     <>
-                      <button
-                        onClick={() => fetchJoinRequests(selectedClubDetails._id || selectedClubDetails.id)}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        View Join Requests
-                      </button>
                       <button
                         onClick={() => fetchInbox(selectedClubDetails._id || selectedClubDetails.id)}
                         className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2">

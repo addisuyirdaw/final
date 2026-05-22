@@ -12,22 +12,63 @@ export const useAuth = () => {
   return context;
 };
 
+const isTokenExpired = (token) => {
+  try {
+    if (!token) return true;
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    const payload = JSON.parse(atob(base64));
+    if (!payload.exp) return false;
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp < currentTime;
+  } catch (err) {
+    return true;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem("user");
-      if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
+    const checkTokenExpiration = () => {
+      try {
+        const savedUser = localStorage.getItem("user");
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          if (userData.token && isTokenExpired(userData.token)) {
+            console.warn("Session expired - auto logging out");
+            setUser(null);
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+            sessionStorage.removeItem("user");
+            sessionStorage.removeItem("token");
+            sessionStorage.clear();
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = "/login";
+            }
+          } else {
+            setUser(userData);
+          }
+        }
+      } catch {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.clear();
       }
-    } catch {
-      // Corrupted localStorage — clear it and start fresh
-      localStorage.removeItem("user");
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    checkTokenExpiration();
+    const interval = setInterval(checkTokenExpiration, 5000); // Check every 5s for snappy auto-logout
+
+    return () => clearInterval(interval);
   }, []);
 
   const login = async (username, password) => {

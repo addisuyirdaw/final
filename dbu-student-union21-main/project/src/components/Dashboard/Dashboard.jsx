@@ -1,6 +1,6 @@
 /** @format */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
 	Users,
 	Vote,
@@ -18,7 +18,10 @@ import {
 	CheckCircle,
 	PenTool,
 	Trash2,
-	Archive
+	Archive,
+	Image as ImageIcon,
+	X,
+	Upload
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -94,6 +97,12 @@ export function Dashboard() {
 	const [showEventForm, setShowEventForm] = useState(false);
 	const [directiveForm, setDirectiveForm] = useState({ title: '', category: 'Academic', priority: 'Normal', message: '' });
 	const [eventForm, setEventForm] = useState({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+
+	// Image upload state for Executive Posting Tool
+	const [directiveImage, setDirectiveImage] = useState(null);       // File object
+	const [directiveImagePreview, setDirectiveImagePreview] = useState(null); // data-URL preview
+	const [directiveUploading, setDirectiveUploading] = useState(false);
+	const directiveFileRef = useRef(null);
 
 	const [stats, setStats] = useState([
 		{
@@ -294,15 +303,76 @@ export function Dashboard() {
 		return lastUpdated.toLocaleTimeString();
 	};
 
-	const handlePostDirective = (e) => {
+	const handleDirectiveFileChange = (e) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		if (!file.type.startsWith('image/')) {
+			alert('Only image files are allowed.');
+			return;
+		}
+		setDirectiveImage(file);
+		const reader = new FileReader();
+		reader.onload = (ev) => setDirectiveImagePreview(ev.target.result);
+		reader.readAsDataURL(file);
+	};
+
+	const handlePostDirective = async (e) => {
 		e.preventDefault();
-		// Mock storing to localStorage for immediate cross-page sync
-		const current = JSON.parse(localStorage.getItem('official_directives') || '[]');
-		current.unshift({ ...directiveForm, id: Date.now(), author: user?.name || 'Admin', timestamp: new Date().toISOString() });
-		localStorage.setItem('official_directives', JSON.stringify(current));
-		setShowDirectiveForm(false);
-		setDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
-		alert("Directive published successfully to the main feed.");
+		setDirectiveUploading(true);
+		try {
+			let imageUrl = null;
+
+			// If an image was selected, upload it to the carousel endpoint
+			if (directiveImage) {
+				const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+				const token = localStorage.getItem('token') ||
+					(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').token; } catch { return ''; } })();
+
+				const fd = new FormData();
+				fd.append('image', directiveImage);
+				fd.append('caption', directiveForm.title);
+				fd.append('order', 0);
+
+				const res = await fetch(`${API_BASE}/api/carousel/upload`, {
+					method: 'POST',
+					headers: { Authorization: `Bearer ${token}` },
+					body: fd,
+				});
+				const data = await res.json();
+				if (data.success) {
+					imageUrl = data.slide?.imageUrl || null;
+				} else {
+					alert('Image upload failed: ' + (data.message || 'Unknown error'));
+					return;
+				}
+			}
+
+			// Store directive locally (with optional imageUrl for feed rendering)
+			const current = JSON.parse(localStorage.getItem('official_directives') || '[]');
+			current.unshift({
+				...directiveForm,
+				id: Date.now(),
+				author: user?.name || 'Admin',
+				timestamp: new Date().toISOString(),
+				...(imageUrl && { imageUrl }),
+			});
+			localStorage.setItem('official_directives', JSON.stringify(current));
+
+			setShowDirectiveForm(false);
+			setDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+			setDirectiveImage(null);
+			setDirectiveImagePreview(null);
+			if (directiveFileRef.current) directiveFileRef.current.value = '';
+
+			alert(imageUrl
+				? '✅ Directive published and photo added to the homepage carousel!'
+				: '✅ Directive published successfully to the main feed.');
+		} catch (err) {
+			console.error('Directive post error:', err);
+			alert('Failed to publish directive. Please try again.');
+		} finally {
+			setDirectiveUploading(false);
+		}
 	};
 
 	const handlePostEvent = (e) => {
@@ -607,20 +677,68 @@ export function Dashboard() {
 											<option>Guidance</option>
 										</select>
 									</div>
-									<div>
-										<label className="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
-										<select value={directiveForm.priority} onChange={e => setDirectiveForm({...directiveForm, priority: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2">
-											<option>Normal</option>
-											<option>Urgent</option>
-										</select>
+										<div>
+											<label className="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
+											<select value={directiveForm.priority} onChange={e => setDirectiveForm({...directiveForm, priority: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2">
+												<option>Normal</option>
+												<option>Urgent</option>
+											</select>
+										</div>
+										{/* ── Photo Upload ── */}
+										<div className="sm:col-span-2">
+											<label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+												<ImageIcon className="w-4 h-4 text-red-500" />
+												Carousel Photo <span className="text-gray-400 font-normal">(optional — will appear on homepage carousel)</span>
+											</label>
+											<div
+												className="relative border-2 border-dashed border-red-200 rounded-xl p-4 bg-red-50 hover:border-red-400 hover:bg-red-100 transition-colors cursor-pointer"
+												onClick={() => directiveFileRef.current?.click()}
+											>
+												<input
+													ref={directiveFileRef}
+													type="file"
+													accept="image/*"
+													className="hidden"
+													onChange={handleDirectiveFileChange}
+												/>
+												{directiveImagePreview ? (
+													<div className="flex items-center gap-4">
+														<img src={directiveImagePreview} alt="Preview" className="w-20 h-14 object-cover rounded-lg border border-red-200 shadow-sm flex-shrink-0" />
+														<div className="flex-1 min-w-0">
+															<p className="text-sm font-medium text-gray-800 truncate">{directiveImage?.name}</p>
+															<p className="text-xs text-gray-500">{directiveImage ? (directiveImage.size / 1024).toFixed(1) + ' KB' : ''} — click to change</p>
+														</div>
+														<button
+															type="button"
+															onClick={(ev) => { ev.stopPropagation(); setDirectiveImage(null); setDirectiveImagePreview(null); if (directiveFileRef.current) directiveFileRef.current.value = ''; }}
+															className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full bg-red-200 hover:bg-red-400 text-red-700 transition-colors"
+														>
+															<X className="w-4 h-4" />
+														</button>
+													</div>
+												) : (
+													<div className="flex flex-col items-center gap-1 py-2 text-red-400">
+														<Upload className="w-6 h-6" />
+														<p className="text-xs font-medium text-center">Click to upload a photo<br /><span className="text-gray-400 font-normal">JPG, PNG, WebP — max 10 MB</span></p>
+													</div>
+												)}
+											</div>
+										</div>
 									</div>
-								</div>
 								<div className="mb-4">
 									<label className="block text-sm font-medium text-gray-700 mb-1">Message Body</label>
 									<textarea required value={directiveForm.message} onChange={e => setDirectiveForm({...directiveForm, message: e.target.value})} rows="3" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Write the official directive here..."></textarea>
 								</div>
-								<button type="submit" className="bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors">
-									Publish Directive
+								<button
+									type="submit"
+									disabled={directiveUploading}
+									className="bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors disabled:opacity-60 flex items-center gap-2"
+								>
+									{directiveUploading ? (
+										<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Publishing...</>
+									) : (
+										<><Upload className="w-4 h-4" /> Publish Directive</>
+									)}
 								</button>
 							</form>
 						)}

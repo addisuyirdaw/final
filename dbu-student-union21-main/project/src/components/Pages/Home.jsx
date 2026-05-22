@@ -79,6 +79,7 @@ export const Home = () => {
 	const [currentSlide, setCurrentSlide] = useState(0);
 
 	const staticCarouselSlides = [
+		{ id: 0, image: "/image.png/kal and pre.jpg" },
 		{ id: 1, image: "/image.png/building..jpg" },
 		{ id: 2, image: "/image.png/reward1.jpg" },
 		{ id: 3, image: "/image.png/reward2.jpg" },
@@ -103,13 +104,14 @@ export const Home = () => {
 				const res = await fetch(`${API_BASE}/api/carousel/get`);
 				const data = await res.json();
 				if (data.success && data.slides && data.slides.length > 0) {
-					setCarouselSlides(data.slides.map((s, i) => ({
+					const dynamicSlides = data.slides.map((s, i) => ({
 						id: s._id || i,
 						image: s.imageUrl.startsWith("/uploads")
 							? `${API_BASE}${s.imageUrl}`
 							: s.imageUrl,
 						caption: s.caption || ""
-					})));
+					}));
+					setCarouselSlides([...dynamicSlides, ...staticCarouselSlides]);
 				}
 			} catch {
 				// Network error

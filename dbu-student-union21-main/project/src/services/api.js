@@ -39,10 +39,14 @@ class ApiService {
         let msg = data.message || `HTTP error! status: ${response.status}`;
         if (data.error) msg += ` - Detail: ${data.error}`;
         
-        // Handle unauthorized / user not found specifically - force logout
-        if (response.status === 401 && (msg.toLowerCase().includes("user not found") || msg.toLowerCase().includes("token failed"))) {
-          console.warn("Session invalid - forcing logout");
+        // Handle unauthorized globally - force logout immediately
+        if (response.status === 401) {
+          console.warn("Session invalid or expired (401) - forcing logout");
           localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+          sessionStorage.removeItem("token");
+          sessionStorage.clear();
           // Only redirect if not already on login page to avoid loops
           if (!window.location.pathname.includes('/login')) {
             window.location.href = "/login";
