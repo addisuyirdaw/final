@@ -1,12 +1,14 @@
 /** @format */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Vote, Users, MessageSquare, Building, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Vote, Users, MessageSquare, Building, ArrowRight, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { motion } from "framer-motion";
 import { apiService } from "../../services/api";
 import "../../app.css";
+
+const CAROUSEL_API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
 
 export const Home = () => {
 	const { user } = useAuth();
@@ -19,6 +21,7 @@ export const Home = () => {
 		}
 	};
 	const [announcements, setAnnouncements] = useState([]);
+	const [directives, setDirectives] = useState([]);
 	const [isLoadingStats, setIsLoadingStats] = useState(true);
 	const [stats, setStats] = useState({
 		activeStudents: "0",
@@ -79,7 +82,7 @@ export const Home = () => {
 	const [currentSlide, setCurrentSlide] = useState(0);
 
 	const staticCarouselSlides = [
-		{ id: 0, image: "/image.png/kal and pre.jpg" },
+		{ id: 0, image: "/image.png/pre.jpg" },
 		{ id: 1, image: "/image.png/building..jpg" },
 		{ id: 2, image: "/image.png/reward1.jpg" },
 		{ id: 3, image: "/image.png/reward2.jpg" },
@@ -100,23 +103,39 @@ export const Home = () => {
 	useEffect(() => {
 		const fetchCarousel = async () => {
 			try {
-				const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
-				const res = await fetch(`${API_BASE}/api/carousel/get`);
+				const res = await fetch(`${CAROUSEL_API_BASE}/api/carousel/get`);
 				const data = await res.json();
 				if (data.success && data.slides && data.slides.length > 0) {
-					const dynamicSlides = data.slides.map((s, i) => ({
+				const dynamicSlides = data.slides.map((s, i) => {
+					let imageUrl = s.imageUrl || '';
+					if (imageUrl) {
+						// Relative path — prepend backend base URL
+						if (!imageUrl.startsWith('http') && !imageUrl.startsWith('https')) {
+							const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+							imageUrl = `${CAROUSEL_API_BASE}${normalizedPath}`;
+						}
+						// else: already absolute URL, use as-is
+					} else {
+						// No image — use local fallback
+						imageUrl = "/image.png/building..jpg";
+					}
+					return {
 						id: s._id || i,
-						image: s.imageUrl.startsWith("/uploads")
-							? `${API_BASE}${s.imageUrl}`
-							: s.imageUrl,
-						caption: s.caption || ""
-					}));
-					setCarouselSlides([...dynamicSlides, ...staticCarouselSlides]);
+						dbId: s._id,
+						image: imageUrl,
+						caption: s.caption || '',
+						isDynamic: true
+					};
+				});
+					setCarouselSlides([...dynamicSlides, ...staticCarouselSlides]); // dynamic slides go FIRST
 				}
 			} catch {
-				// Network error
+				// Network error — only static slides will show
 			}
 		};
+
+		// Admin delete a dynamic slide from the homepage carousel
+		window.__refreshCarousel = fetchCarousel;
 
 		const fetchLeadership = async () => {
 			try {
@@ -154,6 +173,23 @@ export const Home = () => {
 	const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
 	const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselSlides.length - 1 : prev - 1));
 
+	// Admin: delete a dynamic carousel slide from the homepage
+	const deleteCarouselSlide = useCallback(async (dbId) => {
+		if (!window.confirm('Remove this slide from the carousel?')) return;
+		try {
+			const token = localStorage.getItem('token');
+			const res = await fetch(`${CAROUSEL_API_BASE}/api/carousel/${dbId}`, {
+				method: 'DELETE',
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			const data = await res.json();
+			if (data.success) {
+				setCarouselSlides(prev => prev.filter(s => s.dbId !== dbId));
+				setCurrentSlide(0);
+			}
+		} catch {}
+	}, []);
+
 	useEffect(() => {
 		loadData();
 	}, []);
@@ -169,6 +205,15 @@ export const Home = () => {
 				date: post.date,
 				urgent: post.important
 			})));
+
+			// Fetch directives
+			try {
+				const directivePosts = await apiService.getPosts({ limit: 4, type: 'Directive' });
+				const directivesArray = Array.isArray(directivePosts) ? directivePosts : (directivePosts?.posts || directivePosts?.data || []);
+				setDirectives(directivesArray);
+			} catch (dirError) {
+				console.error('Error loading directives:', dirError);
+			}
 
 			// Fetch dynamic stats
 			try {
@@ -248,16 +293,16 @@ export const Home = () => {
 	return (
 		<div className="min-h-screen bg-gray-50">
 			{/* Hero Carousel Section */}
-			<section className="relative w-full h-[600px] overflow-hidden bg-gray-900">
+			<section className="relative w-full h-[600px] overflow-hidden bg-gradient-to-br from-blue-100 via-white to-blue-200">
 				{carouselSlides.map((slide, index) => (
 					<motion.div
 						key={slide.id}
 						initial={{ opacity: 0 }}
 						animate={{ opacity: currentSlide === index ? 1 : 0 }}
 						transition={{ duration: 1 }}
-						className={`absolute inset-0 z-0 ${currentSlide === index ? 'pointer-events-auto' : 'pointer-events-none'}`}
+						className={`absolute inset-0 z-0 bg-gradient-to-br from-blue-50 to-blue-100 ${currentSlide === index ? 'pointer-events-auto' : 'pointer-events-none'}`}
 					>
-						{/* Blurred fill background to avoid dark side bars */}
+						{/* Blurred fill background — hides when image fails, showing light section bg */}
 						<img
 							src={slide.image}
 							alt=""
@@ -265,29 +310,48 @@ export const Home = () => {
 							className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl transition-transform duration-10000"
 							style={{
 								transform: currentSlide === index ? 'scale(1.15)' : 'scale(1.1)',
-								filter: 'brightness(1.2) contrast(1.05) saturate(1.15)',
+								filter: 'brightness(1.5) contrast(1.05) saturate(1.2)',
+							}}
+							onError={(e) => {
+								e.target.onerror = null;
+								e.target.style.display = 'none';
 							}}
 						/>
-						{/* Very light gradient to keep text readable without darkening the image too much */}
-						<div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/20" />
+						{/* Very subtle bottom gradient only */}
+						<div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
 
-						{/* Main clear image with high brightness and color contrast */}
+						{/* Main clear image — fully bright */}
 						<img
 							src={slide.image}
 							alt={`Carousel slide ${index + 1}`}
 							className="absolute inset-0 w-full h-full object-contain transition-transform duration-10000"
 							style={{
 								transform: currentSlide === index ? 'scale(1.02)' : 'scale(1)',
-								filter: 'brightness(1.25) contrast(1.1) saturate(1.15)',
+								filter: 'brightness(1.45) contrast(1.08) saturate(1.2)',
+							}}
+							onError={(e) => {
+								e.target.onerror = null;
+								e.target.style.display = 'none';
 							}}
 						/>
+
+						{/* Admin delete button — only on dynamic (uploaded) slides */}
+						{slide.isDynamic && (user?.isAdmin || ['Gizew','Sintayew','Sintayehu','Genete','Kalkidan'].some(n => user?.name?.includes(n))) && (
+							<button
+								onClick={() => deleteCarouselSlide(slide.dbId)}
+								title="Remove this slide"
+								className="absolute top-4 right-4 z-30 flex items-center gap-1.5 bg-red-600/90 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-all backdrop-blur-sm"
+							>
+								<Trash2 className="w-3.5 h-3.5" /> Remove Slide
+							</button>
+						)}
 
 						<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center items-center text-center">
 							<motion.div
 								initial={{ opacity: 0, y: 30 }}
 								animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 30 }}
 								transition={{ duration: 0.8, delay: 0.3 }}
-								className="bg-black/35 backdrop-blur-md px-10 py-8 rounded-[2rem] border border-white/10 max-w-4xl mx-auto shadow-2xl"
+								className="bg-white/10 backdrop-blur-sm px-10 py-8 rounded-[2rem] border border-white/20 max-w-4xl mx-auto shadow-2xl"
 							>
 								
 								<motion.h1
@@ -401,49 +465,100 @@ export const Home = () => {
 					</div>
 					
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						{/* Example Directive 1 */}
-						<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-							<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
-								<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
-							</div>
-							<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
-								<img src="/image.png/pr sintayew.jpg" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=FFF0F0&color=991B1B&size=48" }} />
-								<div>
-									<h4 className="font-bold text-gray-900">Asst. Prof. Sintayehu Ambachew Worku</h4>
-									<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Assistant Professor in Educational Psychology</p>
-								</div>
-							</div>
-							<h3 className="text-xl font-bold text-gray-900 mb-2">Guidance Workshop on the 3rd Floor this Friday.</h3>
-							<p className="text-gray-600 mb-6 flex-grow">All students are invited to attend our mental health and guidance workshop to discuss student wellbeing and resources available on campus.</p>
-							<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-								<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-								<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
-									<MessageSquare className="w-4 h-4" /> Save / Acknowledge
-								</button>
-							</div>
-						</div>
+						{directives.length > 0 ? (
+							directives.map((dir) => {
+								let postImage = dir.image || '';
+								if (postImage && !postImage.startsWith('http') && !postImage.startsWith('https')) {
+									const normalizedPath = postImage.startsWith('/') ? postImage : `/${postImage}`;
+									postImage = `${CAROUSEL_API_BASE}${normalizedPath}`;
+								}
+								
+								const authorName = dir.author?.name || 'University Leadership';
+								const authorRole = dir.author?.role === 'admin' ? 'Official Administrator' : (dir.author?.role || 'Executive Officer');
+								const authorImg = dir.author?.profileImage || '';
 
-						{/* Example Directive 2 */}
-						<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-							<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
-								<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
-							</div>
-							<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
-								<img src="/images/genete.png" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" />
-								<div>
-									<h4 className="font-bold text-gray-900">Genete Fetene</h4>
-									<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Head of Dormitory Services</p>
+								return (
+									<div key={dir._id} className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+										<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+											<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
+										</div>
+										<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+											<img 
+												src={authorImg} 
+												className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" 
+												alt="Author" 
+												onError={(e) => { 
+													e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=FFF0F0&color=991B1B&size=48`;
+												}} 
+											/>
+											<div>
+												<h4 className="font-bold text-gray-900">{authorName}</h4>
+												<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">{authorRole}</p>
+											</div>
+										</div>
+										{postImage && (
+											<div className="mb-4 rounded-lg overflow-hidden border border-gray-100 max-h-60 flex items-center justify-center bg-gray-50">
+												<img src={postImage} alt={dir.title} className="w-full h-full object-cover" />
+											</div>
+										)}
+										<h3 className="text-xl font-bold text-gray-900 mb-2">{dir.title}</h3>
+										<p className="text-gray-600 mb-6 flex-grow whitespace-pre-line">{dir.content}</p>
+										<div className="flex items-center justify-between pt-4 border-t border-gray-50">
+											<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+											<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+												<MessageSquare className="w-4 h-4" /> Save / Acknowledge
+											</button>
+										</div>
+									</div>
+								);
+							})
+						) : (
+							<>
+								{/* Example Directive 1 */}
+								<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+									<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+										<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
+									</div>
+									<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+										<img src="/image.png/pr sintayew.jpg" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=FFF0F0&color=991B1B&size=48" }} />
+										<div>
+											<h4 className="font-bold text-gray-900">Asst. Prof. Sintayehu Ambachew Worku</h4>
+											<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Assistant Professor in Educational Psychology</p>
+										</div>
+									</div>
+									<h3 className="text-xl font-bold text-gray-900 mb-2">Guidance Workshop on the 3rd Floor this Friday.</h3>
+									<p className="text-gray-600 mb-6 flex-grow">All students are invited to attend our mental health and guidance workshop to discuss student wellbeing and resources available on campus.</p>
+									<div className="flex items-center justify-between pt-4 border-t border-gray-50">
+										<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+										<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+											<MessageSquare className="w-4 h-4" /> Save / Acknowledge
+										</button>
+									</div>
 								</div>
-							</div>
-							<h3 className="text-xl font-bold text-gray-900 mb-2">Dormitory Registration for 2nd Year Students is now open.</h3>
-							<p className="text-gray-600 mb-6 flex-grow">Please ensure all required documents are submitted to the housing office before the end of the week. Late submissions will face penalties.</p>
-							<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-								<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-								<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
-									<MessageSquare className="w-4 h-4" /> Save / Acknowledge
-								</button>
-							</div>
-						</div>
+
+								{/* Example Directive 2 */}
+								<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+									<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+										<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
+									</div>
+									<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+										<img src="/images/genete.png" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" />
+										<div>
+											<h4 className="font-bold text-gray-900">Genete Fetene</h4>
+											<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Head of Dormitory Services</p>
+										</div>
+									</div>
+									<h3 className="text-xl font-bold text-gray-900 mb-2">Dormitory Registration for 2nd Year Students is now open.</h3>
+									<p className="text-gray-600 mb-6 flex-grow">Please ensure all required documents are submitted to the housing office before the end of the week. Late submissions will face penalties.</p>
+									<div className="flex items-center justify-between pt-4 border-t border-gray-50">
+										<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+										<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+											<MessageSquare className="w-4 h-4" /> Save / Acknowledge
+										</button>
+									</div>
+								</div>
+							</>
+						)}
 					</div>
 				</div>
 			</section>
@@ -583,7 +698,12 @@ export const Home = () => {
 								<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">University Leadership</h3>
 								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 									{leadershipProfiles.map((profile, index) => {
-										const imgSrc = profile.imageUrl?.startsWith("/uploads") ? `${(import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "")}${profile.imageUrl}` : (profile.imageUrl || "");
+										const apiBase = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
+										let imgSrc = profile.imageUrl || "";
+										if (imgSrc && (imgSrc.startsWith("/uploads") || imgSrc.startsWith("uploads"))) {
+											const normalizedPath = imgSrc.startsWith("/") ? imgSrc : `/${imgSrc}`;
+											imgSrc = `${apiBase}${normalizedPath}`;
+										}
 										return (
 											<motion.div key={profile._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}
 												className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"

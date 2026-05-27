@@ -35,11 +35,11 @@ const upload = multer({
 });
 
 // @route  GET /api/carousel/get
-// @desc   Fetch all active carousel slides (public)
+// @desc   Fetch all active carousel slides (public) — newest uploads first
 router.get('/get', async (req, res) => {
   try {
     const slides = await Carousel.find({ isActive: true })
-      .sort({ order: 1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .select('imageUrl caption order createdAt');
 
     res.json({ success: true, slides });
@@ -71,15 +71,16 @@ router.post('/upload', protect, adminOnly, upload.single('image'), async (req, r
       return res.status(400).json({ success: false, message: 'No image file provided' });
     }
 
-    const { caption = '', order = 0 } = req.body;
+    const { caption = '' } = req.body;
 
     // Build public URL served via /uploads static route
     const imageUrl = `/uploads/carousel/${req.file.filename}`;
 
+    // order = 0 ensures this new slide sorts to the top (newest-first by createdAt)
     const slide = await Carousel.create({
       imageUrl,
       caption: caption.trim(),
-      order: parseInt(order) || 0,
+      order: 0,
       uploadedBy: req.user._id
     });
 

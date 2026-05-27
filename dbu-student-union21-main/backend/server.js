@@ -29,7 +29,9 @@ const { createDefaultAdmin } = require("./utils/createAdmin");
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Allow images/files to be loaded cross-origin (needed for frontend on :5173 loading uploads from :5000)
+}));
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -82,8 +84,15 @@ if (process.env.NODE_ENV === "development") {
 }
 
 const path = require('path');
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const fs = require('fs');
+// Serve the uploads directory statically — always relative to this server.js file (backend/)
+const uploadsPath = path.join(__dirname, 'uploads');
+console.log("✅ Serving static uploads from:", uploadsPath);
+// Set Cross-Origin-Resource-Policy header so browsers on a different port (e.g. :5173) can load images
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(uploadsPath));
 
 // Health check endpoint
 app.get("/health", (req, res) => {

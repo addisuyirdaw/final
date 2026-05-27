@@ -43,8 +43,11 @@ export const CarouselAdmin = () => {
     }
   };
 
+  const executiveNames = ['Gizew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
+  const isExecutive = user && user.name && executiveNames.some(n => user.name.includes(n));
+
   useEffect(() => {
-    if (!user?.isAdmin) { navigate("/"); return; }
+    if (!user?.isAdmin && !isExecutive) { navigate("/"); return; }
     fetchSlides();
   }, [user]);
 
@@ -262,9 +265,13 @@ export const CarouselAdmin = () => {
                 {/* Image */}
                 <div className="h-44 bg-gray-900 overflow-hidden">
                   <img
-                    src={slide.imageUrl.startsWith("/uploads")
-                      ? `${API_BASE}${slide.imageUrl}`
-                      : slide.imageUrl}
+                    src={(() => {
+                      const url = slide.imageUrl || '';
+                      if (!url) return `https://ui-avatars.com/api/?name=Slide+${i+1}&background=1e3a8a&color=fff&size=200`;
+                      if (url.startsWith('http')) return url;
+                      const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+                      return `${API_BASE}${normalizedPath}`;
+                    })()}
                     alt={slide.caption || `Slide ${i + 1}`}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=Slide+${i+1}&background=1e3a8a&color=fff&size=200`; }}
