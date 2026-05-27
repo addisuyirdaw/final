@@ -324,7 +324,7 @@ export function Dashboard() {
 
 			// If an image was selected, upload it to the carousel endpoint
 			if (directiveImage) {
-				const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+				const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, "");
 				const token = localStorage.getItem('token') ||
 					(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').token; } catch { return ''; } })();
 

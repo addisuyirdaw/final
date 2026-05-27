@@ -44,7 +44,8 @@ export function ResetPassword() {
         }
 
         try {
-            const response = await fetch(`http://localhost:5000/api/auth/reset-password/${resetToken}`, {
+            const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
+            const response = await fetch(`${API_BASE}/api/auth/reset-password/${resetToken}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

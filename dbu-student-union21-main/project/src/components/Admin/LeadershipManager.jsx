@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { Upload, Trash2, Edit, Plus, CheckCircle, AlertCircle, X, Users, Image as ImageIcon } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
 
 export const LeadershipManager = () => {
   const { user } = useAuth();

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { Upload, Trash2, Eye, EyeOff, Image, CheckCircle, AlertCircle, X, GripVertical } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
 
 export const CarouselAdmin = () => {
   const { user } = useAuth();
