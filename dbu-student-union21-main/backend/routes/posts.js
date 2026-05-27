@@ -152,7 +152,7 @@ router.post('/', protect, adminOnly, validatePost, async (req, res) => {
     }
 
     // Announcement specific fields
-    if (type === 'Announcement') {
+    if (type === 'Announcement' || type === 'Directive') {
       postData.important = important || false;
       if (expiryDate) postData.expiryDate = new Date(expiryDate);
       postData.targetAudience = targetAudience || 'all';
@@ -235,7 +235,7 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     }
 
     // Announcement specific fields
-    if (post.type === 'Announcement') {
+    if (post.type === 'Announcement' || post.type === 'Directive') {
       if (typeof important === 'boolean') post.important = important;
       if (expiryDate) post.expiryDate = new Date(expiryDate);
       if (targetAudience) post.targetAudience = targetAudience;

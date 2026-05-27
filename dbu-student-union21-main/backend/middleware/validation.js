@@ -102,9 +102,14 @@ const validatePost = [
     .trim()
     .notEmpty()
     .withMessage('Content is required'),
+  body('type')
+    .optional()
+    .isIn(['News', 'Event', 'Announcement', 'Directive'])
+    .withMessage('Invalid post type'),
   body('category')
-    .isIn(['News', 'Event', 'Announcement', 'General'])
-    .withMessage('Please select a valid category'),
+    .optional()
+    .isIn(['General', 'Campus', 'Academic', 'Sports', 'Research', 'Cultural', 'Club Related', 'Housing', 'Guidance'])
+    .withMessage('Invalid category'),
   handleValidationErrors
 ];
 

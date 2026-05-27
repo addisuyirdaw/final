@@ -18,7 +18,7 @@ const { transporter } = require("../utils/emailService");
 // Generate JWT Token
 const generateToken = (id) => {
 	return jwt.sign({ id }, process.env.JWT_SECRET, {
-		expiresIn: process.env.JWT_EXPIRE || "7d",
+		expiresIn: "2h",
 	});
 };
 
@@ -299,7 +299,7 @@ router.post("/admin-login", async (req, res) => {
 				isAdmin: admin.isAdmin
 			},
 			process.env.JWT_SECRET,
-			{ expiresIn: "24h" }
+			{ expiresIn: "2h" }
 		);
 
 		console.log('Admin login successful:', username);

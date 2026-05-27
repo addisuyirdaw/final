@@ -16,12 +16,12 @@ const postSchema = new mongoose.Schema({
   type: {
     type: String,
     required: [true, 'Please specify post type'],
-    enum: ['News', 'Event', 'Announcement'],
+    enum: ['News', 'Event', 'Announcement', 'Directive'],
     default: 'News'
   },
   category: {
     type: String,
-    enum: ['General', 'Campus', 'Academic', 'Sports', 'Research', 'Cultural', 'Club Related'],
+    enum: ['General', 'Campus', 'Academic', 'Sports', 'Research', 'Cultural', 'Club Related', 'Housing', 'Guidance'],
     default: 'General'
   },
   author: {

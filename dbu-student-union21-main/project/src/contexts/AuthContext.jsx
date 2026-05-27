@@ -83,6 +83,7 @@ export const AuthProvider = ({ children }) => {
       };
 
       localStorage.setItem("user", JSON.stringify(studentUser));
+      localStorage.setItem("token", response.token);
       setUser(studentUser);
 
       // If the backend says this user is restricted, redirect immediately
@@ -123,6 +124,7 @@ export const AuthProvider = ({ children }) => {
       };
 
       localStorage.setItem("user", JSON.stringify(adminUser));
+      localStorage.setItem("token", response.token);
       setUser(adminUser);
 
       return adminUser;
@@ -145,6 +147,7 @@ export const AuthProvider = ({ children }) => {
       };
 
       localStorage.setItem("user", JSON.stringify(newUser));
+      localStorage.setItem("token", response.token);
       setUser(newUser);
 
       return newUser;
@@ -158,6 +161,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     toast.success("Logged out successfully");
   };
 

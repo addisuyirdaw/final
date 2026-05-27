@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { Upload, Trash2, Edit, Plus, CheckCircle, AlertCircle, X, Users, Image as ImageIcon } from "lucide-react";
 
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "http://localhost:5000/api")).replace(/\/api$/, "");
 
 export const LeadershipManager = () => {
   const { user } = useAuth();

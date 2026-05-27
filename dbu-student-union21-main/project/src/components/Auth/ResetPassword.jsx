@@ -44,7 +44,7 @@ export function ResetPassword() {
         }
 
         try {
-            const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
+            const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "http://localhost:5000/api")).replace(/\/api$/, "");
             const response = await fetch(`${API_BASE}/api/auth/reset-password/${resetToken}`, {
                 method: "PUT",
                 headers: {

@@ -104,6 +104,10 @@ export function Dashboard() {
 	const [directiveUploading, setDirectiveUploading] = useState(false);
 	const directiveFileRef = useRef(null);
 
+	// DB-backed directives state
+	const [dbDirectives, setDbDirectives] = useState([]);
+	const [directivesLoading, setDirectivesLoading] = useState(true);
+
 	const [stats, setStats] = useState([
 		{
 			title: "Active Students",
@@ -271,8 +275,24 @@ export function Dashboard() {
 		}
 	}, [user]);
 
+	// Load directives from the database
+	const loadDirectives = async () => {
+		try {
+			setDirectivesLoading(true);
+			const posts = await apiService.getPosts({ type: 'Directive', limit: 10 });
+			const directivesArray = Array.isArray(posts) ? posts : (posts?.posts || posts?.data || []);
+			setDbDirectives(directivesArray);
+		} catch (err) {
+			console.error('Error loading directives:', err);
+			setDbDirectives([]);
+		} finally {
+			setDirectivesLoading(false);
+		}
+	};
+
 	useEffect(() => {
 		loadDashboardStats();
+		loadDirectives();
 		// Auto-refresh every 5 minutes
 		const interval = setInterval(() => loadDashboardStats(), 5 * 60 * 1000);
 		return () => clearInterval(interval);
@@ -324,7 +344,7 @@ export function Dashboard() {
 
 			// If an image was selected, upload it to the carousel endpoint
 			if (directiveImage) {
-				const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, "");
+				const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
 				const token = localStorage.getItem('token') ||
 					(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').token; } catch { return ''; } })();
 
@@ -347,31 +367,52 @@ export function Dashboard() {
 				}
 			}
 
-			// Store directive locally (with optional imageUrl for feed rendering)
-			const current = JSON.parse(localStorage.getItem('official_directives') || '[]');
-			current.unshift({
-				...directiveForm,
-				id: Date.now(),
-				author: user?.name || 'Admin',
-				timestamp: new Date().toISOString(),
-				...(imageUrl && { imageUrl }),
-			});
-			localStorage.setItem('official_directives', JSON.stringify(current));
+			// Build category for the post (map priority to important flag)
+			const categoryMap = { 'Academic': 'Academic', 'Housing': 'Housing', 'Guidance': 'Guidance' };
+			const postCategory = categoryMap[directiveForm.category] || 'General';
 
-			setShowDirectiveForm(false);
-			setDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
-			setDirectiveImage(null);
-			setDirectiveImagePreview(null);
-			if (directiveFileRef.current) directiveFileRef.current.value = '';
+			// Save directive to database via API
+			const postData = {
+				title: directiveForm.title,
+				content: directiveForm.message,
+				type: 'Directive',
+				category: postCategory,
+				important: directiveForm.priority === 'Urgent',
+				targetAudience: 'all',
+				status: 'published',
+				...(imageUrl && { image: imageUrl }),
+			};
 
-			alert(imageUrl
-				? '✅ Directive published and photo added to the homepage carousel!'
-				: '✅ Directive published successfully to the main feed.');
+			const result = await apiService.createPost(postData);
+			if (result?.success || result?.post) {
+				// Reload directives from DB
+				await loadDirectives();
+				setShowDirectiveForm(false);
+				setDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+				setDirectiveImage(null);
+				setDirectiveImagePreview(null);
+				if (directiveFileRef.current) directiveFileRef.current.value = '';
+				alert(imageUrl
+					? '✅ Directive published and photo added to the homepage carousel!'
+					: '✅ Directive published successfully to the main feed.');
+			} else {
+				throw new Error(result?.message || 'Failed to save directive to database');
+			}
 		} catch (err) {
 			console.error('Directive post error:', err);
-			alert('Failed to publish directive. Please try again.');
+			alert('Failed to publish directive: ' + (err.message || 'Unknown error'));
 		} finally {
 			setDirectiveUploading(false);
+		}
+	};
+
+	const handleDeleteDirective = async (id) => {
+		if (!window.confirm('Delete this directive permanently?')) return;
+		try {
+			await apiService.deletePost(id);
+			setDbDirectives(prev => prev.filter(d => d._id !== id));
+		} catch (err) {
+			alert('Failed to delete directive: ' + (err.message || 'Unknown error'));
 		}
 	};
 
@@ -385,7 +426,7 @@ export function Dashboard() {
 		alert("Club Event published successfully.");
 	};
 
-	const mockDirectives = JSON.parse(localStorage.getItem('official_directives') || '[]');
+	// Use database directives
 
 	return (
 		<div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
@@ -746,20 +787,30 @@ export function Dashboard() {
 						<div className="p-4 sm:p-6 bg-white">
 							<h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Recent Directives</h4>
 							<div className="space-y-4">
-								{mockDirectives.length > 0 ? mockDirectives.slice(0,3).map(dir => (
-									<div key={dir.id} className="border border-gray-100 rounded-lg p-4 flex justify-between items-start group hover:bg-gray-50">
+								{directivesLoading ? (
+									<p className="text-gray-400 text-sm animate-pulse">Loading directives…</p>
+								) : dbDirectives.length > 0 ? dbDirectives.slice(0, 3).map(dir => (
+									<div key={dir._id} className="border border-gray-100 rounded-lg p-4 flex justify-between items-start group hover:bg-gray-50">
 										<div>
-											<span className={`text-xs font-bold px-2 py-1 rounded-full mb-2 inline-block ${dir.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{dir.priority}</span>
+											<span className={`text-xs font-bold px-2 py-1 rounded-full mb-2 inline-block ${dir.important ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+												{dir.important ? 'Urgent' : 'Normal'}
+											</span>
 											<h5 className="font-bold text-gray-900">{dir.title}</h5>
-											<p className="text-xs text-gray-500 mt-1">Posted {Math.floor((Date.now() - new Date(dir.timestamp).getTime()) / 60000)} minutes ago by {dir.author}</p>
+											<p className="text-xs text-gray-500 mt-1">
+												Posted {Math.floor((Date.now() - new Date(dir.createdAt).getTime()) / 60000)} min ago
+												{dir.author?.name ? ` by ${dir.author.name}` : ''}
+											</p>
 										</div>
 										<div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-											<button className="p-1.5 text-gray-400 hover:text-red-600 rounded bg-white shadow-sm border border-gray-200"><Trash2 className="w-4 h-4" /></button>
-											<button className="p-1.5 text-gray-400 hover:text-blue-600 rounded bg-white shadow-sm border border-gray-200"><Archive className="w-4 h-4" /></button>
+											<button
+												onClick={() => handleDeleteDirective(dir._id)}
+												className="p-1.5 text-gray-400 hover:text-red-600 rounded bg-white shadow-sm border border-gray-200"
+												title="Delete directive"
+											><Trash2 className="w-4 h-4" /></button>
 										</div>
 									</div>
 								)) : (
-									<p className="text-gray-500 text-sm">No recent directives posted.</p>
+									<p className="text-gray-500 text-sm">No directives posted yet.</p>
 								)}
 							</div>
 						</div>

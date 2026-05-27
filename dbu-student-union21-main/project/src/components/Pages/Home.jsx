@@ -100,7 +100,7 @@ export const Home = () => {
 	useEffect(() => {
 		const fetchCarousel = async () => {
 			try {
-				const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
+				const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
 				const res = await fetch(`${API_BASE}/api/carousel/get`);
 				const data = await res.json();
 				if (data.success && data.slides && data.slides.length > 0) {
@@ -120,7 +120,7 @@ export const Home = () => {
 
 		const fetchLeadership = async () => {
 			try {
-				const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "");
+				const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
 				const res = await fetch(`${API_BASE}/api/leadership/all`);
 				const data = await res.json();
 				if (data.success && data.profiles) {
@@ -583,7 +583,7 @@ export const Home = () => {
 								<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">University Leadership</h3>
 								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 									{leadershipProfiles.map((profile, index) => {
-										const imgSrc = profile.imageUrl?.startsWith("/uploads") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/api$/, "")}${profile.imageUrl}` : (profile.imageUrl || "");
+										const imgSrc = profile.imageUrl?.startsWith("/uploads") ? `${(import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "")}${profile.imageUrl}` : (profile.imageUrl || "");
 										return (
 											<motion.div key={profile._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}
 												className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
