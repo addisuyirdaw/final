@@ -265,44 +265,44 @@ export const Home = () => {
 							className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl transition-transform duration-10000"
 							style={{
 								transform: currentSlide === index ? 'scale(1.15)' : 'scale(1.1)',
-								filter: 'brightness(0.82) saturate(1.08)',
+								filter: 'brightness(1.2) contrast(1.05) saturate(1.15)',
 							}}
 						/>
-						<div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/20 to-black/30" />
+						{/* Very light gradient to keep text readable without darkening the image too much */}
+						<div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/20" />
 
-						{/* Main clear image */}
+						{/* Main clear image with high brightness and color contrast */}
 						<img
 							src={slide.image}
 							alt={`Carousel slide ${index + 1}`}
 							className="absolute inset-0 w-full h-full object-contain transition-transform duration-10000"
 							style={{
 								transform: currentSlide === index ? 'scale(1.02)' : 'scale(1)',
-								filter: index < 5
-									? 'brightness(1.12) contrast(1.12) saturate(1.08)'
-									: 'brightness(1.02) contrast(1.04)',
+								filter: 'brightness(1.25) contrast(1.1) saturate(1.15)',
 							}}
 						/>
-						<div className="absolute inset-0 bg-black/10" />
 
 						<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center items-center text-center">
 							<motion.div
 								initial={{ opacity: 0, y: 30 }}
 								animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 30 }}
-								transition={{ duration: 0.8, delay: 0.3 }}>
+								transition={{ duration: 0.8, delay: 0.3 }}
+								className="bg-black/35 backdrop-blur-md px-10 py-8 rounded-[2rem] border border-white/10 max-w-4xl mx-auto shadow-2xl"
+							>
 								
 								<motion.h1
 									initial={{ opacity: 0, y: 40 }}
 									animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 40 }}
 									transition={{ duration: 0.7, delay: 0.2 }}
-									className="text-4xl md:text-6xl font-bold mb-3 text-white drop-shadow-lg">
-									{carouselCaptions[index % carouselCaptions.length]}
+									className="text-4xl md:text-6xl font-black mb-3 text-white tracking-tight drop-shadow-xl">
+									{slide.caption || carouselCaptions[index % carouselCaptions.length]}
 								</motion.h1>
 
 								<motion.p
 									initial={{ opacity: 0, y: 30 }}
 									animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 30 }}
 									transition={{ duration: 0.7, delay: 0.35 }}
-									className="text-xl text-blue-200 font-medium tracking-wide uppercase">
+									className="text-lg text-blue-300 font-extrabold tracking-widest uppercase">
 									Debre Berhan University Student Affairs
 								</motion.p>
 							</motion.div>
