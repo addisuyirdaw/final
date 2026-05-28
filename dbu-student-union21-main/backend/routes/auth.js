@@ -463,13 +463,37 @@ router.post("/logout", protect, (req, res) => {
 // @access  Public
 router.post("/forgot-password", async (req, res) => {
 	try {
-		const { email } = req.body;
-		const user = await User.findOne({ email });
+		// Accept either email or username (identifier)
+		const { email, identifier } = req.body;
+		const lookup = identifier || email;
+
+		if (!lookup) {
+			return res.status(400).json({
+				success: false,
+				message: "Please provide your email address or student username",
+			});
+		}
+
+		// Search by email OR by username
+		const user = await User.findOne({
+			$or: [
+				{ email: lookup },
+				{ username: lookup }
+			]
+		});
 
 		if (!user) {
 			return res.status(404).json({
 				success: false,
-				message: "There is no user with that email",
+				message: "No account found with that email or username",
+			});
+		}
+
+		// Check user has an email address to send reset link to
+		if (!user.email) {
+			return res.status(400).json({
+				success: false,
+				message: "This account has no email address registered. Please contact the administrator to reset your password.",
 			});
 		}
 
@@ -551,7 +575,7 @@ router.post("/forgot-password", async (req, res) => {
 
 			return res.status(200).json({
 				success: true,
-				message: "Password reset link has been sent to your email",
+				message: `Password reset link has been sent to ${user.email}`,
 			});
 		} catch (emailError) {
 			console.error("Email sending failed:", emailError);

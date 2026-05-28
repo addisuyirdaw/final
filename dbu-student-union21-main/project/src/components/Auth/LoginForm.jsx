@@ -238,24 +238,16 @@ export function LoginForm() {
                   >
                     Department *
                   </label>
-                  <select
+                  <input
                     id="department"
                     name="department"
+                    type="text"
                     required
                     value={registerData.department}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Electrical Engineering">
-                      Electrical Engineering
-                    </option>
-                    <option value="Business">Business</option>
-                    <option value="Medicine">Medicine</option>
-                    <option value="Agriculture">Agriculture</option>
-                    <option value="Education">Education</option>
-                  </select>
+                    placeholder="Enter your department"
+                  />
                 </div>
 
                 <div>

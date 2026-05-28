@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export function ForgotPassword() {
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -20,7 +20,7 @@ export function ForgotPassword() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({ identifier }),
             });
 
             const data = await response.json();
@@ -55,26 +55,26 @@ export function ForgotPassword() {
                     </div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
                     <p className="text-gray-600">
-                        No worries! Enter your email and we'll send you reset instructions.
+                        No worries! Enter your email or student username and we'll send you reset instructions.
                     </p>
                 </div>
 
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                            Email Address
+                        <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+                            Email or Username
                         </label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                             <input
-                                id="email"
-                                name="email"
-                                type="email"
+                                id="identifier"
+                                name="identifier"
+                                type="text"
                                 required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                value={identifier}
+                                onChange={(e) => setIdentifier(e.target.value)}
                                 className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                placeholder="Enter your email"
+                                placeholder="Enter email or username (e.g. dbu12345678)"
                             />
                         </div>
                     </div>

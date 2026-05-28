@@ -212,13 +212,28 @@ export function Clubs() {
   const handleSubmitJoinRequest = async (e) => {
     e.preventDefault();
 
-    if (!joinFormData.fullName || !joinFormData.department || !joinFormData.year) {
-      toast.error("Please fill all required fields");
+    const fullName = joinFormData.fullName || user?.name || "";
+    const department = joinFormData.department || user?.department || "";
+    const year = joinFormData.year || user?.year || "";
+    const background = joinFormData.background?.trim() || "";
+
+    if (!fullName || !department || !year) {
+      toast.error("Please fill all required profile fields");
+      return;
+    }
+
+    if (!background) {
+      toast.error("Please explain why you want to join this club");
       return;
     }
 
     try {
-      const response = await apiService.joinClub(selectedClub._id || selectedClub.id, joinFormData);
+      const response = await apiService.joinClub(selectedClub._id || selectedClub.id, {
+        fullName,
+        department,
+        year,
+        background
+      });
       toast.success(response?.message || "Welcome! You have successfully joined the club.");
       setShowJoinModal(false);
       setJoinFormData({
@@ -1492,68 +1507,27 @@ export function Clubs() {
                 </div>
 
                 <form onSubmit={handleSubmitJoinRequest} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={joinFormData.fullName}
-                      onChange={(e) =>
-                        setJoinFormData({ ...joinFormData, fullName: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Your full name"
-                    />
+                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-sm text-blue-900 space-y-2 mb-4">
+                    <p className="flex justify-between">
+                      <span className="font-semibold text-blue-700">Full Name:</span>
+                      <span className="text-gray-800">{joinFormData.fullName || user?.name}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="font-semibold text-blue-700">Department:</span>
+                      <span className="text-gray-800">{joinFormData.department || user?.department}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="font-semibold text-blue-700">Academic Year:</span>
+                      <span className="text-gray-800">{joinFormData.year || user?.year}</span>
+                    </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Department *
-                    </label>
-                    <select
-                      required
-                      value={joinFormData.department}
-                      onChange={(e) =>
-                        setJoinFormData({ ...joinFormData, department: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                      <option value="">Select Department</option>
-                      <option value="Computer Science">Computer Science</option>
-                      <option value="Engineering">Engineering</option>
-                      <option value="Business">Business</option>
-                      <option value="Medicine">Medicine</option>
-                      <option value="Agriculture">Agriculture</option>
-                      <option value="Education">Education</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Academic Year *
-                    </label>
-                    <select
-                      required
-                      value={joinFormData.year}
-                      onChange={(e) =>
-                        setJoinFormData({ ...joinFormData, year: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                      <option value="">Select Year</option>
-                      <option value="1st Year">1st Year</option>
-                      <option value="2nd Year">2nd Year</option>
-                      <option value="3rd Year">3rd Year</option>
-                      <option value="4th Year">4th Year</option>
-                      <option value="5th Year">5th Year</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Why do you want to join this club?
+                      Why do you want to join this club? *
                     </label>
                     <textarea
+                      required
                       value={joinFormData.background}
                       onChange={(e) =>
                         setJoinFormData({ ...joinFormData, background: e.target.value })
@@ -1776,6 +1750,19 @@ export function Clubs() {
                   )}
                   {(user?.isAdmin || isCoordinator || ((user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id)))) && (
                     <>
+                      <button
+                        onClick={() => {
+                          setSelectedClub(selectedClubDetails);
+                          fetchJoinRequests(selectedClubDetails._id || selectedClubDetails.id);
+                        }}
+                        className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2">
+                        View Join Requests
+                        {Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.filter(m => m?.status === 'pending').length > 0 && (
+                          <span className="bg-white text-amber-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {selectedClubDetails.members.filter(m => m?.status === 'pending').length}
+                          </span>
+                        )}
+                      </button>
                       <button
                         onClick={() => fetchInbox(selectedClubDetails._id || selectedClubDetails.id)}
                         className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2">

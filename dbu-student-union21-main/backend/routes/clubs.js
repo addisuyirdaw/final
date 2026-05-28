@@ -323,10 +323,21 @@ router.post('/:id/join', protect, async (req, res) => {
   try {
     const { fullName, department, year, background } = req.body;
 
-    if (!fullName || !department || !year) {
+    const resolvedFullName = fullName || req.user.name;
+    const resolvedDepartment = department || req.user.department;
+    const resolvedYear = year || req.user.year;
+
+    if (!resolvedFullName || !resolvedDepartment || !resolvedYear) {
       return res.status(400).json({
         success: false,
-        message: 'Full name, department, and year are required'
+        message: 'Full name, department, and academic year are required'
+      });
+    }
+
+    if (!background || !background.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please specify why you want to join this club'
       });
     }
 
@@ -366,10 +377,10 @@ router.post('/:id/join', protect, async (req, res) => {
     // Add user to club members
     club.members.push({
       user: req.user._id,
-      fullName: fullName || req.user.name,
-      department: department || req.user.department,
-      year: year || req.user.year,
-      background,
+      fullName: resolvedFullName,
+      department: resolvedDepartment,
+      year: resolvedYear,
+      background: background.trim(),
       role: 'member',
       status: 'pending',
       joinedAt: new Date()
