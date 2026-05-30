@@ -122,9 +122,11 @@ class ApiService {
   }
 
   async updateProfile(profileData) {
+    // Accept both FormData (multipart/form-data) and plain objects (JSON)
+    const isFormData = profileData instanceof FormData;
     return this.request('/auth/profile', {
       method: 'PUT',
-      body: JSON.stringify(profileData)
+      body: isFormData ? profileData : JSON.stringify(profileData)
     });
   }
 

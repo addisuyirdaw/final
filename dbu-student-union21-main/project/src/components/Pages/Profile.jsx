@@ -18,7 +18,8 @@ import {
   Loader,
   CheckCircle,
   AlertCircle,
-  BookOpen
+  BookOpen,
+  Camera
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -27,7 +28,12 @@ export function Profile() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
-  
+
+  // Avatar file state
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const avatarInputRef = React.useRef(null);
+
   // Password visible toggles
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
@@ -78,6 +84,28 @@ export function Profile() {
     }
   };
 
+  // Handle avatar file selection
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be smaller than 5 MB.");
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview("");
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
+
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -87,7 +115,20 @@ export function Profile() {
 
     try {
       setUpdatingProfile(true);
-      const res = await apiService.updateProfile(formData);
+
+      // Build multipart/form-data payload
+      const payload = new FormData();
+      payload.append("name", formData.name);
+      payload.append("email", formData.email);
+      payload.append("phoneNumber", formData.phoneNumber);
+      payload.append("department", formData.department);
+      payload.append("year", formData.year);
+      payload.append("address", formData.address);
+      if (avatarFile) {
+        payload.append("profileImage", avatarFile);
+      }
+
+      const res = await apiService.updateProfile(payload);
       if (res.success) {
         toast.success("Profile updated successfully!");
         // Sync context state
@@ -100,6 +141,10 @@ export function Profile() {
           address: res.user.address,
           profileImage: res.user.profileImage
         });
+        // Clear staged file after successful upload
+        setAvatarFile(null);
+        setAvatarPreview("");
+        if (avatarInputRef.current) avatarInputRef.current.value = "";
       }
     } catch (err) {
       console.error("Profile update error", err);
@@ -167,15 +212,34 @@ export function Profile() {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-sky-100 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="relative">
+            <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()} title="Click to change photo">
+              {/* Hidden file input lives here — triggered by clicking the avatar */}
+              <input
+                ref={avatarInputRef}
+                id="avatar-file-input"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
+
               <img
-                src={formData.profileImage || "https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=400"}
+                src={avatarPreview || formData.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=0284c7&color=fff&size=128`}
                 alt={formData.name}
-                className="w-20 h-20 rounded-full object-cover border-4 border-sky-100 bg-white"
+                className="w-20 h-20 rounded-full object-cover border-4 border-sky-100 bg-white transition-opacity group-hover:opacity-70"
                 onError={(e) => {
                   e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=0284c7&color=fff&size=128`;
                 }}
               />
+
+              {/* Camera overlay — visible on hover */}
+              <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="bg-black/50 rounded-full p-1.5">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              {/* Online dot */}
               <span className="absolute bottom-0 right-0 bg-emerald-500 w-4 h-4 rounded-full border-2 border-white"></span>
             </div>
             <div>
@@ -271,23 +335,6 @@ export function Profile() {
                         onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-shadow outline-none text-gray-800"
                         placeholder="+251 912 34 5678"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Profile Image Input */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
-                      Profile Avatar URL
-                    </label>
-                    <div className="relative">
-                      <User className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
-                      <input
-                        type="url"
-                        value={formData.profileImage}
-                        onChange={(e) => setFormData({ ...formData, profileImage: e.target.value })}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-shadow outline-none text-gray-800"
-                        placeholder="https://..."
                       />
                     </div>
                   </div>

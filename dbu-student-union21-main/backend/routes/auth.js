@@ -5,13 +5,38 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const { protect } = require("../middleware/auth");
 const {
 	validateUserRegistration,
 	validateUserLogin,
 } = require("../middleware/validation");
 
+
 const router = express.Router();
+
+// ── Multer: profile avatar upload ──────────────────────────────────────────
+const profilesDir = path.join(__dirname, "../uploads/profiles");
+if (!fs.existsSync(profilesDir)) fs.mkdirSync(profilesDir, { recursive: true });
+
+const profileStorage = multer.diskStorage({
+	destination: (_req, _file, cb) => cb(null, profilesDir),
+	filename: (_req, file, cb) => {
+		const ext = path.extname(file.originalname).toLowerCase();
+		cb(null, `profile-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
+	},
+});
+
+const uploadAvatar = multer({
+	storage: profileStorage,
+	limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+	fileFilter: (_req, file, cb) => {
+		if (file.mimetype.startsWith("image/")) return cb(null, true);
+		cb(new Error("Only image files are allowed for profile avatars"), false);
+	},
+}).single("profileImage");
 
 const { transporter } = require("../utils/emailService");
 
@@ -358,56 +383,76 @@ router.get("/profile", protect, async (req, res) => {
 	}
 });
 
-// @desc    Update user profile
+// @desc    Update user profile (supports multipart/form-data for avatar upload)
 // @route   PUT /api/auth/profile
 // @access  Private
-router.put("/profile", protect, async (req, res) => {
-	try {
-		const { name, department, year, phoneNumber, address, email } = req.body;
-
-		const user = await User.findById(req.user.id);
-		if (!user) {
-			return res.status(404).json({
-				success: false,
-				message: "User not found",
-			});
+router.put("/profile", protect, (req, res, next) => {
+	// Run multer; if the request has no file, multer simply skips it
+	uploadAvatar(req, res, async (err) => {
+		if (err) {
+			return res.status(400).json({ success: false, message: err.message });
 		}
 
-		// Update fields
-		if (name) user.name = name;
-		if (department) user.department = department;
-		if (year) user.year = year;
-		if (phoneNumber) user.phoneNumber = phoneNumber;
-		if (address) user.address = address;
-		if (email) user.email = email;
+		try {
+			const { name, department, year, phoneNumber, address, email } = req.body;
 
-		await user.save();
+			const user = await User.findById(req.user.id);
+			if (!user) {
+				return res.status(404).json({
+					success: false,
+					message: "User not found",
+				});
+			}
 
-		return res.json({
-			success: true,
-			message: "Profile updated successfully",
-			user: {
-				id: user._id,
-				name: user.name,
-				email: user.email,
-				username: user.username,
-				department: user.department,
-				year: user.year,
-				phoneNumber: user.phoneNumber,
-				address: user.address,
-				role: user.role,
-				isAdmin: user.isAdmin,
-				profileImage: user.profileImage,
-			},
-		});
-	} catch (error) {
-		console.error("Profile update error:", error);
-		return res.status(500).json({
-			success: false,
-			message: "Server error updating profile",
-		});
-	}
+			// Update text fields
+			if (name) user.name = name;
+			if (department) user.department = department;
+			if (year) user.year = year;
+			if (phoneNumber) user.phoneNumber = phoneNumber;
+			if (address) user.address = address;
+			if (email) user.email = email;
+
+			// If a new avatar was uploaded, delete the old file and save the new URL
+			if (req.file) {
+				// Remove old avatar from disk if it was a locally-stored file
+				if (user.profileImage && user.profileImage.startsWith("/uploads/profiles/")) {
+					try {
+						const oldPath = path.join(__dirname, "..", user.profileImage);
+						if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+					} catch (_) { /* ignore — file may already be gone */ }
+				}
+				user.profileImage = `/uploads/profiles/${req.file.filename}`;
+			}
+
+			await user.save();
+
+			return res.json({
+				success: true,
+				message: "Profile updated successfully",
+				user: {
+					id: user._id,
+					name: user.name,
+					email: user.email,
+					username: user.username,
+					department: user.department,
+					year: user.year,
+					phoneNumber: user.phoneNumber,
+					address: user.address,
+					role: user.role,
+					isAdmin: user.isAdmin,
+					profileImage: user.profileImage,
+				},
+			});
+		} catch (error) {
+			console.error("Profile update error:", error);
+			return res.status(500).json({
+				success: false,
+				message: "Server error updating profile",
+			});
+		}
+	});
 });
+
 
 // @desc    Change password
 // @route   PUT /api/auth/change-password
