@@ -129,6 +129,28 @@ export const LeadershipProfile = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this profile?")) return;
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/staff/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Profile deleted successfully");
+        navigate(getBackUrl());
+      } else {
+        toast.error(data.message || "Failed to delete profile");
+      }
+    } catch (err) {
+      toast.error("Network error deleting profile");
+    }
+  };
+
   const handleDeactivateToggle = async () => {
     const nextStatus = profile.isActive === false ? true : false;
     const confirmMessage = nextStatus 
@@ -219,6 +241,15 @@ export const LeadershipProfile = () => {
           {/* Admin Control Bar */}
           {isAdmin && (
             <div className="flex items-center gap-3">
+              {/* Commented out duplicate blue Edit button to consolidate contexts
+              <button 
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer hover:shadow-lg"
+              >
+                <Edit className="w-4 h-4" /> Edit Profile
+              </button>
+              */}
+
               <button 
                 onClick={handleDeactivateToggle}
                 className={`flex items-center gap-1.5 px-4 py-2 ${profile && profile.isActive === false ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'} text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer hover:shadow-lg`}
@@ -232,6 +263,13 @@ export const LeadershipProfile = () => {
                     <EyeOff className="w-4 h-4" /> Deactivate Profile
                   </>
                 )}
+              </button>
+
+              <button 
+                onClick={handleDelete}
+                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer hover:shadow-lg"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
               </button>
             </div>
           )}

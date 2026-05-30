@@ -16,13 +16,12 @@ export function Footer() {
 								<span className="text-white font-bold">DBU</span>
 							</div>
 							<div>
-								<h3 className="text-lg font-bold">Student Affairs</h3>
+								<h3 className="text-lg font-bold">DBU Campus Life & Leadership Portal</h3>
 								<p className="text-gray-400 text-sm">Debre Berhan University</p>
 							</div>
 						</div>
 						<p className="text-gray-400 mb-4">
-							Empowering students through leadership, service, and academic
-							excellence at Debre Berhan University.
+							Your unified gateway to student governance, campus services, and organization directories at Debre Berhan University.
 						</p>
 
 						<div className="flex space-x-3">

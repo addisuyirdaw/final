@@ -440,8 +440,8 @@ export const Home = () => {
 				<div className="bg-gradient-to-r from-blue-700 to-blue-900 py-5 px-4">
 					<div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
 						<div className="text-white text-center sm:text-left">
-							<p className="font-bold text-lg">DBU Student Affairs Office</p>
-							<p className="text-blue-200 text-sm">Your gateway to campus services and leadership.</p>
+							<h3 className="font-bold text-lg text-white">DBU Campus Life & Leadership Portal</h3>
+							<p className="text-blue-200 text-sm">Your unified gateway to student governance, campus services, and organization directories.</p>
 						</div>
 						<div className="flex flex-row gap-3">
 							<motion.button
