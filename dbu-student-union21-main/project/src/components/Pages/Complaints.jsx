@@ -18,6 +18,15 @@ import { apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
+// Strip technical system account names from display
+const TECHNICAL_NAME_PATTERN = /^(system\s*admin|club\s*admin|president\s*admin|admin|moderator|superuser|super\s*admin|clubs\s*coordinator|academic\s*affairs|council\s*president|council\s*secretary)$/i;
+
+const sanitizeAuthorName = (name) => {
+	if (!name) return 'University Leadership';
+	if (TECHNICAL_NAME_PATTERN.test(name.trim())) return 'University Leadership';
+	return name;
+};
+
 export function Complaints() {
 	const { user } = useAuth();
 	const navigate = useNavigate();
@@ -337,7 +346,7 @@ export function Complaints() {
 						complaint.responses.map((r, index) => (
 							<div key={r._id || r.id || index} className="bg-gray-50 rounded p-3 mb-2">
 								<div className="flex justify-between text-sm">
-									<span className="font-medium">{r.author}</span>
+									<span className="font-medium">{sanitizeAuthorName(r.author)}</span>
 									<span className="text-gray-500">
 										{new Date(r.timestamp).toLocaleDateString()}
 									</span>
