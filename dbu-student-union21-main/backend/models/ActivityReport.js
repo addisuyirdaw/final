@@ -31,6 +31,15 @@ const activityReportSchema = new mongoose.Schema({
   fileUrl: {
     type: String
   },
+  fileData: {
+    type: String
+  },
+  fileName: {
+    type: String
+  },
+  fileMimeType: {
+    type: String
+  },
   status: {
     type: String,
     enum: ['PENDING_MANAGER', 'PENDING_REVIEW', 'RETURNED', 'PUBLISHED', 'APPROVED'],

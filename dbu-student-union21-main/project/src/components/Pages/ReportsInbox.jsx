@@ -156,7 +156,7 @@ export const ReportsInbox = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center gap-3">
                         {report.fileUrl && (
                           <a
-                            href={`http://${window.location.hostname}:5000/api/reports/download/${report.fileUrl.split('/').pop()}`}
+                            href={`${apiService.baseURL}/reports/download/${report.fileUrl.split('/').pop()}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1.5 rounded font-bold transition-colors shadow-sm inline-flex items-center gap-1"

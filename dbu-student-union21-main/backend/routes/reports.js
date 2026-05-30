@@ -27,12 +27,32 @@ const upload = multer({ storage });
 // @desc    Force download of attached report files bypassing browser HTML render
 // @route   GET /api/reports/download/:filename
 // @access  Public
-router.get('/download/:filename', (req, res) => {
-  const filePath = path.join(__dirname, '../uploads/reports', req.params.filename);
-  if (fs.existsSync(filePath)) {
-    res.download(filePath);
-  } else {
-    res.status(404).send('File not found.');
+router.get('/download/:filename', async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, '../uploads/reports', req.params.filename);
+    if (fs.existsSync(filePath)) {
+      return res.download(filePath);
+    }
+
+    // Try database fallback if file is not found on disk (ephemeral filesystem self-healing)
+    const report = await ActivityReport.findOne({ fileUrl: { $regex: req.params.filename } });
+
+    if (report && report.fileData) {
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      const fileBuffer = Buffer.from(report.fileData, 'base64');
+      fs.writeFileSync(filePath, fileBuffer);
+      console.log(`✨ Self-healed missing file during download: ${req.params.filename}`);
+      return res.download(filePath);
+    }
+
+    return res.status(404).send('File not found.');
+  } catch (error) {
+    console.error('Download error:', error);
+    return res.status(500).send('Server error retrieving file.');
   }
 });
 
@@ -49,6 +69,19 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
     const { title, description, date, photos, documentUrl, reportType } = data;
     // We intentionally map to /uploads/ instead of req.file.path to maintain valid browser URL static routing
     const fileUrl = req.file ? `/uploads/reports/${req.file.filename}` : undefined;
+
+    // Read and encode file data directly to base64 for persistent cloud storage in MongoDB Atlas
+    let fileData, fileName, fileMimeType;
+    if (req.file) {
+      try {
+        const fileBuffer = fs.readFileSync(req.file.path);
+        fileData = fileBuffer.toString('base64');
+        fileName = req.file.originalname;
+        fileMimeType = req.file.mimetype;
+      } catch (err) {
+        console.error('Error reading uploaded file for DB storage:', err);
+      }
+    }
 
     // Check if user is member or leader
     const club = await Club.findById(req.params.clubId);
@@ -78,6 +111,9 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
       photos: photos || [],
       documentUrl,
       fileUrl,
+      fileData,
+      fileName,
+      fileMimeType,
       reportType: reportType || 'ACTIVITY',
       status: isLeader ? 'PENDING_REVIEW' : 'PENDING_MANAGER', // Leader -> Coordinator. Member -> Manager.
       submittedBy: req.user._id

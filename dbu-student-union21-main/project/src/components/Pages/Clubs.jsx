@@ -2230,7 +2230,7 @@ export function Clubs() {
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <p className="font-bold text-blue-800 mb-2">ATTACHED DOCUMENT:</p>
                     <a
-                      href={selectedReport.fileUrl ? `http://${window.location.hostname}:5000/api/reports/download/${selectedReport.fileUrl.split('/').pop()}` : (selectedReport.documentUrl || '#')}
+                      href={selectedReport.fileUrl ? `${apiService.baseURL}/reports/download/${selectedReport.fileUrl.split('/').pop()}` : (selectedReport.documentUrl || '#')}
                       target="_blank"
                       rel="noreferrer"
                       download
@@ -2337,7 +2337,7 @@ export function Clubs() {
 
                           {report.fileUrl && (
                             <a
-                              href={report.fileUrl ? `http://${window.location.hostname}:5000${report.fileUrl}` : '#'}
+                              href={report.fileUrl ? `${apiService.baseURL}/reports/download/${report.fileUrl.split('/').pop()}` : '#'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm font-medium text-indigo-600 hover:text-indigo-800 mt-2 flex items-center gap-1">

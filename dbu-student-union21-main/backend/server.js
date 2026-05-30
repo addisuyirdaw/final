@@ -92,11 +92,38 @@ const fs = require('fs');
 // Serve the uploads directory statically — always relative to this server.js file (backend/)
 const uploadsPath = path.join(__dirname, 'uploads');
 console.log("✅ Serving static uploads from:", uploadsPath);
-// Set Cross-Origin-Resource-Policy header so browsers on a different port (e.g. :5173) can load images
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
-}, express.static(uploadsPath));
+}, express.static(uploadsPath), async (req, res, next) => {
+  // Fallback self-healing static handler when files are missing on disk (e.g. ephemeral Render storage reset)
+  const reportsRegex = /^\/reports\/([^\/]+)$/i;
+  const match = req.url.match(reportsRegex);
+  if (match) {
+    const filename = match[1];
+    const filePath = path.join(uploadsPath, 'reports', filename);
+    
+    try {
+      const ActivityReport = require('./models/ActivityReport');
+      const report = await ActivityReport.findOne({ fileUrl: { $regex: filename } });
+      
+      if (report && report.fileData) {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        const fileBuffer = Buffer.from(report.fileData, 'base64');
+        fs.writeFileSync(filePath, fileBuffer);
+        console.log(`✨ Static self-healing: Recreated missing file ${filename} from database`);
+        return res.sendFile(filePath);
+      }
+    } catch (err) {
+      console.error('Static self-healing error:', err);
+    }
+  }
+  next();
+});
 
 // Health check endpoint
 app.get("/health", (req, res) => {
