@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
@@ -136,6 +136,8 @@ export function Clubs() {
     "Other",
   ];
 
+  const { id: urlClubId } = useParams();
+
   useEffect(() => {
     fetchClubs();
     markAsSeen('clubs');
@@ -144,6 +146,32 @@ export function Clubs() {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (urlClubId && clubs.length > 0) {
+      const matchedClub = clubs.find(c => String(c._id || c.id) === String(urlClubId));
+      if (matchedClub) {
+        handleViewPublicOverview(matchedClub);
+      }
+    }
+  }, [urlClubId, clubs]);
+
+  const handleViewPublicOverview = async (club) => {
+    try {
+      const clubId = club._id || club.id;
+      const detailedClub = await apiService.getClub(clubId);
+      if (detailedClub) {
+        setSelectedClub(club);
+        setSelectedClubDetails(detailedClub);
+        setShowClubDetails(true);
+      }
+    } catch (err) {
+      if (club) {
+        setSelectedClubDetails(club);
+        setShowClubDetails(true);
+      }
+    }
+  };
 
   const fetchClubs = async () => {
     try {
@@ -1265,98 +1293,115 @@ export function Clubs() {
                         <span>{club.events || 0} events</span>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => {
-                          if ((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) {
-                            handleViewMembers(club);
-                          } else {
-                            if (activeMember) {
-                              toast.success("You are already an active member of this club!");
-                              return;
+                    <div className="flex flex-col gap-2 mt-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            if ((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) {
+                              handleViewMembers(club);
+                            } else {
+                              if (activeMember) {
+                                toast.success("You are already an active member of this club!");
+                                return;
+                              }
+                              const isPending = (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
+                                club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
+                              if (isPending) {
+                                toast.error("Your join request is already pending approval.");
+                                        return;
+                              }
+                              handleJoinClub(club);
                             }
-                            const isPending = (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
-                              club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
-                            if (isPending) {
-                              toast.error("Your join request is already pending approval.");
-                              return;
-                            }
-                            handleJoinClub(club);
-                          }
-                        }}
-                        className={`py-2 rounded-xl font-bold transition-all transform hover:scale-[1.02] shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
-                          ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-700 hover:from-green-600 hover:to-emerald-700"
-                          : activeMember
-                            ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-700 cursor-default"
-                            : ((club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
-                              ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-700 cursor-default"
-                              : "bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-800 hover:from-blue-700 hover:to-indigo-800"
-                        }`}
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <Users className="w-4 h-4" />
-                          <span className="text-sm">
-                            {((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
-                              ? "Manage"
-                               : (() => {
-                                 if (club.userMembershipStatus) {
-                                   if (club.userMembershipStatus === 'pending') return "Pending";
-                                   if (club.userMembershipStatus === 'approved') return "Joined";
-                                   if (club.userMembershipStatus === 'rejected') return "Rejected";
-                                 }
-                                 const membersArr = Array.isArray(club?.members) ? club.members : [];
-                                 if (membersArr.length > 0) {
-                                   const userId = user?._id || user?.id;
-                                   const existingMember = membersArr.find(m => String(m?.user?._id || m?.user) === String(userId));
-                                   if (existingMember) {
-                                     if (existingMember.status === 'pending') return "Pending";
-                                     if (existingMember.status === 'approved') return "Joined";
-                                     if (existingMember.status === 'rejected') return "Rejected";
+                          }}
+                          className={`py-2 rounded-xl font-bold transition-all transform hover:scale-[1.02] shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
+                            ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-700 hover:from-green-600 hover:to-emerald-700"
+                            : activeMember
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-700 cursor-default"
+                              : ((club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
+                                ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-700 cursor-default"
+                                : "bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-800 hover:from-blue-700 hover:to-indigo-800"
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Users className="w-4 h-4" />
+                            <span className="text-xs">
+                              {((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
+                                ? "Manage"
+                                 : (() => {
+                                   if (club.userMembershipStatus) {
+                                     if (club.userMembershipStatus === 'pending') return "Pending";
+                                     if (club.userMembershipStatus === 'approved') return "Joined";
+                                     if (club.userMembershipStatus === 'rejected') return "Rejected";
                                    }
-                                 }
-                                 return "Join";
-                               })()}
-                          </span>
+                                   const membersArr = Array.isArray(club?.members) ? club.members : [];
+                                   if (membersArr.length > 0) {
+                                     const userId = user?._id || user?.id;
+                                     const existingMember = membersArr.find(m => String(m?.user?._id || m?.user) === String(userId));
+                                     if (existingMember) {
+                                       if (existingMember.status === 'pending') return "Pending";
+                                       if (existingMember.status === 'approved') return "Joined";
+                                       if (existingMember.status === 'rejected') return "Rejected";
+                                     }
+                                   }
+                                   return "Join";
+                                 })()}
+                            </span>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            navigate(`/clubs/${club._id || club.id}`);
+                          }}
+                          className="py-2 rounded-xl font-bold bg-white text-blue-600 border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-all flex items-center justify-center gap-1.5 shadow-sm text-xs"
+                        >
+                          Read More →
+                        </button>
+                      </div>
+
+                      {(!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) ||
+                       (!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030') ||
+                       (!loginMatch && isLeader)) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) && (
+                            <button
+                              onClick={() => fetchClubReports(club._id || club.id)}
+                              className="py-2 rounded-xl font-bold bg-white text-gray-700 border-2 border-gray-100 hover:border-blue-200 hover:text-blue-600 transition-all flex items-center justify-center gap-1 shadow-sm text-xs">
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Reports</span>
+                            </button>
+                          )}
+                          {!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030' && (
+                            <button
+                              onClick={() => {
+                                setSelectedClub(club);
+                                setShowAskModal(true);
+                              }}
+                              className="py-2 rounded-xl font-bold bg-white text-indigo-700 border-2 border-indigo-100 hover:border-indigo-300 hover:text-indigo-800 transition-all flex items-center justify-center gap-1 shadow-sm text-xs">
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>Ask Rep</span>
+                            </button>
+                          )}
+                          {!loginMatch && isLeader && (
+                            <button
+                              onClick={() => {
+                                setSelectedClub(club);
+                                setReportFormData({
+                                  title: "",
+                                  description: "",
+                                  date: new Date().toISOString().split('T')[0],
+                                  documentUrl: "",
+                                  file: null,
+                                  reportType: "ACTIVITY"
+                                });
+                                setShowReportModal(true);
+                              }}
+                              className="py-2 rounded-xl font-bold bg-purple-50 text-purple-700 border-2 border-purple-100 hover:border-purple-300 hover:bg-purple-100 transition-all flex items-center justify-center gap-1 shadow-sm text-xs">
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Submit Report</span>
+                            </button>
+                          )}
                         </div>
-                      </button>
-                      {!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) && (
-                        <button
-                          onClick={() => fetchClubReports(club._id || club.id)}
-                          className="py-2 rounded-xl font-bold bg-white text-gray-700 border-2 border-gray-100 hover:border-blue-200 hover:text-blue-600 transition-all flex items-center justify-center gap-1 shadow-sm">
-                          <FileText className="w-4 h-4" />
-                          <span className="text-xs">Reports</span>
-                        </button>
-                      )}
-                      {!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030' && (
-                        <button
-                          onClick={() => {
-                            setSelectedClub(club);
-                            setShowAskModal(true);
-                          }}
-                          className="py-2 rounded-xl font-bold bg-white text-indigo-700 border-2 border-indigo-100 hover:border-indigo-300 hover:text-indigo-800 transition-all flex items-center justify-center gap-1 shadow-sm">
-                          <Mail className="w-4 h-4" />
-                          <span className="text-xs">Ask Rep</span>
-                        </button>
-                      )}
-                      {!loginMatch && isLeader && (
-                        <button
-                          onClick={() => {
-                            setSelectedClub(club);
-                            setReportFormData({
-                              title: "",
-                              description: "",
-                              date: new Date().toISOString().split('T')[0],
-                              documentUrl: "",
-                              file: null,
-                              reportType: "ACTIVITY"
-                            });
-                            setShowReportModal(true);
-                          }}
-                          className="py-2 rounded-xl font-bold bg-purple-50 text-purple-700 border-2 border-purple-100 hover:border-purple-300 hover:bg-purple-100 transition-all flex items-center justify-center gap-1 shadow-sm">
-                          <FileText className="w-4 h-4" />
-                          <span className="text-xs">Submit Report</span>
-                        </button>
                       )}
                     </div>
 
@@ -1613,126 +1658,192 @@ export function Clubs() {
 
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
-                  <p className="text-gray-600 text-sm">{selectedClubDetails?.description || "No description available."}</p>
+                  <p className="text-gray-600 text-sm leading-relaxed">{selectedClubDetails?.description || "No description available."}</p>
                 </div>
 
-                {/* Club Members List - Table Format */}
-                <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-blue-600" /> Club Members 
-                    <span className="text-xs font-normal text-gray-400 ml-2">({Array.isArray(selectedClubDetails?.members) ? selectedClubDetails.members.filter(m => m?.status === 'approved' || m?.status === 'restricted').length : 0} enrolled)</span>
+                {/* Structural Leaders */}
+                <div className="mb-8">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-indigo-600" /> Structural Leaders
                   </h3>
-                  <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                        <tr>
-                          <th className="px-4 py-3">Full Name</th>
-                          <th className="px-4 py-3">Username</th>
-                          <th className="px-4 py-3">Department</th>
-                          <th className="px-4 py-3">Year</th>
-                          <th className="px-4 py-3 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.filter(m => ['approved', 'restricted'].includes(m?.status)).length > 0 ? (
-                          [...selectedClubDetails.members]
-                            .filter(m => ['approved', 'restricted'].includes(m?.status) && m?.user)
-                            .sort((a, b) => {
-                              const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president);
-                              const isAPres = String(a.user?._id || a.user) === presidentId;
-                              const isBPres = String(b.user?._id || b.user) === presidentId;
-                              return isBPres - isAPres;
-                            })
-                            .map((member, idx) => (
-                            <tr key={idx} className="hover:bg-blue-50/40 transition-colors">
-                              <td className="px-4 py-3 font-medium text-gray-900">
-                                <div className="flex items-center gap-2">
-                                  {member.fullName || member.user?.name || "Member"}
-                                  {String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(member.user?._id || member.user) && (
-                                    <span className="px-2 py-0.5 text-[10px] bg-indigo-600 text-white rounded-full font-black uppercase shadow-sm">
-                                      Representative
-                                    </span>
-                                  )}
-                                  {member.status === 'restricted' && (
-                                    <span className="px-2 py-0.5 text-[10px] bg-orange-600 text-white rounded-full font-black uppercase shadow-sm">
-                                      Restricted
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-gray-500">@{member.user?.username || member.username || "---"}</td>
-                              <td className="px-4 py-3 text-gray-600">{member.department || "General"}</td>
-                              <td className="px-4 py-3 text-gray-600">{member.year || "---"}</td>
-                              <td className="px-4 py-3 text-right overflow-visible">
-                                {(() => {
-                                  const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president);
-                                  const isMemberRep = String(member.user?._id || member.user) === presidentId;
-                                  const isMemberCoordinator = member.user?.role === 'clubs_coordinator' || member.user?.username === 'dbu10101040';
-                                  
-                                  // Hierarchy check for UI visibility
-                                  // Coordinator sees all. 
-                                  // Rep sees only regular members (not themselves, not other reps, not coordinator).
-                                  const canManage = isCoordinator || (isLeader && !isMemberRep && !isMemberCoordinator);
-                                  
-                                  if (!canManage) return <span className="text-gray-300 italic text-[10px]">Read Only</span>;
-
-                                  return (
-                                    <div className="relative inline-block text-left">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveDropdownId(activeDropdownId === member._id ? null : member._id);
-                                        }}
-                                        className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
-                                      >
-                                        <MoreVertical className="w-5 h-5" />
-                                      </button>
-
-                                      {activeDropdownId === member._id && (
-                                        <div 
-                                          className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-[100] py-1 overflow-hidden"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <button
-                                            onClick={() => handleRestrictMember(selectedClubDetails?._id, member._id, member.status, member.fullName || member.user?.name)}
-                                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 transition-colors"
-                                          >
-                                            <AlertCircle className="w-4 h-4 text-orange-500" />
-                                            {member.status === 'restricted' ? 'Unrestrict Student' : 'Restrict Student'}
-                                          </button>
-                                          
-                                          <div className="border-t border-gray-50 my-1"></div>
-                                          
-                                          <button
-                                            onClick={() => handleRemoveMember(selectedClubDetails?._id, member._id, member.fullName || member.user?.name)}
-                                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold"
-                                          >
-                                            <UserMinus className="w-4 h-4" />
-                                            Delete Member
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No approved members found</td></tr>
-                        )}
-                      </tbody>
-                    </table>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-indigo-50 text-indigo-900 rounded-2xl p-4 border border-indigo-100 flex flex-col items-center text-center shadow-sm">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-1.5">President</span>
+                      <span className="font-extrabold text-xs truncate w-full">
+                        {selectedClubDetails?.leadership?.president?.name || selectedClubDetails?.leadership?.president?.username || 'Representative'}
+                      </span>
+                    </div>
+                    <div className="bg-purple-50 text-purple-900 rounded-2xl p-4 border border-purple-100 flex flex-col items-center text-center shadow-sm">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-500 mb-1.5">Vice President</span>
+                      <span className="font-extrabold text-xs truncate w-full">
+                        {selectedClubDetails?.leadership?.vicePresident?.name || selectedClubDetails?.leadership?.vicePresident?.username || 'Assistant Leader'}
+                      </span>
+                    </div>
+                    <div className="bg-teal-50 text-teal-900 rounded-2xl p-4 border border-teal-100 flex flex-col items-center text-center shadow-sm">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-teal-500 mb-1.5">Secretary</span>
+                      <span className="font-extrabold text-xs truncate w-full">
+                        {selectedClubDetails?.leadership?.secretary?.name || selectedClubDetails?.leadership?.secretary?.username || 'Secretary'}
+                      </span>
+                    </div>
+                    <div className="bg-amber-50 text-amber-900 rounded-2xl p-4 border border-amber-100 flex flex-col items-center text-center shadow-sm">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 mb-1.5">Treasurer</span>
+                      <span className="font-extrabold text-xs truncate w-full">
+                        {selectedClubDetails?.leadership?.treasurer?.name || selectedClubDetails?.leadership?.treasurer?.username || 'Treasurer'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
+                {/* Authorized Members table VS Public objectives & schedule panel */}
+                {(user?.isAdmin || isCoordinator || isLeader) ? (
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" /> Club Members 
+                      <span className="text-xs font-normal text-gray-400 ml-2">({Array.isArray(selectedClubDetails?.members) ? selectedClubDetails.members.filter(m => m?.status === 'approved' || m?.status === 'restricted').length : 0} enrolled)</span>
+                    </h3>
+                    <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                          <tr>
+                            <th className="px-4 py-3">Full Name</th>
+                            <th className="px-4 py-3">Username</th>
+                            <th className="px-4 py-3">Department</th>
+                            <th className="px-4 py-3">Year</th>
+                            <th className="px-4 py-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.filter(m => ['approved', 'restricted'].includes(m?.status)).length > 0 ? (
+                            [...selectedClubDetails.members]
+                              .filter(m => ['approved', 'restricted'].includes(m?.status) && m?.user)
+                              .sort((a, b) => {
+                                const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president);
+                                const isAPres = String(a.user?._id || a.user) === presidentId;
+                                const isBPres = String(b.user?._id || b.user) === presidentId;
+                                return isBPres - isAPres;
+                              })
+                              .map((member, idx) => (
+                              <tr key={idx} className="hover:bg-blue-50/40 transition-colors">
+                                <td className="px-4 py-3 font-medium text-gray-900">
+                                  <div className="flex items-center gap-2">
+                                    {member.fullName || member.user?.name || "Member"}
+                                    {String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(member.user?._id || member.user) && (
+                                      <span className="px-2 py-0.5 text-[10px] bg-indigo-600 text-white rounded-full font-black uppercase shadow-sm">
+                                        Representative
+                                      </span>
+                                    )}
+                                    {member.status === 'restricted' && (
+                                      <span className="px-2 py-0.5 text-[10px] bg-orange-600 text-white rounded-full font-black uppercase shadow-sm">
+                                        Restricted
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-500">@{member.user?.username || member.username || "---"}</td>
+                                <td className="px-4 py-3 text-gray-600">{member.department || "General"}</td>
+                                <td className="px-4 py-3 text-gray-600">{member.year || "---"}</td>
+                                <td className="px-4 py-3 text-right overflow-visible">
+                                  {(() => {
+                                    const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president);
+                                    const isMemberRep = String(member.user?._id || member.user) === presidentId;
+                                    const isMemberCoordinator = member.user?.role === 'clubs_coordinator' || member.user?.username === 'dbu10101040';
+                                    const canManage = isCoordinator || (isLeader && !isMemberRep && !isMemberCoordinator);
+                                    if (!canManage) return <span className="text-gray-300 italic text-[10px]">Read Only</span>;
+                                    return (
+                                      <div className="relative inline-block text-left">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveDropdownId(activeDropdownId === member._id ? null : member._id);
+                                          }}
+                                          className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                                        >
+                                          <MoreVertical className="w-5 h-5" />
+                                        </button>
+                                        {activeDropdownId === member._id && (
+                                          <div 
+                                            className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-[100] py-1 overflow-hidden"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <button
+                                              onClick={() => handleRestrictMember(selectedClubDetails?._id, member._id, member.status, member.fullName || member.user?.name)}
+                                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 transition-colors"
+                                            >
+                                              <AlertCircle className="w-4 h-4 text-orange-500" />
+                                              {member.status === 'restricted' ? 'Unrestrict Student' : 'Restrict Student'}
+                                            </button>
+                                            <div className="border-t border-gray-50 my-1"></div>
+                                            <button
+                                              onClick={() => handleRemoveMember(selectedClubDetails?._id, member._id, member.fullName || member.user?.name)}
+                                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold"
+                                            >
+                                              <UserMinus className="w-4 h-4" />
+                                              Delete Member
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No approved members found</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {selectedClubDetails?.requirements && (
+                      <div className="p-5 bg-emerald-50 text-emerald-900 rounded-2xl border border-emerald-100 shadow-sm">
+                        <h4 className="font-extrabold text-sm text-emerald-950 mb-2 flex items-center gap-2">🎯 Club Objectives & Requirements</h4>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedClubDetails.requirements}</p>
+                      </div>
+                    )}
+                    {selectedClubDetails?.meetingSchedule && (
+                      <div className="p-5 bg-blue-50 text-blue-900 rounded-2xl border border-blue-100 shadow-sm">
+                        <h4 className="font-extrabold text-sm text-blue-950 mb-2 flex items-center gap-2">📅 Activities & Meeting Schedule</h4>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedClubDetails.meetingSchedule}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-center space-x-4">
+                  {!(user?.isAdmin || isCoordinator || isLeader) && (
+                    <button
+                      onClick={() => {
+                        const userId = user?._id || user?.id;
+                        const activeMember = (selectedClubDetails.userMembershipStatus === 'approved') || (userId && Array.isArray(selectedClubDetails?.members) && 
+                          selectedClubDetails.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
+                        
+                        if (activeMember) {
+                          toast.success("You are already an active member!");
+                          return;
+                        }
+                        const isPending = (selectedClubDetails.userMembershipStatus === 'pending') || (userId && Array.isArray(selectedClubDetails?.members) &&
+                          selectedClubDetails.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
+                        if (isPending) {
+                          toast.error("Your join request is already pending.");
+                          return;
+                        }
+                        setShowClubDetails(false);
+                        handleJoinClub(selectedClubDetails);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:scale-[1.02]"
+                    >
+                      Join Club
+                    </button>
+                  )}
+
                   {isCoordinator && (
                     <button
                       onClick={() => {
                         setShowAssignManagerModal(true);
                         setAssignUserSearchTerm("");
-                        // Auto-populate with existing members
                         if (selectedClubDetails && Array.isArray(selectedClubDetails?.members)) {
                           const approvedMembers = selectedClubDetails.members.filter(m => m?.status === 'approved' && m?.user);
                           setSearchedUsers(approvedMembers.map(m => m.user));
