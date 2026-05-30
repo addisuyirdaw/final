@@ -27,8 +27,12 @@ const generateToken = (id) => {
 // @access  Public
 router.post("/register", validateUserRegistration, async (req, res) => {
 	try {
-		const { name, username, password, department, year, phoneNumber, email } =
+		let { name, username, password, department, year, phoneNumber, email } =
 			req.body;
+
+		if (username) {
+			username = username.toLowerCase();
+		}
 
 		console.log('Registration attempt:', { username, email });
 
@@ -102,7 +106,10 @@ router.post("/register", validateUserRegistration, async (req, res) => {
 // @access  Public
 router.post("/login", validateUserLogin, async (req, res) => {
 	try {
-		const { username, password } = req.body;
+		let { username, password } = req.body;
+		if (username) {
+			username = username.toLowerCase();
+		}
 
 		console.log('Login attempt:', username);
 
@@ -223,7 +230,10 @@ router.post("/login", validateUserLogin, async (req, res) => {
 // @access  Public
 router.post("/admin-login", async (req, res) => {
 	try {
-		const { username, password } = req.body;
+		let { username, password } = req.body;
+		if (username) {
+			username = username.toLowerCase();
+		}
 
 		console.log('Admin login attempt:', username);
 

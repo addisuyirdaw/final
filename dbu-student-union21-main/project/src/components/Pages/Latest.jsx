@@ -6,6 +6,14 @@ import { Trash2, Plus, Calendar, MapPin, Clock, Eye, Heart, MessageCircle, Edit 
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
 
+// Strip technical system account names from public display
+const TECHNICAL_NAME_PATTERN = /^(system\s*admin|club\s*admin|president\s*admin|admin|moderator|superuser|super\s*admin|clubs\s*coordinator|academic\s*affairs|council\s*president|council\s*secretary)$/i;
+const sanitizeAuthorName = (name) => {
+  if (!name) return null;
+  if (TECHNICAL_NAME_PATTERN.test(typeof name === 'string' ? name.trim() : '')) return 'University Leadership';
+  return typeof name === 'string' ? name : null;
+};
+
 export function Latest() {
   const { user } = useAuth();
   const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin' || user?.role === 'clubs_coordinator';
@@ -648,11 +656,15 @@ function PostCard({ post, onEdit, onDelete, onLike, canEdit, canDelete, user }) 
             </div>
           </div>
 
-          {post.author && (
-            <div className="text-sm text-gray-500">
-              By {post.author.name || post.author}
-            </div>
-          )}
+          {(() => {
+            const rawName = post.author?.name || (typeof post.author === 'string' ? post.author : null);
+            const displayName = sanitizeAuthorName(rawName);
+            return displayName ? (
+              <div className="text-sm text-gray-500">
+                By {displayName}
+              </div>
+            ) : null;
+          })()}
         </div>
       </div>
     </motion.div>

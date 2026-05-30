@@ -102,7 +102,7 @@ const protect = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-	const privilegedRoles = ["admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs"];
+	const privilegedRoles = ["admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs", "system_admin"];
 	const executiveNames = ['Gizew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
 	const isExecutive = req.user && req.user.name && executiveNames.some(name => req.user.name.includes(name));
 	if (req.user && (req.user.isAdmin || privilegedRoles.includes(req.user.role) || isExecutive)) {
@@ -115,6 +115,18 @@ const adminOnly = (req, res, next) => {
 	}
 };
 
+const systemAdminOnly = (req, res, next) => {
+	if (req.user && (req.user.isAdmin || req.user.role === 'admin' || req.user.role === 'system_admin')) {
+		next();
+	} else {
+		res.status(403).json({
+			success: false,
+			message: "Access denied. System Administrator privileges required.",
+		});
+	}
+};
+
+
 // Specific role access
 const authorize = (...roles) => {
 	return (req, res, next) => {
@@ -126,7 +138,7 @@ const authorize = (...roles) => {
 		}
 
 		const isPrivileged = req.user.isAdmin ||
-			['admin', 'president', 'council_president'].includes(req.user.role);
+			['admin', 'president', 'council_president', 'system_admin'].includes(req.user.role);
 
 		if (!roles.includes(req.user.role) && !isPrivileged) {
 			return res.status(403).json({
@@ -247,6 +259,7 @@ const clubLeader = async (req, res, next) => {
 module.exports = {
 	protect,
 	adminOnly,
+	systemAdminOnly,
 	authorize,
 	optionalAuth,
 	clubLeader

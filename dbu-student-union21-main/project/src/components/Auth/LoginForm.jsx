@@ -73,6 +73,10 @@ export function LoginForm() {
       } else {
         toast.success("Login successful");
       }
+      
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     } catch (error) {
       toast.error(error.message || "Invalid credentials");
     } finally {
@@ -123,6 +127,10 @@ export function LoginForm() {
         email: registerData.email,
       });
       toast.success("Registration successful");
+      
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     } catch (error) {
       toast.error(error.message || "Registration failed");
     } finally {
@@ -131,7 +139,10 @@ export function LoginForm() {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    if (name === "username") {
+      value = value.toLowerCase();
+    }
     if (showRegister) {
       setRegisterData((prev) => ({ ...prev, [name]: value }));
     } else {
@@ -197,10 +208,11 @@ export function LoginForm() {
                 name="username"
                 type="text"
                 required
+                maxLength={11}
                 value={showRegister ? registerData.username : formData.username}
                 onChange={handleInputChange}
                 className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder=""
+                placeholder={showRegister ? "dbuXXXXXXXX" : ""}
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">

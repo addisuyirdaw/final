@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
@@ -31,6 +32,7 @@ const DEFAULT_LOGOS = {
 
 export function Clubs() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAcademicAdmin = user?.role === 'academic_affairs';
   const isCoordinator = user?.role === 'clubs_coordinator' || user?.username === 'dbu10101040';
   const loginMatch = user?.username === 'dbu10101040' || user?.username === 'dbu101010ro' || user?.username === 'dbu10101020';
@@ -190,6 +192,7 @@ export function Clubs() {
   const handleJoinClub = (club) => {
     if (!user) {
       toast.error("Please login to join clubs");
+      navigate("/login");
       return;
     }
 

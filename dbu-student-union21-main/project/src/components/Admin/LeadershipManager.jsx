@@ -17,10 +17,13 @@ export const LeadershipManager = () => {
 
   const [formData, setFormData] = useState({
     name: "",
-    role: "",
-    priority: 0,
-    bio: "",
-    bioDetails: [] // Array of {label, text}
+    title: "",
+    pageGroup: "university_exec",
+    department: "",
+    background: "",
+    responsibility: "",
+    order: 0,
+    isActive: true
   });
   const [preview, setPreview] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
@@ -38,7 +41,7 @@ export const LeadershipManager = () => {
   const fetchProfiles = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/leadership/admin/all`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/api/staff/admin/all`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success) setProfiles(data.profiles);
     } catch {
@@ -65,7 +68,16 @@ export const LeadershipManager = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: "", role: "", priority: 0, bio: "", bioDetails: [] });
+    setFormData({
+      name: "",
+      title: "",
+      pageGroup: "university_exec",
+      department: "",
+      background: "",
+      responsibility: "",
+      order: 0,
+      isActive: true
+    });
     setPendingFile(null);
     setPreview(null);
     setEditingId(null);
@@ -75,10 +87,13 @@ export const LeadershipManager = () => {
   const handleEdit = (profile) => {
     setFormData({
       name: profile.name,
-      role: profile.role,
-      priority: profile.priority,
-      bio: profile.bio || "",
-      bioDetails: profile.bioDetails || []
+      title: profile.title,
+      pageGroup: profile.pageGroup || "university_exec",
+      department: profile.department || "",
+      background: profile.background || "",
+      responsibility: profile.responsibility || "",
+      order: profile.order !== undefined ? profile.order : 0,
+      isActive: profile.isActive !== undefined ? profile.isActive : true
     });
     setPreview(profile.imageUrl.startsWith("/uploads") ? `${API_BASE}${profile.imageUrl}` : profile.imageUrl);
     setPendingFile(null);
@@ -93,10 +108,13 @@ export const LeadershipManager = () => {
     try {
       const data = new FormData();
       data.append("name", formData.name);
-      data.append("role", formData.role);
-      data.append("priority", formData.priority);
-      data.append("bio", formData.bio);
-      data.append("bioDetails", JSON.stringify(formData.bioDetails));
+      data.append("title", formData.title);
+      data.append("pageGroup", formData.pageGroup);
+      data.append("department", formData.department);
+      data.append("background", formData.background);
+      data.append("responsibility", formData.responsibility);
+      data.append("order", formData.order);
+      data.append("isActive", formData.isActive);
 
       if (pendingFile) {
         data.append("image", pendingFile);
@@ -107,10 +125,10 @@ export const LeadershipManager = () => {
       }
 
       const url = editingId 
-        ? `${API_BASE}/api/leadership/${editingId}`
-        : `${API_BASE}/api/leadership/add`;
+        ? `${API_BASE}/api/staff/${editingId}`
+        : `${API_BASE}/api/staff`;
       
-      const method = editingId ? "PATCH" : "POST";
+      const method = editingId ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method,
@@ -136,7 +154,7 @@ export const LeadershipManager = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this profile?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/leadership/${id}`, {
+      const res = await fetch(`${API_BASE}/api/staff/${id}`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -154,8 +172,8 @@ export const LeadershipManager = () => {
 
   const toggleActive = async (profile) => {
     try {
-      const res = await fetch(`${API_BASE}/api/leadership/${profile._id}`, {
-        method: "PATCH",
+      const res = await fetch(`${API_BASE}/api/staff/${profile._id}`, {
+        method: "PUT",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !profile.isActive }),
       });
@@ -169,22 +187,14 @@ export const LeadershipManager = () => {
     }
   };
 
-  const addBioDetail = () => {
-    setFormData({
-      ...formData,
-      bioDetails: [...formData.bioDetails, { label: "", text: "" }]
-    });
-  };
-
-  const updateBioDetail = (index, field, value) => {
-    const newDetails = [...formData.bioDetails];
-    newDetails[index][field] = value;
-    setFormData({ ...formData, bioDetails: newDetails });
-  };
-
-  const removeBioDetail = (index) => {
-    const newDetails = formData.bioDetails.filter((_, i) => i !== index);
-    setFormData({ ...formData, bioDetails: newDetails });
+  const getPageGroupLabel = (group) => {
+    switch (group) {
+      case "university_exec": return "University Executives";
+      case "student_union": return "Student Union";
+      case "student_services": return "Student Services";
+      case "dormitory": return "Dormitory Management";
+      default: return group;
+    }
   };
 
   return (
@@ -210,15 +220,15 @@ export const LeadershipManager = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
               <Users className="w-8 h-8 text-blue-600" />
-              Team Manager
+              Staff &amp; Leadership Manager
             </h1>
-            <p className="text-gray-600 mt-1">Manage leadership profiles for the Home page and directory</p>
+            <p className="text-gray-600 mt-1">Manage staff profiles for Executives, Student Union, Student Services, and Dormitories</p>
           </div>
           <button
             onClick={() => setShowModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
           >
-            <Plus className="w-5 h-5" /> Add Team Member
+            <Plus className="w-5 h-5" /> Add Staff Member
           </button>
         </div>
 
@@ -231,7 +241,7 @@ export const LeadershipManager = () => {
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
             <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-1">No profiles yet</h3>
-            <p className="text-gray-500">Click "Add Team Member" to get started.</p>
+            <p className="text-gray-500">Click "Add Staff Member" to get started.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -252,16 +262,20 @@ export const LeadershipManager = () => {
                       {profile.isActive ? "LIVE" : "HIDDEN"}
                     </button>
                   </div>
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-md">
-                      Priority: {profile.priority}
+                  <div className="absolute top-3 left-3 flex flex-col gap-1">
+                    <span className="bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                      Order: {profile.order}
                     </span>
                   </div>
                 </div>
                 
                 <div className="p-5">
+                  <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-md mb-2 font-semibold">
+                    {getPageGroupLabel(profile.pageGroup)}
+                  </span>
                   <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{profile.name}</h3>
-                  <p className="text-blue-600 font-medium text-sm mb-3 line-clamp-1">{profile.role}</p>
+                  <p className="text-gray-700 font-medium text-sm mb-1 line-clamp-1">{profile.title}</p>
+                  <p className="text-gray-500 text-xs mb-3 line-clamp-1">Dept: {profile.department}</p>
                   
                   <div className="flex gap-2 pt-3 border-t border-gray-100">
                     <button
@@ -295,7 +309,7 @@ export const LeadershipManager = () => {
               >
                 <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-900">
-                    {editingId ? "Edit Team Member" : "Add Team Member"}
+                    {editingId ? "Edit Staff Member" : "Add Staff Member"}
                   </h2>
                   <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 p-1">
                     <X className="w-6 h-6" />
@@ -350,87 +364,93 @@ export const LeadershipManager = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Role/Title *</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Title/Role *</label>
                           <input
                             type="text"
                             required
-                            value={formData.role}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="e.g. Dean of Student Affairs"
                           />
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Display Priority</label>
-                        <input
-                          type="number"
-                          value={formData.priority}
-                          onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                          className="w-full md:w-1/3 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="0"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Higher numbers appear first on the Home page.</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Page Group *</label>
+                          <select
+                            required
+                            value={formData.pageGroup}
+                            onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          >
+                            <option value="university_exec">University Executives</option>
+                            <option value="student_union">Student Union</option>
+                            <option value="student_services">Student Services</option>
+                            <option value="dormitory">Dormitory Management</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                          <input
+                            type="text"
+                            required
+                            value={formData.department}
+                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="e.g. Office of the Dean"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                          <input
+                            type="number"
+                            value={formData.order}
+                            onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="0"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Lower numbers appear first on the pages.</p>
+                        </div>
+                        <div className="flex items-center pt-6">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isActive}
+                              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Active (Visible on Site)</span>
+                          </label>
+                        </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Short Bio</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Background / Credentials *</label>
                         <textarea
+                          required
                           rows="3"
-                          value={formData.bio}
-                          onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                          value={formData.background}
+                          onChange={(e) => setFormData({ ...formData, background: e.target.value })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                          placeholder="Brief description for the profile card..."
+                          placeholder="Academic and professional background..."
                         ></textarea>
                       </div>
 
                       <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-gray-700">Detailed Bio Sections (Profile Page)</label>
-                          <button
-                            type="button"
-                            onClick={addBioDetail}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                          >
-                            <Plus className="w-4 h-4" /> Add Section
-                          </button>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          {formData.bioDetails.map((detail, index) => (
-                            <div key={index} className="flex gap-3 items-start bg-gray-50 p-3 rounded-lg border border-gray-200">
-                              <div className="flex-1 space-y-2">
-                                <input
-                                  type="text"
-                                  placeholder="Section Label (e.g. Background)"
-                                  value={detail.label}
-                                  onChange={(e) => updateBioDetail(index, "label", e.target.value)}
-                                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                />
-                                <textarea
-                                  placeholder="Content..."
-                                  rows="2"
-                                  value={detail.text}
-                                  onChange={(e) => updateBioDetail(index, "text", e.target.value)}
-                                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 resize-none"
-                                ></textarea>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => removeBioDetail(index)}
-                                className="text-gray-400 hover:text-red-500 p-1"
-                              >
-                                <X className="w-5 h-5" />
-                              </button>
-                            </div>
-                          ))}
-                          {formData.bioDetails.length === 0 && (
-                            <p className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300">
-                              No detailed sections added. Click "Add Section" to include details like Background, Function, etc.
-                            </p>
-                          )}
-                        </div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Responsibility / Duties *</label>
+                        <textarea
+                          required
+                          rows="3"
+                          value={formData.responsibility}
+                          onChange={(e) => setFormData({ ...formData, responsibility: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                          placeholder="Specific job duties and functions..."
+                        ></textarea>
                       </div>
                     </div>
                   </div>

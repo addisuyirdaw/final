@@ -1,15 +1,15 @@
 const express = require('express');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
-const { protect, adminOnly, authorize } = require('../middleware/auth');
+const { protect, adminOnly, authorize, optionalAuth } = require('../middleware/auth');
 const { validateComplaint } = require('../middleware/validation');
 
 const router = express.Router();
 
 // @desc    Get all complaints
 // @route   GET /api/complaints
-// @access  Private
-router.get('/', protect, async (req, res) => {
+// @access  Public (Optional Auth)
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -113,8 +113,8 @@ router.get('/branches', async (req, res) => {
 
 // @desc    Get single complaint
 // @route   GET /api/complaints/:id
-// @access  Private
-router.get('/:id', protect, async (req, res) => {
+// @access  Public (Optional Auth)
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
       .populate('submittedBy', 'name email studentId')

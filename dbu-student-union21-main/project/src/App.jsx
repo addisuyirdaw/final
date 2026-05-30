@@ -27,6 +27,10 @@ import ChatAssistant from "./components/ChatAssistant";
 import { CarouselAdmin } from "./components/Pages/CarouselAdmin";
 import { LeadershipManager } from "./components/Admin/LeadershipManager";
 import { LeadershipProfile } from "./components/Pages/LeadershipProfile";
+import { Executives } from "./components/Pages/Executives";
+import { Union } from "./components/Pages/Union";
+import { ServicesDirectory } from "./components/Pages/ServicesDirectory";
+import { Dormitory } from "./components/Pages/Dormitory";
 import "./index.css";
 
 function AppContent() {
@@ -89,14 +93,7 @@ function AppContent() {
             }
           />
 
-          <Route
-            path="/clubs"
-            element={
-              <ProtectedRoute>
-                <Clubs />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/clubs" element={<Clubs />} />
 
           <Route
             path="/elections"
@@ -107,32 +104,11 @@ function AppContent() {
             }
           />
 
-          <Route
-            path="/services"
-            element={
-              <ProtectedRoute>
-                <Services />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/services" element={<Services />} />
 
-          <Route
-            path="/latest"
-            element={
-              <ProtectedRoute>
-                <Latest />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/latest" element={<Latest />} />
 
-          <Route
-            path="/complaints"
-            element={
-              <ProtectedRoute>
-                <Complaints />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/complaints" element={<Complaints />} />
 
           <Route
             path="/reports-inbox"
@@ -192,7 +168,11 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route path="/profile/:roleSlug" element={<LeadershipProfile />} />
+          <Route path="/executives" element={<Executives />} />
+          <Route path="/student-union" element={<Union />} />
+          <Route path="/student-services" element={<ServicesDirectory />} />
+          <Route path="/dormitory-management" element={<Dormitory />} />
+          <Route path="/profile/:id" element={<LeadershipProfile />} />
           <Route path="/restricted" element={user?.isRestricted ? <RestrictedAccess /> : <Navigate to="/" replace />} />
           <Route path="/blocked" element={<RestrictedAccess />} />
 

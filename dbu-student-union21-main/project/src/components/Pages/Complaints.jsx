@@ -1,7 +1,6 @@
-/** @format */
-
 import React, { useState } from "react";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	MessageSquare,
 	Plus,
@@ -21,10 +20,12 @@ import toast from "react-hot-toast";
 
 export function Complaints() {
 	const { user } = useAuth();
+	const navigate = useNavigate();
 	const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin' || user?.role === 'clubs_coordinator';
 	const isAcademicAdmin = user?.role === 'academic_affairs';
 	const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
 	const { markAsSeen } = useNotifications();
+
 
 	const [selectedTab, setSelectedTab] = useState("all");
 	const [showNewComplaint, setShowNewComplaint] = useState(false);
@@ -418,7 +419,14 @@ export function Complaints() {
 						<motion.button
 							whileHover={{ scale: 1.02 }}
 							whileTap={{ scale: 0.98 }}
-							onClick={() => setShowNewComplaint(true)}
+							onClick={() => {
+								if (!user) {
+									toast.error("Please login to submit a complaint");
+									navigate("/login");
+								} else {
+									setShowNewComplaint(true);
+								}
+							}}
 							className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
 							<Plus className="w-4 h-4 inline mr-2" />
 							New Complaint
@@ -455,21 +463,23 @@ export function Complaints() {
 					</div>
 
 					<div className="flex gap-2">
-						{["all", "my", "pending"].map((tab) => (
-							<button
-								key={tab}
-								onClick={() => setSelectedTab(tab)}
-								className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${selectedTab === tab
-									? "bg-blue-600 text-white"
-									: "text-gray-500 hover:bg-gray-100"
-									}`}>
-								{tab === "all"
-									? "All"
-									: tab === "my"
-										? "My Complaints"
-										: "Pending"}
-							</button>
-						))}
+						{["all", "my", "pending"]
+							.filter((tab) => user ? (user.isAdmin || tab !== "pending") : tab === "all")
+							.map((tab) => (
+								<button
+									key={tab}
+									onClick={() => setSelectedTab(tab)}
+									className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${selectedTab === tab
+										? "bg-blue-600 text-white"
+										: "text-gray-500 hover:bg-gray-100"
+										}`}>
+									{tab === "all"
+										? "All"
+										: tab === "my"
+											? "My Complaints"
+											: "Pending"}
+								</button>
+							))}
 					</div>
 				</div>
 

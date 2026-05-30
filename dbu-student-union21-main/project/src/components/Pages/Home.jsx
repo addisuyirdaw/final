@@ -10,9 +10,39 @@ import "../../app.css";
 
 const CAROUSEL_API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
 
+const getProfessionalAuthor = (role) => {
+	switch (role) {
+		case "system_admin":
+			return "IT Systems Operations";
+		case "president":
+		case "president_admin":
+			return "Office of the President";
+		case "club_admin":
+		case "clubs_coordinator":
+			return "Clubs Coordination Office";
+		default:
+			return "University Administration";
+	}
+};
+
+// Strip technical system account names from public display
+const TECHNICAL_NAME_PATTERN = /^(system\s*admin|club\s*admin|president\s*admin|admin|moderator|superuser|super\s*admin|clubs\s*coordinator|academic\s*affairs|council\s*president|council\s*secretary)$/i;
+
+const sanitizeAuthorName = (name) => {
+	if (!name) return 'University Leadership';
+	if (TECHNICAL_NAME_PATTERN.test(name.trim())) return 'University Leadership';
+	return name;
+};
+
 export const Home = () => {
 	const { user } = useAuth();
 	const navigate = useNavigate();
+
+	// Redirect admin users directly to dashboard — carousel is for public guests only
+	if (user && (user.role === 'admin' || user.role === 'system_admin')) {
+		navigate('/dashboard', { replace: true });
+		return null;
+	}
 
 	const scrollToSection = (id) => {
 		const el = document.getElementById(id);
@@ -292,8 +322,8 @@ export const Home = () => {
 
 	return (
 		<div className="min-h-screen bg-gray-50">
-			{/* Hero Carousel Section */}
-			<section className="relative w-full h-[600px] overflow-hidden bg-gradient-to-br from-blue-100 via-white to-blue-200">
+			{/* Hero Carousel Section — only for guests */}
+			{!user && (<section className="relative w-full h-[600px] overflow-hidden bg-gradient-to-br from-blue-100 via-white to-blue-200">
 				{carouselSlides.map((slide, index) => (
 					<motion.div
 						key={slide.id}
@@ -403,18 +433,17 @@ export const Home = () => {
 						/>
 					))}
 				</div>
-			</section>
+			</section>)}
 
-			{/* Hero Action Bar — Buttons below carousel */}
-			<div className="bg-gradient-to-r from-blue-700 to-blue-900 py-5 px-4">
-				<div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-					<div className="text-white text-center sm:text-left">
-						<p className="font-bold text-lg">DBU Student Affairs Office</p>
-						<p className="text-blue-200 text-sm">Your gateway to campus services and leadership.</p>
-					</div>
-					{!user ? (
+			{/* Hero Action Bar — Buttons below carousel, guests only */}
+			{!user && (
+				<div className="bg-gradient-to-r from-blue-700 to-blue-900 py-5 px-4">
+					<div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+						<div className="text-white text-center sm:text-left">
+							<p className="font-bold text-lg">DBU Student Affairs Office</p>
+							<p className="text-blue-200 text-sm">Your gateway to campus services and leadership.</p>
+						</div>
 						<div className="flex flex-row gap-3">
-							{/* Get Started — Action Gateway */}
 							<motion.button
 								whileHover={{ scale: 1.05, boxShadow: '0 0 24px rgba(59,130,246,0.7)' }}
 								whileTap={{ scale: 0.97 }}
@@ -423,7 +452,6 @@ export const Home = () => {
 								className="bg-white text-blue-700 px-7 py-3 rounded-xl font-bold shadow-lg cursor-pointer whitespace-nowrap">
 								Get Started
 							</motion.button>
-							{/* Learn More — Exploration Gateway */}
 							<motion.button
 								whileHover={{ scale: 1.03, boxShadow: '0 0 16px rgba(255,255,255,0.2)' }}
 								whileTap={{ scale: 0.97 }}
@@ -433,18 +461,9 @@ export const Home = () => {
 								Learn More
 							</motion.button>
 						</div>
-					) : (
-						<motion.div
-							whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(255,255,255,0.3)' }}
-							whileTap={{ scale: 0.97 }}
-							transition={{ type: 'spring', stiffness: 300 }}>
-							<Link to="/dashboard" className="bg-white text-blue-700 px-7 py-3 rounded-xl font-bold shadow-lg inline-block">
-								Go to Dashboard
-							</Link>
-						</motion.div>
-					)}
+					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Official Directives Section */}
 			<section className="py-12 bg-white border-b border-gray-200">
@@ -457,7 +476,7 @@ export const Home = () => {
 							</h2>
 							<p className="text-gray-600 mt-1">High-priority updates from University Leadership</p>
 						</div>
-						{user && user.isAdmin && (
+						{user && user.role === 'admin' && (
 							<button className="mt-4 md:mt-0 bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors">
 								+ Post Directive
 							</button>
@@ -473,8 +492,8 @@ export const Home = () => {
 									postImage = `${CAROUSEL_API_BASE}${normalizedPath}`;
 								}
 								
-								const authorName = dir.author?.name || 'University Leadership';
-								const authorRole = dir.author?.role === 'admin' ? 'Official Administrator' : (dir.author?.role || 'Executive Officer');
+								const authorName = sanitizeAuthorName(dir.author?.name);
+								const authorRole = getProfessionalAuthor(dir.author?.role);
 								const authorImg = dir.author?.profileImage || '';
 
 								return (
@@ -677,199 +696,111 @@ export const Home = () => {
 				</div>
 			</section>
 
-			{/* Leadership & Services Expansion Section */}
-			<section className="py-20 bg-white">
+			{/* Leadership Hub Section */}
+			<section id="leadership" className="py-20 bg-white scroll-mt-24">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="text-center mb-16">
-						<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-							Leadership & Services
+					<div className="text-center mb-14">
+						<h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">
+							Leadership &amp; Administration
 						</h2>
-						<p className="text-xl text-gray-600 max-w-3xl mx-auto">
-							Meet the dedicated leadership team guiding our university's student services.
+						<p className="text-lg text-gray-600 max-w-2xl mx-auto">
+							Meet the dedicated teams guiding Debre Berhan University's student affairs, services, and campus life.
 						</p>
 					</div>
 
-					{/* Leadership Section — DB profiles if available, static fallback otherwise */}
-					<div id="leadership" className="mb-16 pt-24 -mt-24">
-
-						{/* Dynamic DB profiles */}
-						{!leadershipLoading && leadershipProfiles.length > 0 && (
-							<>
-								<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">University Leadership</h3>
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-									{leadershipProfiles.map((profile, index) => {
-										const apiBase = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api')).replace(/\/api$/, "");
-										let imgSrc = profile.imageUrl || "";
-										if (imgSrc && (imgSrc.startsWith("/uploads") || imgSrc.startsWith("uploads"))) {
-											const normalizedPath = imgSrc.startsWith("/") ? imgSrc : `/${imgSrc}`;
-											imgSrc = `${apiBase}${normalizedPath}`;
-										}
-										return (
-											<motion.div key={profile._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}
-												className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
-												onClick={() => navigate(`/profile/${profile.roleSlug}`)}>
-												<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
-													<img src={imgSrc} alt={profile.name} className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A&size=192`; }} />
-												</div>
-												<h3 className="text-2xl font-bold text-gray-900 mb-1">{profile.name}</h3>
-												<p className="text-blue-600 font-semibold mb-4">{profile.role}</p>
-												<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg line-clamp-4"><p>{profile.bio || "No biography available."}</p></div>
-												<div className="mt-auto w-full pt-4 border-t border-gray-100"><span className="text-blue-700 font-bold hover:underline flex items-center justify-center gap-1">View Full Profile <ArrowRight className="w-4 h-4" /></span></div>
-											</motion.div>
-										);
-									})}
+					<div className={`grid grid-cols-1 sm:grid-cols-2 ${user ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-6`}>
+						{/* University Executives */}
+						{!user && (
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ delay: 0 }}
+								className="group bg-gradient-to-br from-sky-50 to-blue-100 border border-sky-200 rounded-2xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
+								onClick={() => navigate('/executives')}
+							>
+								<div className="w-12 h-12 bg-sky-700 rounded-xl flex items-center justify-center text-white text-2xl shadow">🏛</div>
+								<div>
+									<h3 className="text-lg font-extrabold text-sky-900 mb-1">University Executives</h3>
+									<p className="text-sky-800 text-sm">Dean, Vice Deans, and senior administrative leadership of the student affairs office.</p>
 								</div>
-							</>
-						)}
-
-						{/* Static fallback when DB is empty */}
-						{(leadershipLoading || leadershipProfiles.length === 0) && (
-							<>
-								<h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Office of the Dean</h3>
-								<div className="grid grid-cols-1 gap-8">
-									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-										className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full max-w-3xl mx-auto cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
-										onClick={() => setSelectedProfile(leaderProfiles.gizew)}>
-										<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
-											<img src="/image.png/gizeww.jpg" alt="Gizew Fetene" className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=192"; }} />
-										</div>
-										<h3 className="text-2xl font-bold text-gray-900 mb-1">Gizew Fetene</h3>
-										<p className="text-blue-600 font-semibold mb-4">Dean of Student Affairs</p>
-										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-											<p className="mb-2"><strong>Background:</strong> DBU graduate and long-serving student affairs leader with a strong focus on student wellbeing, inclusion, and campus service quality.</p>
-											<p className="mb-2"><strong>Function:</strong> Oversees student welfare, guidance coordination, club development, complaint response systems, and branch-level service performance across the university.</p>
-											{showDeanMore && (<><p className="mb-2"><strong>Office Responsibility:</strong> Ensures services are fair, timely, and student-centered.</p><p><strong>If a student needs help:</strong> Students can report concerns through Student Affairs channels.</p></>)}
-											<button onClick={(e) => { e.stopPropagation(); setShowDeanMore(prev => !prev); }} className="mt-3 text-blue-700 font-semibold hover:underline">{showDeanMore ? "Show Less" : "Read More..."}</button>
-										</div>
-									</motion.div>
-								</div>
-
-								<h3 className="text-2xl font-bold text-gray-800 mt-12 mb-6 border-b pb-2">Psychology &amp; Guidance Department</h3>
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-										className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
-										onClick={() => setSelectedProfile(leaderProfiles.sintayehu)}>
-										<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
-											<img src="/image.png/pr sintayew.jpg" alt="Sintayehu Ambachew Worku" className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=EBF5FF&color=1E3A8A&size=192"; }} />
-										</div>
-										<h3 className="text-2xl font-bold text-gray-900 mb-1">Sintayehu Ambachew Worku</h3>
-										<p className="text-blue-600 font-semibold mb-4">Assistant Professor in Educational Psychology</p>
-										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-											<p className="mb-2"><strong>Background:</strong> Senior guidance professional focused on student mental wellness.</p>
-											<p className="mb-2"><strong>Location:</strong> Psychology &amp; Guidance Office, 3rd Floor Bureau.</p>
-											<p className="mb-2"><strong>Function:</strong> Provides counseling, crisis intervention, and student advisory services.</p>
-											{showSintayewMore && (<><p className="mb-2"><strong>Key Support Areas:</strong> Stress management, academic pressure, conflict mediation.</p><p><strong>How to get help:</strong> Visit the office or request support through Student Affairs.</p></>)}
-											<button onClick={(e) => { e.stopPropagation(); setShowSintayewMore(prev => !prev); }} className="mt-3 text-blue-700 font-semibold hover:underline">{showSintayewMore ? "Show Less" : "Read More..."}</button>
-										</div>
-									</motion.div>
-									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-										className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
-										onClick={() => setSelectedProfile(leaderProfiles.kalkidan)}>
-										<div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-100 bg-gray-100 shadow-md">
-											<img src="/image.png/kalkidan.jpg" alt="Kalkidan Desta" className="w-full h-full object-cover scale-110" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Kalkidan+Desta&background=EBF5FF&color=1E3A8A&size=192"; }} />
-										</div>
-										<h3 className="text-2xl font-bold text-gray-900 mb-1">Mrs. Kalkidan Desta</h3>
-										<p className="text-blue-600 font-semibold mb-4">Vice Dean for Character and Ethics Development</p>
-										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-											<p><strong>Function:</strong> Administrative and operational support for the Guidance department.</p>
-										</div>
-									</motion.div>
-								</div>
-
-								<h3 className="text-2xl font-bold text-gray-800 mt-12 mb-6 border-b pb-2">Dormitory Services</h3>
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-									<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-										className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 flex flex-col items-center text-center h-full">
-										<div className="w-32 h-32 rounded-full mb-6 overflow-hidden border-4 border-blue-50 bg-gray-100">
-											<img src="/images/genete.png" alt="Genete Fetene" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Genete+Fetene&background=EBF5FF&color=1E3A8A&size=128"; }} />
-										</div>
-										<h3 className="text-2xl font-bold text-gray-900 mb-1">Genete Fetene</h3>
-										<p className="text-blue-600 font-semibold mb-4">Head of Dormitory Services</p>
-										<div className="text-gray-600 mb-4 flex-grow text-left w-full bg-gray-50 p-4 rounded-lg">
-											<p className="mb-2"><strong>Scale:</strong> Leads a team of 90 staff members.</p>
-											<p><strong>Function:</strong> Handles all student housing, registration, and room placements.</p>
-										</div>
-									</motion.div>
-								</div>
-							</>
-						)}
-					</div>
-
-					{/* Student Union Dropdown */}
-					<div id="student-union" className="mb-16 pt-16 -mt-16">
-						<details className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden group">
-							<summary className="text-xl md:text-2xl font-bold text-gray-800 p-6 cursor-pointer list-none flex justify-between items-center hover:bg-gray-50 transition-colors">
-								Student Union Executive Committee
-								<span className="text-blue-600 group-open:rotate-180 transition-transform duration-300">
-									▼
+								<span className="mt-auto text-sky-700 font-bold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+									View Directory <ArrowRight className="w-4 h-4" />
 								</span>
-							</summary>
-							<div className="p-6 border-t border-gray-100 bg-gray-50">
-								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-									<div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-										<div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">P</div>
-										<div>
-											<p className="text-gray-900 font-bold">President</p>
-											<p className="text-sm text-gray-500">Student Union</p>
-										</div>
-									</div>
-									<div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-										<div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">V</div>
-										<div>
-											<p className="text-gray-900 font-bold">Vice President</p>
-											<p className="text-sm text-gray-500">Student Union</p>
-										</div>
-									</div>
-									<div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-										<div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">S</div>
-										<div>
-											<p className="text-gray-900 font-bold">Secretary</p>
-											<p className="text-sm text-gray-500">Student Union</p>
-										</div>
-									</div>
-									<div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-										<div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">A</div>
-										<div>
-											<p className="text-gray-900 font-bold">Afegubaye</p>
-											<p className="text-sm text-gray-500">Student Union</p>
-										</div>
-									</div>
-									<div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-										<div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">G</div>
-										<div>
-											<p className="text-gray-900 font-bold">General Service</p>
-											<p className="text-sm text-gray-500">Student Union</p>
-										</div>
-									</div>
-									<div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-										<div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">Au</div>
-										<div>
-											<p className="text-gray-900 font-bold">Audit</p>
-											<p className="text-sm text-gray-500">Student Union</p>
-										</div>
-									</div>
-								</div>
+							</motion.div>
+						)}
+
+						{/* Student Union */}
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.08 }}
+							className="group bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200 rounded-2xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
+							onClick={() => navigate('/student-union')}
+						>
+							<div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white text-2xl shadow">🗳</div>
+							<div>
+								<h3 className="text-lg font-extrabold text-blue-900 mb-1">Student Union</h3>
+								<p className="text-blue-800 text-sm">Elected student representatives leading union activities, campus governance, and student rights.</p>
 							</div>
-						</details>
+							<span className="mt-auto text-blue-700 font-bold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+								View Directory <ArrowRight className="w-4 h-4" />
+							</span>
+						</motion.div>
+
+						{/* Student Services */}
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.16 }}
+							className="group bg-gradient-to-br from-rose-50 to-pink-100 border border-rose-200 rounded-2xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
+							onClick={() => navigate('/student-services')}
+						>
+							<div className="w-12 h-12 bg-rose-600 rounded-xl flex items-center justify-center text-white text-2xl shadow">🤝</div>
+							<div>
+								<h3 className="text-lg font-extrabold text-rose-900 mb-1">Student Services</h3>
+								<p className="text-rose-800 text-sm">Guidance counselors, psychologists, and support staff dedicated to student wellbeing.</p>
+							</div>
+							<span className="mt-auto text-rose-700 font-bold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+								View Directory <ArrowRight className="w-4 h-4" />
+							</span>
+						</motion.div>
+
+						{/* Dormitory Management */}
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.24 }}
+							className="group bg-gradient-to-br from-emerald-50 to-green-100 border border-emerald-200 rounded-2xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
+							onClick={() => navigate('/dormitory-management')}
+						>
+							<div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-2xl shadow">🏠</div>
+							<div>
+								<h3 className="text-lg font-extrabold text-emerald-900 mb-1">Dormitory Management</h3>
+								<p className="text-emerald-800 text-sm">Housing supervisors and accommodation coordinators managing student residential life.</p>
+							</div>
+							<span className="mt-auto text-emerald-700 font-bold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+								View Directory <ArrowRight className="w-4 h-4" />
+							</span>
+						</motion.div>
 					</div>
 				</div>
 			</section>
 
+			{/* The four gateway cards above route to dedicated directory pages — no profile listing here */}
 			{/* Announcements Section */}
 			<section className="py-20 bg-white">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex items-center justify-between mb-12">
-						<h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+					<div className="text-center mb-16">
+						<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
 							Latest Announcements
 						</h2>
-						<Link
-							to="/latest"
-							className="text-blue-600 hover:text-blue-700 font-medium">
-							View All
-						</Link>
+						<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+							Stay up to date with the latest news and updates from university leadership.
+						</p>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
 						{announcements.length > 0 ? (
 							announcements.map((announcement, index) => (
 								<motion.div
@@ -877,19 +808,12 @@ export const Home = () => {
 									initial={{ opacity: 0, y: 20 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ delay: index * 0.1 }}
-									className={`bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow ${announcement.urgent ? "border-l-4 border-red-500" : ""
-										}`}>
+									className={`bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow ${announcement.urgent ? "border-l-4 border-red-500" : ""}`}>
 									{announcement.urgent && (
-										<span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full mb-3">
-											Urgent
-										</span>
+										<span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full mb-3">Urgent</span>
 									)}
-									<h3 className="text-lg font-semibold text-gray-900 mb-2">
-										{announcement.title}
-									</h3>
-									<p className="text-sm text-gray-500">
-										{new Date(announcement.date).toLocaleDateString()}
-									</p>
+									<h3 className="text-lg font-semibold text-gray-900 mb-2">{announcement.title}</h3>
+									<p className="text-sm text-gray-500">{new Date(announcement.date).toLocaleDateString()}</p>
 								</motion.div>
 							))
 						) : (
@@ -901,7 +825,7 @@ export const Home = () => {
 				</div>
 			</section>
 
-			{/* CTA Section */}
+
 			<section className="py-20 bg-gradient-to-r from-blue-700 to-blue-500 text-white">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 					<h2 className="text-3xl md:text-4xl font-bold mb-4">

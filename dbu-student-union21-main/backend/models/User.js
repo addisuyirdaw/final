@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema(
 			required: [true, "Please provide a username"],
 			unique: true,
 			trim: true,
+			lowercase: true,
 			match: [
 				/^dbu\d{8}$/i,
 				"Username must start with dbu followed by 8 digits",
@@ -57,7 +58,7 @@ const userSchema = new mongoose.Schema(
 		},
 		role: {
 			type: String,
-			enum: ["student", "admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs"],
+			enum: ["student", "admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs", "system_admin"],
 			default: "student",
 		},
 		isLocked: {

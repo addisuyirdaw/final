@@ -49,15 +49,22 @@ export function Header() {
 		navigate("/");
 	};
 
-	const navigation = [
-		...(user
-			? []
-			: [
-				{ name: "Home", href: "/" },
-				{ name: "Leadership", href: "/#leadership" },
-				{ name: "Guidance", href: "/#guidance" },
-				{ name: "Dormitory", href: "/#dormitory" },
-			]),
+	const navigation = !user
+		? [
+			{ name: "Home", href: "/" },
+			{ name: "Clubs", href: "/clubs" },
+			{ name: "Services", href: "/services" },
+			{ name: "Latest Announcements", href: "/latest" },
+			{ name: "About Us", href: "/about" },
+			{ name: "Contact Us", href: "/contact" },
+		]
+		: [];
+
+	const leadershipPages = [
+		{ name: "University Executives", href: "/executives" },
+		{ name: "Student Union", href: "/student-union" },
+		{ name: "Student Services", href: "/student-services" },
+		{ name: "Dormitory Management", href: "/dormitory-management" },
 	];
 
 	const protectedNavigation = [
@@ -89,13 +96,15 @@ export function Header() {
 								pro@dbu.edu.et
 							</span>
 						</div>
-						<a
-							href="/#leadership"
-							className="inline-flex items-center gap-1.5 hover:text-blue-100 transition-colors"
-						>
-							<CircleUserRound className="w-4 h-4" />
-							Staff Profile
-						</a>
+						{!user && (
+							<a
+								href="/executives"
+								className="inline-flex items-center gap-1.5 hover:text-blue-100 transition-colors"
+							>
+								<CircleUserRound className="w-4 h-4" />
+								Staff Directory
+							</a>
+						)}
 					</div>
 				</div>
 			</div>
@@ -172,19 +181,18 @@ export function Header() {
 							</React.Fragment>
 						))}
 						
-						{/* Student Union Dropdown */}
+						{/* Leadership Dropdown */}
 						<div className="relative group">
 							<button className="text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-1">
-								Student Union <span className="text-xs">▼</span>
+								Union & Leadership <span className="text-xs">▼</span>
 							</button>
-							<div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+							<div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
 								<div className="py-2">
-									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">President</a>
-									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Vice President</a>
-									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Secretary</a>
-									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Afegubaye</a>
-									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">General Service</a>
-									<a href="/#student-union" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600">Audit</a>
+									{leadershipPages.map(page => (
+										<Link key={page.href} to={page.href} className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium">
+											{page.name}
+										</Link>
+									))}
 								</div>
 							</div>
 						</div>
@@ -214,7 +222,7 @@ export function Header() {
 										</span>
 									)}
 								</div>
-								{user.isAdmin && (
+								{user && (user.role === 'admin' || user.role === 'system_admin') && (
 									<Link
 										to="/admin"
 										className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors"
@@ -310,15 +318,14 @@ export function Header() {
 							</React.Fragment>
 						))}
 
-						{/* Mobile Student Union Menu */}
+						{/* Mobile Leadership Menu */}
 						<div className="pt-2 pb-1 border-t border-gray-100 mt-2">
-							<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Union</p>
-							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">President</a>
-							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Vice President</a>
-							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Secretary</a>
-							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Afegubaye</a>
-							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">General Service</a>
-							<a href="/#student-union" onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">Audit</a>
+							<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Union & Leadership Directory</p>
+							{leadershipPages.map(page => (
+								<Link key={page.href} to={page.href} onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium">
+									{page.name}
+								</Link>
+							))}
 						</div>
 
 						{user &&

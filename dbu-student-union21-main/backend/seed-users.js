@@ -9,7 +9,7 @@ const users = [
 		name: "System Admin",
 		username: "dbu10101030",
 		password: "Admin123#",
-		role: "admin",
+		role: "system_admin",
 		department: "Computer Science",
 		year: "4th Year",
 		isAdmin: true,

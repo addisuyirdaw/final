@@ -21,6 +21,7 @@ const messageRoutes = require("./routes/messages");
 const aiRoutes = require("./routes/ai");
 const carouselRoutes = require("./routes/carousel");
 const leadershipRoutes = require("./routes/leadership");
+const staffRoutes = require("./routes/staff");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -70,7 +71,10 @@ app.use(
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Increased limit for development
-  message: "Too many requests from this IP, please try again later.",
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again later."
+  },
 });
 app.use("/api/", limiter);
 
@@ -117,6 +121,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/carousel", carouselRoutes);
 app.use("/api/leadership", leadershipRoutes);
+app.use("/api/staff", staffRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
