@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const Staff = require('../models/Staff');
 const { protect, systemAdminOnly } = require('../middleware/auth');
+const User = require('../models/User');
 
 // Multer Storage Config
 const uploadsDir = path.join(__dirname, '../uploads/leadership');
@@ -151,6 +152,33 @@ router.put('/:id', protect, systemAdminOnly, upload.single('image'), async (req,
     
     if (!updatedStaff) return res.status(404).json({ success: false, error: 'Profile not found' });
     
+    // Sync isActive status to matching User accounts
+    if (updateData.isActive !== undefined) {
+      try {
+        const titleWords = ['asst', 'prof', 'mrs', 'mr', 'dr', 'phd', 'admin', 'administrator', 'system', 'president', 'office', 'dean', 'vice', 'ato'];
+        const staffNameWords = updatedStaff.name
+          .toLowerCase()
+          .replace(/[^a-z0-9 ]/g, '')
+          .split(' ')
+          .filter(w => w.length > 2 && !titleWords.includes(w));
+
+        const users = await User.find({});
+        const matchingUsers = users.filter(u => {
+          const userNameLower = u.name.toLowerCase();
+          return staffNameWords.some(word => userNameLower.includes(word)) ||
+                 userNameLower.split(' ').some(word => word.length > 2 && !titleWords.includes(word) && updatedStaff.name.toLowerCase().includes(word));
+        });
+
+        if (matchingUsers.length > 0) {
+          const ids = matchingUsers.map(u => u._id);
+          await User.updateMany({ _id: { $in: ids } }, { isActive: updatedStaff.isActive });
+          console.log(`[Sync] Updated isActive to ${updatedStaff.isActive} for ${matchingUsers.length} user accounts matching '${updatedStaff.name}'`);
+        }
+      } catch (err) {
+        console.error('[Sync] Error syncing user active status:', err);
+      }
+    }
+    
     // Return backward-compatible response object
     const responseObj = updatedStaff.toObject();
     responseObj.success = true;
@@ -185,6 +213,33 @@ router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (re
     const profile = await Staff.findByIdAndUpdate(req.params.id, updateData, { new: true });
     
     if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    // Sync isActive status to matching User accounts
+    if (isActive !== undefined) {
+      try {
+        const titleWords = ['asst', 'prof', 'mrs', 'mr', 'dr', 'phd', 'admin', 'administrator', 'system', 'president', 'office', 'dean', 'vice', 'ato'];
+        const staffNameWords = profile.name
+          .toLowerCase()
+          .replace(/[^a-z0-9 ]/g, '')
+          .split(' ')
+          .filter(w => w.length > 2 && !titleWords.includes(w));
+
+        const users = await User.find({});
+        const matchingUsers = users.filter(u => {
+          const userNameLower = u.name.toLowerCase();
+          return staffNameWords.some(word => userNameLower.includes(word)) ||
+                 userNameLower.split(' ').some(word => word.length > 2 && !titleWords.includes(word) && profile.name.toLowerCase().includes(word));
+        });
+
+        if (matchingUsers.length > 0) {
+          const ids = matchingUsers.map(u => u._id);
+          await User.updateMany({ _id: { $in: ids } }, { isActive: profile.isActive });
+          console.log(`[Sync] Updated isActive to ${profile.isActive} for ${matchingUsers.length} user accounts matching '${profile.name}'`);
+        }
+      } catch (err) {
+        console.error('[Sync] Error syncing user active status:', err);
+      }
+    }
     
     res.json({ success: true, message: 'Profile updated successfully', profile });
   } catch (err) {
