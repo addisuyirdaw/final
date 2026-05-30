@@ -2291,11 +2291,30 @@ export function Clubs() {
                         <p className="text-sm text-gray-600 line-clamp-2 mb-4">{report.description}</p>
                         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                           <span className="text-xs text-gray-400">By {report.submittedBy?.name} on {new Date(report.date).toLocaleDateString()}</span>
-                          <button
-                            onClick={() => { setSelectedReport(report); setShowReportReviewModal(true); }}
-                            className="text-purple-600 text-sm font-bold flex items-center gap-1 hover:underline">
-                            Open Detail View <Search className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-4">
+                            <button
+                              onClick={() => { setSelectedReport(report); setShowReportReviewModal(true); }}
+                              className="text-purple-600 text-sm font-bold flex items-center gap-1 hover:underline">
+                              Open Detail View <Search className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm("Are you sure you want to permanently delete this member submission and its associated file?")) {
+                                  try {
+                                    await apiService.deleteReport(report._id);
+                                    toast.success("Submission deleted successfully!");
+                                    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                                    fetchManagerPendingReports(clubId);
+                                  } catch (err) {
+                                    toast.error(err.message || "Failed to delete submission");
+                                  }
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-bold flex items-center gap-1">
+                              🗑️ Remove
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2391,11 +2410,33 @@ export function Clubs() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => { setShowReportReviewModal(false); setReportFeedback(""); }}
-                  className="w-full mt-4 py-4 text-gray-400 font-bold hover:text-gray-600 transition-colors uppercase tracking-widest text-[10px]">
-                  Cancel Review
-                </button>
+                <div className="flex gap-4 mt-6 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => { setShowReportReviewModal(false); setReportFeedback(""); }}
+                    className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold hover:bg-gray-200 transition-colors rounded-xl text-xs uppercase tracking-widest"
+                  >
+                    Cancel Review
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to permanently delete this submission?")) {
+                        try {
+                          await apiService.deleteReport(selectedReport._id);
+                          toast.success("Submission deleted successfully!");
+                          setShowReportReviewModal(false);
+                          setSelectedReport(null);
+                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                          fetchManagerPendingReports(clubId);
+                        } catch (err) {
+                          toast.error(err.message || "Failed to delete submission");
+                        }
+                      }
+                    }}
+                    className="flex-1 py-3 bg-red-600 text-white font-bold hover:bg-red-700 transition-colors rounded-xl text-xs uppercase tracking-widest"
+                  >
+                    🗑️ Delete Submission
+                  </button>
+                </div>
               </div>
             </div>
           </div>
