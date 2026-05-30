@@ -465,63 +465,89 @@ export const Home = () => {
 				</div>
 			)}
 
-			{/* Official Directives Section */}
-			<section className="py-12 bg-white border-b border-gray-200">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="flex flex-col md:flex-row items-center justify-between mb-8">
-						<div>
-							<h2 className="text-3xl font-bold text-red-700 flex items-center gap-2">
-								<span className="w-2 h-8 bg-red-700 rounded-full inline-block"></span>
-								Official Directives
-							</h2>
-							<p className="text-gray-600 mt-1">High-priority updates from University Leadership</p>
+			{/* Official Directives Section — only for guests before login */}
+			{!user && (
+				<section className="py-12 bg-white border-b border-gray-200">
+					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+						<div className="flex flex-col md:flex-row items-center justify-between mb-8">
+							<div>
+								<h2 className="text-3xl font-bold text-red-700 flex items-center gap-2">
+									<span className="w-2 h-8 bg-red-700 rounded-full inline-block"></span>
+									Official Directives
+								</h2>
+								<p className="text-gray-600 mt-1">High-priority updates from University Leadership</p>
+							</div>
+							{user && user.role === 'admin' && (
+								<button className="mt-4 md:mt-0 bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors">
+									+ Post Directive
+								</button>
+							)}
 						</div>
-						{user && user.role === 'admin' && (
-							<button className="mt-4 md:mt-0 bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors">
-								+ Post Directive
-							</button>
-						)}
-					</div>
-					
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						{directives.length > 0 ? (
-							directives.map((dir) => {
-								let postImage = dir.image || '';
-								if (postImage && !postImage.startsWith('http') && !postImage.startsWith('https')) {
-									const normalizedPath = postImage.startsWith('/') ? postImage : `/${postImage}`;
-									postImage = `${CAROUSEL_API_BASE}${normalizedPath}`;
-								}
-								
-								const authorName = sanitizeAuthorName(dir.author?.name);
-								const authorRole = getProfessionalAuthor(dir.author?.role);
-								const authorImg = dir.author?.profileImage || '';
+						
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							{directives.length > 0 ? (
+								directives.map((dir) => {
+									let postImage = dir.image || '';
+									if (postImage && !postImage.startsWith('http') && !postImage.startsWith('https')) {
+										const normalizedPath = postImage.startsWith('/') ? postImage : `/${postImage}`;
+										postImage = `${CAROUSEL_API_BASE}${normalizedPath}`;
+									}
+									
+									const authorName = sanitizeAuthorName(dir.author?.name);
+									const authorRole = getProfessionalAuthor(dir.author?.role);
+									const authorImg = dir.author?.profileImage || '';
 
-								return (
-									<div key={dir._id} className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+									return (
+										<div key={dir._id} className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+											<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+												<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
+											</div>
+											<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+												<img 
+													src={authorImg} 
+													className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" 
+													alt="Author" 
+													onError={(e) => { 
+														e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=FFF0F0&color=991B1B&size=48`;
+													}} 
+												/>
+												<div>
+													<h4 className="font-bold text-gray-900">{authorName}</h4>
+													<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">{authorRole}</p>
+												</div>
+											</div>
+											{postImage && (
+												<div className="mb-4 rounded-lg overflow-hidden border border-gray-100 max-h-60 flex items-center justify-center bg-gray-50">
+													<img src={postImage} alt={dir.title} className="w-full h-full object-cover" />
+												</div>
+											)}
+											<h3 className="text-xl font-bold text-gray-900 mb-2">{dir.title}</h3>
+											<p className="text-gray-600 mb-6 flex-grow whitespace-pre-line">{dir.content}</p>
+											<div className="flex items-center justify-between pt-4 border-t border-gray-50">
+												<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+												<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+													<MessageSquare className="w-4 h-4" /> Save / Acknowledge
+												</button>
+											</div>
+										</div>
+									);
+								})
+							) : (
+								<>
+									{/* Example Directive 1 */}
+									<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
 										<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
 											<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
 										</div>
 										<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
-											<img 
-												src={authorImg} 
-												className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" 
-												alt="Author" 
-												onError={(e) => { 
-													e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=FFF0F0&color=991B1B&size=48`;
-												}} 
-											/>
+											<img src="/image.png/pr sintayew.jpg" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=FFF0F0&color=991B1B&size=48" }} />
 											<div>
-												<h4 className="font-bold text-gray-900">{authorName}</h4>
-												<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">{authorRole}</p>
+												<h4 className="font-bold text-gray-900">Asst. Prof. Sintayehu Ambachew Worku</h4>
+												<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Assistant Professor in Educational Psychology</p>
 											</div>
 										</div>
-										{postImage && (
-											<div className="mb-4 rounded-lg overflow-hidden border border-gray-100 max-h-60 flex items-center justify-center bg-gray-50">
-												<img src={postImage} alt={dir.title} className="w-full h-full object-cover" />
-											</div>
-										)}
-										<h3 className="text-xl font-bold text-gray-900 mb-2">{dir.title}</h3>
-										<p className="text-gray-600 mb-6 flex-grow whitespace-pre-line">{dir.content}</p>
+										<h3 className="text-xl font-bold text-gray-900 mb-2">Guidance Workshop on the 3rd Floor this Friday.</h3>
+										<p className="text-gray-600 mb-6 flex-grow">All students are invited to attend our mental health and guidance workshop to discuss student wellbeing and resources available on campus.</p>
 										<div className="flex items-center justify-between pt-4 border-t border-gray-50">
 											<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
 											<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
@@ -529,58 +555,34 @@ export const Home = () => {
 											</button>
 										</div>
 									</div>
-								);
-							})
-						) : (
-							<>
-								{/* Example Directive 1 */}
-								<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-									<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
-										<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
-									</div>
-									<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
-										<img src="/image.png/pr sintayew.jpg" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=Sintayehu+Ambachew&background=FFF0F0&color=991B1B&size=48" }} />
-										<div>
-											<h4 className="font-bold text-gray-900">Asst. Prof. Sintayehu Ambachew Worku</h4>
-											<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Assistant Professor in Educational Psychology</p>
-										</div>
-									</div>
-									<h3 className="text-xl font-bold text-gray-900 mb-2">Guidance Workshop on the 3rd Floor this Friday.</h3>
-									<p className="text-gray-600 mb-6 flex-grow">All students are invited to attend our mental health and guidance workshop to discuss student wellbeing and resources available on campus.</p>
-									<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-										<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-										<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
-											<MessageSquare className="w-4 h-4" /> Save / Acknowledge
-										</button>
-									</div>
-								</div>
 
-								{/* Example Directive 2 */}
-								<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-									<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
-										<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
-									</div>
-									<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
-										<img src="/images/genete.png" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" />
-										<div>
-											<h4 className="font-bold text-gray-900">Genete Fetene</h4>
-											<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Head of Dormitory Services</p>
+									{/* Example Directive 2 */}
+									<div className="bg-white border-2 border-red-100 rounded-xl p-6 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+										<div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+											<img src="/images/logo.png" alt="watermark" className="w-32 h-32" />
+										</div>
+										<div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+											<img src="/images/genete.png" className="w-12 h-12 rounded-full border-2 border-red-50 object-cover" alt="Author" />
+											<div>
+												<h4 className="font-bold text-gray-900">Genete Fetene</h4>
+												<p className="text-xs text-red-600 font-semibold uppercase tracking-wide">Head of Dormitory Services</p>
+											</div>
+										</div>
+										<h3 className="text-xl font-bold text-gray-900 mb-2">Dormitory Registration for 2nd Year Students is now open.</h3>
+										<p className="text-gray-600 mb-6 flex-grow">Please ensure all required documents are submitted to the housing office before the end of the week. Late submissions will face penalties.</p>
+										<div className="flex items-center justify-between pt-4 border-t border-gray-50">
+											<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+											<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+												<MessageSquare className="w-4 h-4" /> Save / Acknowledge
+											</button>
 										</div>
 									</div>
-									<h3 className="text-xl font-bold text-gray-900 mb-2">Dormitory Registration for 2nd Year Students is now open.</h3>
-									<p className="text-gray-600 mb-6 flex-grow">Please ensure all required documents are submitted to the housing office before the end of the week. Late submissions will face penalties.</p>
-									<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-										<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-										<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
-											<MessageSquare className="w-4 h-4" /> Save / Acknowledge
-										</button>
-									</div>
-								</div>
-							</>
-						)}
+								</>
+							)}
+						</div>
 					</div>
-				</div>
-			</section>
+				</section>
+			)}
 
 			{/* Stats Section */}
 			<section className="py-16 bg-white">
