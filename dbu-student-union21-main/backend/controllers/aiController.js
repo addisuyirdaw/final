@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const Club = require('../models/Club');
+const Staff = require('../models/Staff');
+const Leadership = require('../models/Leadership');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 function toPlainText(text = '') {
@@ -38,10 +40,16 @@ exports.processChatQuery = async (req, res) => {
 
     // 1. Fetch live data for RAG context
     const rawClubs = await Club.find({}).select('name category description status members leadership founded').populate('leadership.president', 'name').lean();
+    const staffMembers = await Staff.find({ isActive: true }).lean();
+    const leadershipMembers = await Leadership.find({ isActive: true }).lean();
+
     const clubs = rawClubs.map(c => {
       let rep = null;
       if (c.members) {
         rep = c.members.find(m => m.role === 'president' || m.role === 'REPRESENTATIVE');
+      }
+      if (!rep && c.leadership && c.leadership.president) {
+        rep = { fullName: c.leadership.president.name, department: 'N/A', year: 'N/A' };
       }
       const totalMembers = c.members ? c.members.filter(m => m.status === 'approved').length : 0;
       return {
@@ -60,7 +68,12 @@ exports.processChatQuery = async (req, res) => {
 
     const clubCount = clubs.length;
     const clubNames = clubs.map(c => c.name).join(', ');
-    const dbData = { clubs, faculty_and_coordinators: admins };
+    const dbData = { 
+      clubs, 
+      faculty_and_coordinators: admins,
+      staff: staffMembers,
+      leadership: leadershipMembers
+    };
 
     const systemPromptText = `ACT AS THE ADMINISTRATIVE DATA ANALYST FOR DEBRE BERHAN UNIVERSITY STUDENT AFFAIRS.
 
@@ -84,7 +97,7 @@ exports.processChatQuery = async (req, res) => {
 - Brevity: Maximum 20 words. RESPONSE RULE: Under 20 words.
 - No Greetings: Start directly with the names or bureau locations. RESPONSE RULE: No greetings.
 - Formatting: Use plain text only. No markdown symbols, no bold, no asterisks.
-- FALLBACK: If missing, say: "The Student Affairs leadership record is being updated. Photos and contacts are coming soon."
+- FALLBACK: If a record is not found in the database, return a professional response stating that the specific record is not registered yet.
 
 5. BULLETIN & EVENTS PROTOCOL:
 - Events Knowledge: You are the central registrar for all 11 Clubs (Tecktonic, Begoadragot, etc.).
@@ -105,7 +118,7 @@ exports.processChatQuery = async (req, res) => {
 - User Guidance: Tell students which button matches their goal.
 
 === LIVE DATABASE (JSON) ===
-\${JSON.stringify(dbData, null, 2)}`;
+${JSON.stringify(dbData, null, 2)}`;
 
     // 2. Try Gemini AI (v0.24+ compatible format)
     if (process.env.GEMINI_API_KEY) {
@@ -126,17 +139,97 @@ exports.processChatQuery = async (req, res) => {
     }
 
     // 3. Smart keyword fallback (when Gemini is unavailable)
-    const fallbackAnswer = buildFallbackAnswer(message, clubs, admins);
+    const fallbackAnswer = buildFallbackAnswer(message, clubs, admins, staffMembers, leadershipMembers);
     return sendAnswer(res, fallbackAnswer);
 
   } catch (error) {
     console.error('AI Controller Error:', error.message);
-    return sendAnswer(res, 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.');
+    return sendAnswer(res, 'An error occurred while processing your query. Please contact the Student Affairs department.');
   }
 };
 
-function buildFallbackAnswer(message, clubs, admins) {
+function buildFallbackAnswer(message, clubs, admins, staffMembers = [], leadershipMembers = []) {
   const lower = message.toLowerCase();
+
+  // ──────────────────────────────────────────────────────────────
+  // STEP 0: Check for Executives or Leadership database collection query first
+  // ──────────────────────────────────────────────────────────────
+  let matchedLeader = null;
+
+  // Search by exact/fuzzy name match in staff
+  for (const member of staffMembers) {
+    const nameLower = member.name.toLowerCase();
+    const parts = nameLower.split(/\s+/).map(p => p.replace(/[^a-z]/g, '')).filter(p => p.length >= 3 && p !== 'phd');
+    if (parts.some(part => lower.includes(part))) {
+      matchedLeader = { ...member, sourceTable: 'Staff' };
+      break;
+    }
+  }
+
+  // Search by exact/fuzzy name match in leadership
+  if (!matchedLeader) {
+    for (const member of leadershipMembers) {
+      const nameLower = member.name.toLowerCase();
+      const parts = nameLower.split(/\s+/).map(p => p.replace(/[^a-z]/g, ''));
+      if (parts.some(part => part.length >= 3 && lower.includes(part))) {
+        matchedLeader = { ...member, sourceTable: 'Leadership' };
+        break;
+      }
+    }
+  }
+
+  // If no name match, search by executive/leadership titles
+  if (!matchedLeader) {
+    for (const member of staffMembers) {
+      const titleLower = member.title ? member.title.toLowerCase() : '';
+      if (
+        (lower.includes('union president') && titleLower.includes('student union president')) ||
+        (lower.includes('president') && !lower.includes('union') && titleLower === 'university president') ||
+        (lower.includes('secretary') && titleLower.includes('secretary')) ||
+        (lower.includes('vice president') && titleLower.includes('vice president')) ||
+        (lower.includes('leader') && titleLower.includes('leader'))
+      ) {
+        matchedLeader = { ...member, sourceTable: 'Staff' };
+        break;
+      }
+    }
+  }
+
+  if (!matchedLeader) {
+    for (const member of leadershipMembers) {
+      const roleLower = member.role ? member.role.toLowerCase() : '';
+      if (
+        (lower.includes('union president') && roleLower.includes('president')) ||
+        (lower.includes('secretary') && roleLower.includes('secretary')) ||
+        (lower.includes('vice president') && roleLower.includes('vice president')) ||
+        (lower.includes('leader') && roleLower.includes('leader'))
+      ) {
+        matchedLeader = { ...member, sourceTable: 'Leadership' };
+        break;
+      }
+    }
+  }
+
+  // If a leadership/executive match is found, dynamically formulate the response
+  if (matchedLeader) {
+    const name = matchedLeader.name;
+    const title = matchedLeader.title || matchedLeader.role;
+    const office = matchedLeader.department || (matchedLeader.bioDetails && matchedLeader.bioDetails.find(d => d.label.toLowerCase().includes('office'))?.text) || 'Executive Office';
+    const responsibility = matchedLeader.responsibility || matchedLeader.bio || 'Formulating strategic visions and overseeing student integrations.';
+    
+    // For Dr. Asmare or other academic/university executive titles
+    if (name.toLowerCase().includes('asmare') || title.toLowerCase().includes('university president')) {
+      return `${name} is the ${title} operating from the ${office}. Responsibility: ${responsibility}`;
+    }
+    
+    // For Student Union President / Secretary / other staff/leadership
+    return `The active Student Union representative for ${title} is ${name}. Responsibility: ${responsibility}`;
+  }
+
+  // Handle Birhanu queries specifically if not found in db
+  if (lower.includes('birhanu')) {
+    return 'Birhanu is currently not registered as an active staff or leadership member in our records.';
+  }
 
   // ──────────────────────────────────────────────────────────────
   // STEP 1: Fuzzy-match a specific club FIRST (before any generic logic)
@@ -176,7 +269,7 @@ function buildFallbackAnswer(message, clubs, admins) {
       if (c.representative) {
         return `${c.representative.name} is the representative of ${c.name}. They are a ${c.representative.year} ${c.representative.department} student.`;
       } else {
-        return `The Student Affairs leadership record is being updated. Photos and contacts are coming soon.`;
+        return `The representative of ${c.name} is not registered yet. You can find more details under the Clubs tab of the portal.`;
       }
     }
 
@@ -233,7 +326,11 @@ function buildFallbackAnswer(message, clubs, admins) {
       const names = admins.map(a => `${a.name} (${a.role.replace('_', ' ')})`).join(' and ');
       return `You can contact ${names}. Their full details are in the Contact section of the portal.`;
     }
-    return 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.';
+    if (staffMembers.length > 0) {
+      const names = staffMembers.map(s => `${s.name} (${s.title})`).slice(0, 3).join(', ');
+      return `Active staff/leadership contacts: ${names}. Access their details in the Leadership gallery.`;
+    }
+    return 'Active staff contacts are not registered in the database yet. Please visit the Guidance office on the 3rd floor.';
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -262,5 +359,9 @@ function buildFallbackAnswer(message, clubs, admins) {
   // ──────────────────────────────────────────────────────────────
   // STEP 7: Final fallback
   // ──────────────────────────────────────────────────────────────
-  return 'The Student Affairs leadership record is being updated. Photos and contacts are coming soon.';
+  if (staffMembers.length > 0) {
+    const list = staffMembers.map(s => `${s.name} (${s.title})`).slice(0, 2).join(' and ');
+    return `For student affairs support, refer to our leadership team including ${list}. Feel free to visit the official Leadership gallery page for details.`;
+  }
+  return 'The Student Affairs directory is currently offline. Please contact the administrative desk for immediate assistance.';
 }
