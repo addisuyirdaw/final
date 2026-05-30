@@ -39,7 +39,7 @@ export const Home = () => {
 	const navigate = useNavigate();
 
 	// Redirect admin users directly to dashboard — carousel is for public guests only
-	if (user && (user.role === 'admin' || user.role === 'system_admin')) {
+	if (user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true)) {
 		navigate('/dashboard', { replace: true });
 		return null;
 	}
@@ -477,7 +477,7 @@ export const Home = () => {
 								</h2>
 								<p className="text-gray-600 mt-1">High-priority updates from University Leadership</p>
 							</div>
-							{user && user.role === 'admin' && (
+							{user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true) && (
 								<button className="mt-4 md:mt-0 bg-red-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800 transition-colors">
 									+ Post Directive
 								</button>

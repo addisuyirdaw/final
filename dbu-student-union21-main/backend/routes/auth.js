@@ -583,21 +583,36 @@ router.post("/forgot-password", async (req, res) => {
 			console.log("Message ID:", info.messageId);
 			console.log("Sent to:", user.email);
 
+			// In development, also return the reset URL directly so users aren't blocked by email delivery
+			const isDev = process.env.NODE_ENV !== 'production';
 			return res.status(200).json({
 				success: true,
-				message: `Password reset link has been sent to ${user.email}`,
+				message: `Password reset link has been sent to ${user.email}. Also check your spam/junk folder.`,
+				...(isDev && { resetUrl, devNote: "Dev mode: use this link directly if email not received" }),
 			});
 		} catch (emailError) {
 			console.error("Email sending failed:", emailError);
 
-			// Reset the token fields if email fails
+			// Even if email fails in dev mode, return the reset link directly
+			const isDev = process.env.NODE_ENV !== 'production';
+			if (isDev) {
+				console.log("DEV MODE: Email failed but providing reset link directly:", resetUrl);
+				return res.status(200).json({
+					success: true,
+					message: `Email delivery failed, but here is your direct reset link (dev mode only).`,
+					resetUrl,
+					devNote: "Email sending failed — use this link directly to reset your password",
+				});
+			}
+
+			// Reset the token fields if email fails in production
 			user.resetPasswordToken = undefined;
 			user.resetPasswordExpire = undefined;
 			await user.save({ validateBeforeSave: false });
 
 			return res.status(500).json({
 				success: false,
-				message: "Failed to send reset email. Please try again later.",
+				message: "Failed to send reset email. Please contact the administrator.",
 			});
 		}
 

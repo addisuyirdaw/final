@@ -116,12 +116,12 @@ const adminOnly = (req, res, next) => {
 };
 
 const systemAdminOnly = (req, res, next) => {
-	if (req.user && (req.user.isAdmin || req.user.role === 'admin' || req.user.role === 'system_admin')) {
+	if (req.user && (req.user.isAdmin || req.user.role === 'admin' || req.user.role === 'system_admin') && req.user.username === 'dbu10101030') {
 		next();
 	} else {
 		res.status(403).json({
 			success: false,
-			message: "Access denied. System Administrator privileges required.",
+			message: "Access denied. Only System Administrator with username 10101030 is permitted to perform this action.",
 		});
 	}
 };

@@ -165,6 +165,20 @@ export const AuthProvider = ({ children }) => {
     toast.success("Logged out successfully");
   };
 
+  const updateUserSession = (updatedFields) => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        const newUserData = { ...userData, ...updatedFields };
+        localStorage.setItem("user", JSON.stringify(newUserData));
+        setUser(newUserData);
+      }
+    } catch (err) {
+      console.error("Failed to update user session:", err);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -172,6 +186,7 @@ export const AuthProvider = ({ children }) => {
     adminLogin,
     register,
     logout,
+    updateUserSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

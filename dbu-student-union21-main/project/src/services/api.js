@@ -128,6 +128,13 @@ class ApiService {
     });
   }
 
+  async changePassword(passwordData) {
+    return this.request('/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify(passwordData)
+    });
+  }
+
   // Complaints endpoints
   async getComplaints(params = {}) {
     const queryString = new URLSearchParams(params).toString();

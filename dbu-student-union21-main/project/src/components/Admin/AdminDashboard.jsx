@@ -340,11 +340,11 @@ export function AdminDashboard() {
       action: handleExportReport
     },
     {
-      title: 'Manage Permissions',
-      description: 'Update user roles and permissions',
-      icon: Shield,
+      title: 'Manage Users',
+      description: 'Update user profiles, roles, and status',
+      icon: Users,
       color: 'bg-orange-500',
-      action: () => toast.info('Permission management would open here')
+      action: () => navigate('/admin/users')
     },
     {
       title: 'Carousel Manager',

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Loader, Award, ShieldAlert, Sparkles, X, Upload, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Loader, Award, ShieldAlert, Sparkles, X, Upload, Image as ImageIcon, Edit, Trash2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
@@ -10,22 +10,23 @@ const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https
 
 export const Executives = () => {
   const { user } = useAuth();
+  const isAdmin = user && (user.role === "system_admin" || user.role === "admin" || user.isAdmin === true) && (user.username === "dbu10101030" || user.username?.toLowerCase() === "dbu10101030");
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
-
-
-  // Modal & Add State
-  const [openAddModal, setOpenAddModal] = useState(false);
+  // Modal & Edit/Add State
+  const [openModal, setOpenModal] = useState(false);
+  const [activeProfile, setActiveProfile] = useState(null); // null = Add, object = Edit
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     title: "",
     department: "",
     background: "",
-    responsibility: ""
+    responsibility: "",
+    pageGroup: "university_exec"
   });
   const [preview, setPreview] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
@@ -34,7 +35,16 @@ export const Executives = () => {
   const fetchExecutives = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/staff?pageGroup=university_exec`);
+      const url = isAdmin 
+        ? `${API_BASE}/api/staff/admin/all?pageGroup=university_exec`
+        : `${API_BASE}/api/staff?pageGroup=university_exec`;
+      
+      const headers = {};
+      if (isAdmin) {
+        headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
+      }
+      
+      const res = await fetch(url, { headers });
       const data = await res.json();
       if (data.success) {
         setProfiles(data.profiles);
@@ -64,9 +74,68 @@ export const Executives = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleAddClick = () => {
+    setActiveProfile(null);
+    setFormData({
+      name: "",
+      title: "",
+      department: "",
+      background: "",
+      responsibility: "",
+      pageGroup: "university_exec"
+    });
+    setPreview(null);
+    setPendingFile(null);
+    setOpenModal(true);
+  };
+
+  const handleEditClick = (profile) => {
+    setActiveProfile(profile);
+    setFormData({
+      name: profile.name,
+      title: profile.title,
+      department: profile.department || "",
+      background: profile.background || "",
+      responsibility: profile.responsibility || "",
+      pageGroup: profile.pageGroup || "university_exec"
+    });
+    setPreview(profile.imageUrl?.startsWith("/uploads") ? `${API_BASE}${profile.imageUrl}` : profile.imageUrl);
+    setPendingFile(null);
+    setOpenModal(true);
+  };
+
+  const handleDeactivateToggleClick = async (profile) => {
+    const nextStatus = profile.isActive === false ? true : false;
+    const confirmMessage = nextStatus
+      ? `Are you sure you want to reactivate ${profile.name}?`
+      : `Are you sure you want to deactivate ${profile.name}? It will be hidden from public directories.`;
+      
+    if (!window.confirm(confirmMessage)) return;
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/staff/${profile._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ isActive: nextStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(nextStatus ? "Profile reactivated successfully!" : "Profile deactivated successfully!");
+        fetchExecutives();
+      } else {
+        toast.error(data.message || "Failed to update profile status");
+      }
+    } catch (err) {
+      toast.error("Network error updating profile status");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!pendingFile) {
+    if (!activeProfile && !pendingFile) {
       toast.error("Please select a profile photo.");
       return;
     }
@@ -79,11 +148,20 @@ export const Executives = () => {
       data.append("department", formData.department);
       data.append("background", formData.background);
       data.append("responsibility", formData.responsibility);
-      data.append("pageGroup", "university_exec");
-      data.append("image", pendingFile);
+      data.append("pageGroup", formData.pageGroup);
+      
+      if (pendingFile) {
+        data.append("image", pendingFile);
+      }
 
-      const res = await fetch(`${API_BASE}/api/staff`, {
-        method: "POST",
+      const url = activeProfile 
+        ? `${API_BASE}/api/staff/${activeProfile._id}`
+        : `${API_BASE}/api/staff`;
+        
+      const method = activeProfile ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
         },
@@ -91,18 +169,18 @@ export const Executives = () => {
       });
 
       const result = await res.json();
-      if (result.success) {
-        toast.success("Executive profile slot successfully created!");
-        setFormData({ name: "", title: "", department: "", background: "", responsibility: "" });
+      if (result.success || result._id) {
+        toast.success(`Profile successfully ${activeProfile ? "updated" : "created"}!`);
+        setOpenModal(false);
+        setActiveProfile(null);
         setPendingFile(null);
         setPreview(null);
-        setOpenAddModal(false);
         fetchExecutives();
       } else {
-        toast.error(result.message || "Failed to create profile slot");
+        toast.error(result.message || "Failed to save profile slot");
       }
     } catch (err) {
-      toast.error("Network error. Please try again.");
+      toast.error("Network error saving profile");
     } finally {
       setUploading(false);
     }
@@ -135,13 +213,13 @@ export const Executives = () => {
             Meet the leadership steering Debre Berhan University's vision, academic distinction, and student union affairs.
           </p>
 
-          {user && user.role === 'system_admin' && (
+          {isAdmin && (
             <div className="flex justify-center">
               <button
-                onClick={() => setOpenAddModal(true)}
+                onClick={handleAddClick}
                 className="mb-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-200"
               >
-                + Add New Leadership Profile Slot
+                ➕ Add Completely New Leader
               </button>
             </div>
           )}
@@ -192,11 +270,42 @@ export const Executives = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200/80 hover:border-blue-200 flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(30,58,138,0.08)] group"
+                        className={`relative bg-white rounded-2xl p-6 shadow-sm border ${profile.isActive === false ? 'opacity-60 border-amber-200 bg-amber-50/10' : 'border-gray-200/80 hover:border-blue-200'} flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(30,58,138,0.08)] group`}
                         onClick={() => navigate(`/profile/${profile._id}`)}
                       >
+                        {/* RBAC Action Overlay Bar */}
+                        {isAdmin && (
+                          <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(profile);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
+                              title="Edit leadership details"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeactivateToggleClick(profile);
+                              }}
+                              className={`${profile.isActive === false ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50' : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'} font-bold text-xs px-2 py-1 rounded transition-colors`}
+                              title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
+                            >
+                              {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
+                            </button>
+                          </div>
+                        )}
+
                         {/* Image Container */}
-                        <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-sky-50 bg-gray-50 shadow-md">
+                        {profile.isActive === false && (
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
+                            Deactivated
+                          </span>
+                        )}
+                        <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-sky-55 bg-gray-50 shadow-md">
                           <img 
                             src={imageUrl} 
                             alt={profile.name} 
@@ -238,9 +347,9 @@ export const Executives = () => {
 
       </div>
 
-      {/* Unified Profile Creation Modal Form */}
+      {/* Unified Edit/Add Popup Modal */}
       <AnimatePresence>
-        {openAddModal && (
+        {openModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -251,9 +360,9 @@ export const Executives = () => {
               <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-blue-600" />
-                  Reserve New Leadership Profile Slot
+                  {activeProfile ? "Modify Leadership Profile Slot" : "Reserve New Leadership Profile Slot"}
                 </h2>
-                <button onClick={() => setOpenAddModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                <button onClick={() => setOpenModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -262,7 +371,7 @@ export const Executives = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Photo Upload Box */}
                   <div className="md:col-span-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Profile Photo *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Profile Photo {activeProfile ? "" : "*"}</label>
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 bg-gray-50 cursor-pointer flex flex-col items-center justify-center group transition-all"
@@ -299,7 +408,7 @@ export const Executives = () => {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                         placeholder="e.g. Dr. Asmare"
                       />
                     </div>
@@ -311,7 +420,7 @@ export const Executives = () => {
                         required
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                         placeholder="e.g. Academic Vice Dean"
                       />
                     </div>
@@ -323,7 +432,7 @@ export const Executives = () => {
                         required
                         value={formData.department}
                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
                         placeholder="e.g. Office of the Dean"
                       />
                     </div>
@@ -331,6 +440,22 @@ export const Executives = () => {
                 </div>
 
                 <div className="space-y-4">
+                  {/* pageGroup selector */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Page Directory Group *</label>
+                    <select
+                      value={formData.pageGroup}
+                      onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-855 outline-none"
+                      required
+                    >
+                      <option value="university_exec">University Executives</option>
+                      <option value="student_union">Student Union</option>
+                      <option value="student_services">Student Services</option>
+                      <option value="dormitory">Dormitory Management</option>
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Background Paragraph *</label>
                     <textarea
@@ -338,7 +463,7 @@ export const Executives = () => {
                       rows="3"
                       value={formData.background}
                       onChange={(e) => setFormData({ ...formData, background: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-800"
                       placeholder="Academic history, previous achievements, credentials..."
                     ></textarea>
                   </div>
@@ -350,7 +475,7 @@ export const Executives = () => {
                       rows="3"
                       value={formData.responsibility}
                       onChange={(e) => setFormData({ ...formData, responsibility: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-800"
                       placeholder="Mandates, specific duties, daily roles..."
                     ></textarea>
                   </div>
@@ -359,7 +484,7 @@ export const Executives = () => {
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                   <button
                     type="button"
-                    onClick={() => setOpenAddModal(false)}
+                    onClick={() => setOpenModal(false)}
                     className="px-5 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors"
                   >
                     Cancel
@@ -370,7 +495,7 @@ export const Executives = () => {
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-70"
                   >
                     {uploading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                    {uploading ? "Saving..." : "Save Profile Slot"}
+                    {uploading ? "Saving..." : activeProfile ? "Update Profile Slot" : "Create Profile Slot"}
                   </button>
                 </div>
               </form>

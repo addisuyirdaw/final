@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Mail, Phone, MapPin, Loader, BookOpen, Briefcase, 
   FileText, Edit, Trash2, X, Upload, ImageIcon as ImageIconIcon, 
-  CheckCircle, AlertCircle 
+  CheckCircle, AlertCircle, Eye, EyeOff 
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
@@ -16,6 +16,7 @@ export const LeadershipProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user && (user.role === "system_admin" || user.role === "admin" || user.isAdmin === true) && (user.username === "dbu10101030" || user.username?.toLowerCase() === "dbu10101030");
   
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -128,25 +129,32 @@ export const LeadershipProfile = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to permanently delete this profile?")) return;
+  const handleDeactivateToggle = async () => {
+    const nextStatus = profile.isActive === false ? true : false;
+    const confirmMessage = nextStatus 
+      ? "Are you sure you want to reactivate this profile? It will reappear on public directories." 
+      : "Are you sure you want to deactivate this profile? It will be hidden from public directories.";
+      
+    if (!window.confirm(confirmMessage)) return;
     
     try {
       const res = await fetch(`${API_BASE}/api/staff/${id}`, {
-        method: "DELETE",
+        method: "PATCH",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+        },
+        body: JSON.stringify({ isActive: nextStatus })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Profile deleted successfully");
-        navigate(getBackUrl());
+        toast.success(nextStatus ? "Profile reactivated successfully!" : "Profile deactivated successfully!");
+        setProfile(data.profile);
       } else {
-        toast.error(data.message || "Failed to delete profile");
+        toast.error(data.message || "Failed to update profile status");
       }
     } catch (err) {
-      toast.error("Network error deleting profile");
+      toast.error("Network error updating profile status");
     }
   };
 
@@ -198,7 +206,7 @@ export const LeadershipProfile = () => {
     }
   };
 
-  const isAdmin = user && user.role === "system_admin";
+
 
   return (
     <div className="min-h-screen bg-gray-50 pt-28 pb-12 px-4 sm:px-6 lg:px-8">
@@ -212,20 +220,32 @@ export const LeadershipProfile = () => {
           {isAdmin && (
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => setShowEditModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer hover:shadow-lg"
+                onClick={handleDeactivateToggle}
+                className={`flex items-center gap-1.5 px-4 py-2 ${profile && profile.isActive === false ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'} text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer hover:shadow-lg`}
               >
-                <Edit className="w-4 h-4" /> Edit Profile
-              </button>
-              <button 
-                onClick={handleDelete}
-                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer hover:shadow-lg"
-              >
-                <Trash2 className="w-4 h-4" /> Delete
+                {profile && profile.isActive === false ? (
+                  <>
+                    <Eye className="w-4 h-4" /> Activate Profile
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-4 h-4" /> Deactivate Profile
+                  </>
+                )}
               </button>
             </div>
           )}
         </div>
+
+        {profile && profile.isActive === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center gap-3 text-amber-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Deactivated Profile</p>
+              <p className="text-xs">This profile is currently deactivated and hidden from the public directories.</p>
+            </div>
+          </div>
+        )}
 
         {/* Profile Header Card */}
         <motion.div 
@@ -257,6 +277,15 @@ export const LeadershipProfile = () => {
                 <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors border border-gray-200">
                   <Phone className="w-4 h-4" /> Contact Office
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-lg font-medium hover:bg-amber-100 transition-colors border border-amber-200 hover:border-amber-400"
+                    title="Edit this profile as System Admin"
+                  >
+                    <Edit className="w-4 h-4" /> ✏️ Edit Profile Details
+                  </button>
+                )}
               </div>
             </div>
           </div>

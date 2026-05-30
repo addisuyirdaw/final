@@ -76,6 +76,7 @@ export function Header() {
 				{ name: "Services", href: "/services" },
 				{ name: "Latest", href: "/latest" },
 				{ name: "Complaints", href: "/complaints" },
+				{ name: "My Profile", href: "/profile" },
 			]
 			: []),
 	];
@@ -222,7 +223,7 @@ export function Header() {
 										</span>
 									)}
 								</div>
-								{user && (user.role === 'admin' || user.role === 'system_admin') && (
+								{user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true) && (
 									<Link
 										to="/admin"
 										className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors"

@@ -31,6 +31,8 @@ import { Executives } from "./components/Pages/Executives";
 import { Union } from "./components/Pages/Union";
 import { ServicesDirectory } from "./components/Pages/ServicesDirectory";
 import { Dormitory } from "./components/Pages/Dormitory";
+import { Profile } from "./components/Pages/Profile";
+import { UserManagement } from "./components/Admin/UserManagement";
 import "./index.css";
 
 function AppContent() {
@@ -94,6 +96,7 @@ function AppContent() {
           />
 
           <Route path="/clubs" element={<Clubs />} />
+          <Route path="/clubs/:id" element={<Clubs />} />
 
           <Route
             path="/elections"
@@ -137,6 +140,15 @@ function AppContent() {
             }
           />
 
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Admin Routes */}
           <Route
             path="/admin"
@@ -164,6 +176,16 @@ function AppContent() {
               <ProtectedRoute>
                 <AdminRoute>
                   <LeadershipManager />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <UserManagement />
                 </AdminRoute>
               </ProtectedRoute>
             }
