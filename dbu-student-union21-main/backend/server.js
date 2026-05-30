@@ -97,8 +97,9 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(uploadsPath), async (req, res, next) => {
   // Fallback self-healing static handler when files are missing on disk (e.g. ephemeral Render storage reset)
+  const cleanUrl = req.url.split('?')[0];
   const reportsRegex = /^\/reports\/([^\/]+)$/i;
-  const match = req.url.match(reportsRegex);
+  const match = cleanUrl.match(reportsRegex);
   if (match) {
     const filename = match[1];
     const filePath = path.join(uploadsPath, 'reports', filename);

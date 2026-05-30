@@ -309,6 +309,12 @@ class ApiService {
     return response.reports || [];
   }
 
+  async deleteReport(reportId) {
+    return this.request(`/reports/${reportId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Public stats for student dashboard
   async getClubPublicStats() {
     return this.request('/clubs/public-stats');

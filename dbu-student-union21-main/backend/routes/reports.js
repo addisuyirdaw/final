@@ -289,4 +289,52 @@ router.get('/inbox', protect, async (req, res) => {
   }
 });
 
+// @desc    Delete an activity report
+// @route   DELETE /api/reports/:id
+// @access  Private/Club Leader or Coordinator/Admin
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const report = await ActivityReport.findById(req.params.id).populate('club');
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    const club = report.club;
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator';
+    const isLeader = club && (
+      (club.leadership?.president?.toString() === req.user._id?.toString()) ||
+      (club.leadership?.vicePresident?.toString() === req.user._id?.toString()) ||
+      req.user.role === 'president'
+    );
+
+    if (!isCoordinator && !isLeader) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this report' });
+    }
+
+    // Delete the physical file from disk if it exists
+    if (report.fileUrl) {
+      const filename = report.fileUrl.split('/').pop();
+      const filePath = path.join(__dirname, '../uploads/reports', filename);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Deleted file from disk: ${filename}`);
+        } catch (err) {
+          console.error(`Failed to delete physical file ${filename}:`, err);
+        }
+      }
+    }
+
+    await ActivityReport.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Report deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete report error:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting report' });
+  }
+});
+
 module.exports = router;

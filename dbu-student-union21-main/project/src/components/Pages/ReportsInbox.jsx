@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../../services/api';
+import toast from 'react-hot-toast';
 
 export const ReportsInbox = () => {
   const [reports, setReports] = useState([]);
@@ -183,6 +184,22 @@ export const ReportsInbox = () => {
                           className="bg-gray-900 text-white hover:bg-black px-3 py-1.5 rounded font-medium transition-colors"
                         >
                           Review
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm('Are you sure you want to permanently delete this report and its files?')) {
+                              try {
+                                await apiService.deleteReport(report._id);
+                                toast.success('Report deleted successfully');
+                                fetchInbox();
+                              } catch (err) {
+                                toast.error(err.message || 'Failed to delete report');
+                              }
+                            }
+                          }}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-bold transition-colors shadow-sm inline-flex items-center gap-1"
+                        >
+                          🗑️ Delete
                         </button>
                       </td>
                     </tr>

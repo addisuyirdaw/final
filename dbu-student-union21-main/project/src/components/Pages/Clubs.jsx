@@ -2344,6 +2344,28 @@ export function Clubs() {
                               <span>📄</span> View Attached File
                             </a>
                           )}
+
+                          {(isLeader || isCoordinator || user?.isAdmin) && (
+                            <button
+                              onClick={async () => {
+                                if (window.confirm("Are you sure you want to permanently delete this report and its associated file?")) {
+                                  try {
+                                    await apiService.deleteReport(report._id);
+                                    toast.success("Report deleted successfully!");
+                                    // Refresh reports list
+                                    const clubId = selectedClub._id || selectedClub.id;
+                                    const reports = await apiService.getClubReports(clubId);
+                                    setClubReports(reports);
+                                  } catch (error) {
+                                    toast.error(error.message || "Failed to delete report");
+                                  }
+                                }
+                              }}
+                              className="text-xs text-red-600 hover:text-red-800 font-bold transition-colors uppercase tracking-widest mt-3 flex items-center gap-1 w-fit border-t border-gray-100 pt-2"
+                            >
+                              <span>🗑️</span> Delete Report
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
