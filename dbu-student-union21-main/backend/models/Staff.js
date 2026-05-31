@@ -12,6 +12,10 @@ const staffSchema = new mongoose.Schema({
   background: { type: String, required: true }, // History/Credentials
   responsibility: { type: String, required: true }, // Specific job duties / Functions
   imageUrl: { type: String, required: true },
+  // Persistent base64 backup of the uploaded image — used for self-healing on ephemeral filesystems
+  fileData: { type: String, select: false }, // base64 encoded image content
+  fileName: { type: String },
+  fileMimeType: { type: String },
   // priority: lower number = higher rank (1 = top executive, 10 = default)
   // EXECUTIVES:    University President=1, Vice Academic=2, Others=3
   // SERVICES:      Dean of Student Affairs=1, Dept Heads=2, Advisors=3

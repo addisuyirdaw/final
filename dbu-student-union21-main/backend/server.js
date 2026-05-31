@@ -96,32 +96,95 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 }, express.static(uploadsPath), async (req, res, next) => {
-  // Fallback self-healing static handler when files are missing on disk (e.g. ephemeral Render storage reset)
+  // ──────────────────────────────────────────────────────────────────────────
+  // SELF-HEALING STATIC HANDLER
+  // When a file is missing on disk (e.g. ephemeral Render storage reset,
+  // new computer, or fresh deployment), pull the base64 backup from MongoDB
+  // and recreate the physical file transparently before serving it.
+  // ──────────────────────────────────────────────────────────────────────────
   const cleanUrl = req.url.split('?')[0];
-  const reportsRegex = /^\/reports\/([^\/]+)$/i;
-  const match = cleanUrl.match(reportsRegex);
-  if (match) {
-    const filename = match[1];
-    const filePath = path.join(uploadsPath, 'reports', filename);
-    
+
+  // Helper: ensure dir exists and write buffer to path, then serve it
+  const healAndServe = (filePath, buffer) => {
     try {
-      const ActivityReport = require('./models/ActivityReport');
-      const report = await ActivityReport.findOne({ fileUrl: { $regex: filename } });
-      
-      if (report && report.fileData) {
-        const dir = path.dirname(filePath);
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        
-        const fileBuffer = Buffer.from(report.fileData, 'base64');
-        fs.writeFileSync(filePath, fileBuffer);
-        console.log(`✨ Static self-healing: Recreated missing file ${filename} from database`);
-        return res.sendFile(filePath);
-      }
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(filePath, buffer);
+      console.log(`✨ Self-healed missing file: ${path.basename(filePath)}`);
+      return res.sendFile(filePath);
     } catch (err) {
-      console.error('Static self-healing error:', err);
+      console.error('Self-heal write error:', err);
+      return next();
     }
+  };
+
+  try {
+    // 1. /uploads/reports/:filename  →  ActivityReport.fileData
+    const reportsMatch = cleanUrl.match(/^\/reports\/([^/]+)$/i);
+    if (reportsMatch) {
+      const filename = reportsMatch[1];
+      const filePath = path.join(uploadsPath, 'reports', filename);
+      const ActivityReport = require('./models/ActivityReport');
+      const report = await ActivityReport.findOne({ fileUrl: { $regex: filename } }).select('+fileData');
+      if (report && report.fileData) {
+        return healAndServe(filePath, Buffer.from(report.fileData, 'base64'));
+      }
+      return next();
+    }
+
+    // 2. /uploads/carousel/:filename  →  Carousel.fileData
+    const carouselMatch = cleanUrl.match(/^\/carousel\/([^/]+)$/i);
+    if (carouselMatch) {
+      const filename = carouselMatch[1];
+      const filePath = path.join(uploadsPath, 'carousel', filename);
+      const Carousel = require('./models/Carousel');
+      const slide = await Carousel.findOne({ imageUrl: { $regex: filename } }).select('+fileData');
+      if (slide && slide.fileData) {
+        return healAndServe(filePath, Buffer.from(slide.fileData, 'base64'));
+      }
+      return next();
+    }
+
+    // 3. /uploads/profiles/:filename  →  User.profileImageData
+    const profilesMatch = cleanUrl.match(/^\/profiles\/([^/]+)$/i);
+    if (profilesMatch) {
+      const filename = profilesMatch[1];
+      const filePath = path.join(uploadsPath, 'profiles', filename);
+      const User = require('./models/User');
+      const user = await User.findOne({ profileImage: { $regex: filename } }).select('+profileImageData');
+      if (user && user.profileImageData) {
+        return healAndServe(filePath, Buffer.from(user.profileImageData, 'base64'));
+      }
+      return next();
+    }
+
+    // 4. /uploads/leadership/:filename  →  Staff.fileData  (uploaded via /api/leadership)
+    const leadershipMatch = cleanUrl.match(/^\/leadership\/([^/]+)$/i);
+    if (leadershipMatch) {
+      const filename = leadershipMatch[1];
+      const filePath = path.join(uploadsPath, 'leadership', filename);
+      const Staff = require('./models/Staff');
+      const profile = await Staff.findOne({ imageUrl: { $regex: filename } }).select('+fileData');
+      if (profile && profile.fileData) {
+        return healAndServe(filePath, Buffer.from(profile.fileData, 'base64'));
+      }
+      return next();
+    }
+
+    // 5. /uploads/:filename (root — uploaded via /api/staff POST/PUT which copies here)
+    const rootMatch = cleanUrl.match(/^\/([^/]+)$/i);
+    if (rootMatch) {
+      const filename = rootMatch[1];
+      const filePath = path.join(uploadsPath, filename);
+      const Staff = require('./models/Staff');
+      const profile = await Staff.findOne({ imageUrl: { $regex: filename } }).select('+fileData');
+      if (profile && profile.fileData) {
+        return healAndServe(filePath, Buffer.from(profile.fileData, 'base64'));
+      }
+      return next();
+    }
+  } catch (err) {
+    console.error('Self-healing static handler error:', err);
   }
   next();
 });

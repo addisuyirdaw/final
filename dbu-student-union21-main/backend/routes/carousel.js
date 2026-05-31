@@ -76,9 +76,21 @@ router.post('/upload', protect, adminOnly, upload.single('image'), async (req, r
     // Build public URL served via /uploads static route
     const imageUrl = `/uploads/carousel/${req.file.filename}`;
 
+    // Read and store base64 backup in MongoDB for self-healing
+    let fileData, fileName, fileMimeType;
+    try {
+      const buf = fs.readFileSync(req.file.path);
+      fileData = buf.toString('base64');
+      fileName = req.file.originalname;
+      fileMimeType = req.file.mimetype;
+    } catch (e) { console.error('Carousel upload: fileData read error', e.message); }
+
     // order = 0 ensures this new slide sorts to the top (newest-first by createdAt)
     const slide = await Carousel.create({
       imageUrl,
+      fileData,
+      fileName,
+      fileMimeType,
       caption: caption.trim(),
       order: 0,
       uploadedBy: req.user._id

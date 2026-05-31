@@ -6,6 +6,10 @@ const carouselSchema = new mongoose.Schema({
     required: [true, 'Image URL is required'],
     trim: true
   },
+  // Persistent base64 backup of the uploaded image — used for self-healing on ephemeral filesystems
+  fileData: { type: String, select: false }, // base64 encoded image content
+  fileName: { type: String },
+  fileMimeType: { type: String },
   caption: {
     type: String,
     trim: true,

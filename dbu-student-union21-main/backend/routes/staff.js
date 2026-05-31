@@ -95,6 +95,7 @@ router.post('/', protect, systemAdminOnly, upload.single('image'), async (req, r
     }
 
     let imageUrl = '';
+    let fileData, fileName, fileMimeType;
     if (req.file) {
       // Copy to the root uploads folder for static routing compatibility
       const parentDir = path.join(__dirname, '../uploads');
@@ -104,6 +105,13 @@ router.post('/', protect, systemAdminOnly, upload.single('image'), async (req, r
       const destPath = path.join(parentDir, req.file.filename);
       fs.copyFileSync(req.file.path, destPath);
       imageUrl = `/uploads/${req.file.filename}`;
+      // Read and store base64 backup in MongoDB for self-healing
+      try {
+        const buf = fs.readFileSync(req.file.path);
+        fileData = buf.toString('base64');
+        fileName = req.file.originalname;
+        fileMimeType = req.file.mimetype;
+      } catch (e) { console.error('Staff POST: fileData read error', e.message); }
     } else if (req.body.imageUrl) {
       imageUrl = req.body.imageUrl;
     } else {
@@ -118,6 +126,9 @@ router.post('/', protect, systemAdminOnly, upload.single('image'), async (req, r
       background,
       responsibility,
       imageUrl,
+      fileData,
+      fileName,
+      fileMimeType,
       priority: parseInt(req.body.priority) || 10,
       order: parseInt(order) || 0,
       isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true
@@ -144,6 +155,13 @@ router.put('/:id', protect, systemAdminOnly, upload.single('image'), async (req,
       const destPath = path.join(parentDir, req.file.filename);
       fs.copyFileSync(req.file.path, destPath);
       updateData.imageUrl = `/uploads/${req.file.filename}`;
+      // Read and store base64 backup in MongoDB for self-healing
+      try {
+        const buf = fs.readFileSync(req.file.path);
+        updateData.fileData = buf.toString('base64');
+        updateData.fileName = req.file.originalname;
+        updateData.fileMimeType = req.file.mimetype;
+      } catch (e) { console.error('Staff PUT: fileData read error', e.message); }
     }
 
     if (updateData.priority !== undefined) updateData.priority = parseInt(updateData.priority) || 10;
@@ -211,6 +229,13 @@ router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (re
     
     if (req.file) {
       updateData.imageUrl = `/uploads/leadership/${req.file.filename}`;
+      // Read and store base64 backup in MongoDB for self-healing
+      try {
+        const buf = fs.readFileSync(req.file.path);
+        updateData.fileData = buf.toString('base64');
+        updateData.fileName = req.file.originalname;
+        updateData.fileMimeType = req.file.mimetype;
+      } catch (e) { console.error('Staff PATCH: fileData read error', e.message); }
     }
 
     const profile = await Staff.findByIdAndUpdate(req.params.id, updateData, { new: true });

@@ -100,8 +100,16 @@ router.post('/add', protect, systemAdminOnly, upload.single('image'), async (req
     }
 
     let imageUrl = '';
+    let fileData, fileName, fileMimeType;
     if (req.file) {
       imageUrl = `/uploads/leadership/${req.file.filename}`;
+      // Read and store base64 backup in MongoDB for self-healing
+      try {
+        const buf = fs.readFileSync(req.file.path);
+        fileData = buf.toString('base64');
+        fileName = req.file.originalname;
+        fileMimeType = req.file.mimetype;
+      } catch (e) { console.error('Leadership POST: fileData read error', e.message); }
     } else if (req.body.imageUrl) {
       imageUrl = req.body.imageUrl;
     } else {
@@ -116,6 +124,9 @@ router.post('/add', protect, systemAdminOnly, upload.single('image'), async (req
       background,
       responsibility,
       imageUrl,
+      fileData,
+      fileName,
+      fileMimeType,
       priority: parseInt(priority) || 10,
       order: parseInt(order) || 0,
       isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true
@@ -147,6 +158,13 @@ router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (re
     
     if (req.file) {
       updateData.imageUrl = `/uploads/leadership/${req.file.filename}`;
+      // Read and store base64 backup in MongoDB for self-healing
+      try {
+        const buf = fs.readFileSync(req.file.path);
+        updateData.fileData = buf.toString('base64');
+        updateData.fileName = req.file.originalname;
+        updateData.fileMimeType = req.file.mimetype;
+      } catch (e) { console.error('Leadership PATCH: fileData read error', e.message); }
     }
 
     const profile = await Staff.findByIdAndUpdate(req.params.id, updateData, { new: true });

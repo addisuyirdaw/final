@@ -422,6 +422,13 @@ router.put("/profile", protect, (req, res, next) => {
 					} catch (_) { /* ignore — file may already be gone */ }
 				}
 				user.profileImage = `/uploads/profiles/${req.file.filename}`;
+				// Read and store base64 backup in MongoDB for self-healing
+				try {
+					const buf = fs.readFileSync(req.file.path);
+					user.profileImageData = buf.toString('base64');
+					user.profileImageName = req.file.originalname;
+					user.profileImageMimeType = req.file.mimetype;
+				} catch (e) { console.error('Auth avatar: profileImageData read error', e.message); }
 			}
 
 			await user.save();

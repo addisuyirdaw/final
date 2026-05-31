@@ -91,6 +91,10 @@ const userSchema = new mongoose.Schema(
 			type: String,
 			default: 'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=400'
 		},
+		// Persistent base64 backup of the uploaded avatar — used for self-healing on ephemeral filesystems
+		profileImageData: { type: String, select: false }, // base64 encoded avatar
+		profileImageName: { type: String },
+		profileImageMimeType: { type: String },
 		studentId: {
 			type: String,
 			sparse: true
