@@ -1,4 +1,12 @@
 node_modules/
 backend/node_modules/
 project/node_modules/
+# Ignore all uploads except the seeded staff profile images (backed up in MongoDB anyway)
 backend/uploads/
+# Allow the key staff profile images so they're available on fresh deployments
+!backend/uploads/leadership/
+!backend/uploads/leadership/staff-gizew-fetene.jpg
+!backend/uploads/leadership/staff-sintayehu-ambachew.jpg
+!backend/uploads/leadership/staff-kalkidan-desta.jpg
+!backend/uploads/leadership/staff-asmare-malese.png
+!backend/uploads/leadership/staff-genete-fetene.png
