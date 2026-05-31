@@ -970,5 +970,250 @@ router.patch('/:id/assign-leader', protect, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CLUB ATTENDANCE, LIVE CHECK-IN & CERTIFICATE GATEKEEPER ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// @desc    Self-service check-in using a 4-digit code
+// @route   POST /api/clubs/checkin
+// @access  Private
+router.post('/checkin', protect, async (req, res) => {
+  try {
+    const { clubId, sessionCode } = req.body;
+    const userId = req.user._id;
+
+    if (!clubId || !sessionCode) {
+      return res.status(400).json({ success: false, message: 'Club ID and 4-digit check-in code are required' });
+    }
+
+    const club = await Club.findById(clubId);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    // Find the active event with matching code
+    const activeEvent = club.events.find(e => e.activeCheckIn === true && e.attendanceCode === String(sessionCode).trim());
+    if (!activeEvent) {
+      return res.status(400).json({ success: false, message: 'Invalid check-in code or session has expired' });
+    }
+
+    // Find the member record
+    const member = club.members.find(m => m.user.toString() === userId.toString());
+    if (!member || !['approved', 'restricted', 'Inactive_Ghost'].includes(member.status)) {
+      return res.status(403).json({ success: false, message: 'Access denied: You must be an approved member of this club' });
+    }
+
+    // Check if already checked in
+    const alreadyCheckedIn = activeEvent.attendees.some(attId => attId.toString() === userId.toString());
+    if (alreadyCheckedIn) {
+      return res.status(200).json({ success: true, message: 'Already checked in successfully!', club });
+    }
+
+    // Record attendance
+    activeEvent.attendees.push(userId);
+    member.attendanceCount = (member.attendanceCount || 0) + 1;
+    member.absentStreak = 0;
+
+    // Automatically restore ghost status back to approved
+    if (member.status === 'Inactive_Ghost') {
+      member.status = 'approved';
+    }
+
+    await club.save();
+
+    res.json({
+      success: true,
+      message: 'Successfully checked in!',
+      attendanceCount: member.attendanceCount,
+      club
+    });
+  } catch (error) {
+    console.error('Checkin error:', error);
+    res.status(500).json({ success: false, message: 'Server error during check-in' });
+  }
+});
+
+// @desc    Create a new event for a club
+// @route   POST /api/clubs/:id/events
+// @access  Private (Club Leader / Admin / Coordinator)
+router.post('/:id/events', protect, clubLeader, async (req, res) => {
+  try {
+    const { title, description, date, location } = req.body;
+
+    if (!title || !date) {
+      return res.status(400).json({ success: false, message: 'Event title and date are required' });
+    }
+
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    club.events.push({
+      title,
+      description,
+      date: new Date(date),
+      location,
+      status: 'planned',
+      attendees: [],
+      activeCheckIn: false
+    });
+
+    await club.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Event created successfully',
+      club
+    });
+  } catch (error) {
+    console.error('Create event error:', error);
+    res.status(500).json({ success: false, message: 'Server error creating event' });
+  }
+});
+
+// @desc    Start a live check-in session for an event
+// @route   POST /api/clubs/:id/events/:eventId/checkin/start
+// @access  Private (Club Leader / Admin / Coordinator)
+router.post('/:id/events/:eventId/checkin/start', protect, clubLeader, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    const event = club.events.id(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if (event.status === 'completed') {
+      return res.status(400).json({ success: false, message: 'Cannot start check-in for a completed event' });
+    }
+
+    // Generate unique 4-digit code
+    const sessionCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+    event.attendanceCode = sessionCode;
+    event.activeCheckIn = true;
+    event.status = 'ongoing';
+
+    await club.save();
+
+    res.json({
+      success: true,
+      message: 'Check-in session started successfully',
+      code: sessionCode,
+      event,
+      club
+    });
+  } catch (error) {
+    console.error('Start checkin error:', error);
+    res.status(500).json({ success: false, message: 'Server error starting check-in session' });
+  }
+});
+
+// @desc    End the live check-in session & trigger ghosting status updates
+// @route   POST /api/clubs/:id/events/:eventId/checkin/end
+// @access  Private (Club Leader / Admin / Coordinator)
+router.post('/:id/events/:eventId/checkin/end', protect, clubLeader, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    const event = club.events.id(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if (event.status !== 'ongoing') {
+      return res.status(400).json({ success: false, message: 'Check-in session is not ongoing' });
+    }
+
+    event.activeCheckIn = false;
+    event.status = 'completed';
+
+    // Increment club-wide completed events held
+    club.totalEventsHeld = (club.totalEventsHeld || 0) + 1;
+
+    // Post-event absenteeism calculation for approved and ghosted members
+    let ghostedCount = 0;
+    let activeAttendees = event.attendees.map(a => a.toString());
+
+    club.members.forEach(member => {
+      // Only process approved, restricted, or previously ghosted members
+      if (['approved', 'restricted', 'Inactive_Ghost'].includes(member.status)) {
+        const isPresent = activeAttendees.includes(member.user.toString());
+        if (!isPresent) {
+          member.absentStreak = (member.absentStreak || 0) + 1;
+          if (member.absentStreak >= 3) {
+            member.status = 'Inactive_Ghost';
+            ghostedCount++;
+          }
+        } else {
+          member.absentStreak = 0;
+        }
+      }
+    });
+
+    await club.save();
+
+    res.json({
+      success: true,
+      message: 'Check-in session ended successfully. Absentee streak processed.',
+      event,
+      ghostedCount,
+      club
+    });
+  } catch (error) {
+    console.error('End checkin error:', error);
+    res.status(500).json({ success: false, message: 'Server error ending check-in session' });
+  }
+});
+
+// @desc    Verify certificate eligibility based on attendance ratio
+// @route   GET /api/clubs/:clubId/certificate/verify
+// @access  Private
+router.get('/:clubId/certificate/verify', protect, async (req, res) => {
+  try {
+    const userId = req.query.userId || req.user._id;
+    const club = await Club.findById(req.params.clubId);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    const member = club.members.find(m => m.user.toString() === userId.toString());
+    if (!member) {
+      return res.status(404).json({ success: false, message: 'Student is not a member of this club' });
+    }
+
+    const totalHeld = club.totalEventsHeld || 0;
+    const attended = member.attendanceCount || 0;
+    let percentage = 0;
+
+    if (totalHeld > 0) {
+      percentage = Math.round((attended / totalHeld) * 100);
+    }
+
+    const requiredPercent = club.minAttendanceForCertificate || 75;
+    const eligible = percentage >= requiredPercent;
+
+    res.json({
+      success: true,
+      eligible,
+      percentage,
+      required: requiredPercent,
+      attended,
+      totalEvents: totalHeld,
+      studentName: member.fullName,
+      clubName: club.name
+    });
+  } catch (error) {
+    console.error('Verify certificate error:', error);
+    res.status(500).json({ success: false, message: 'Server error verifying eligibility' });
+  }
+});
 
 module.exports = router;

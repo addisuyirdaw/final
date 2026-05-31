@@ -26,7 +26,8 @@ export const ServicesDirectory = () => {
     department: "",
     background: "",
     responsibility: "",
-    pageGroup: "student_services"
+    pageGroup: "student_services",
+    priority: 3
   });
   const [preview, setPreview] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
@@ -82,7 +83,8 @@ export const ServicesDirectory = () => {
       department: "",
       background: "",
       responsibility: "",
-      pageGroup: "student_services"
+      pageGroup: "student_services",
+      priority: 3
     });
     setPreview(null);
     setPendingFile(null);
@@ -97,7 +99,8 @@ export const ServicesDirectory = () => {
       department: profile.department || "",
       background: profile.background || "",
       responsibility: profile.responsibility || "",
-      pageGroup: profile.pageGroup || "student_services"
+      pageGroup: profile.pageGroup || "student_services",
+      priority: profile.priority !== undefined ? profile.priority : 3
     });
     setPreview(profile.imageUrl?.startsWith("/uploads") ? `${API_BASE}${profile.imageUrl}` : profile.imageUrl);
     setPendingFile(null);
@@ -149,6 +152,7 @@ export const ServicesDirectory = () => {
       data.append("background", formData.background);
       data.append("responsibility", formData.responsibility);
       data.append("pageGroup", formData.pageGroup);
+      data.append("priority", formData.priority);
       
       if (pendingFile) {
         data.append("image", pendingFile);
@@ -186,13 +190,17 @@ export const ServicesDirectory = () => {
     }
   };
 
-  // Group profiles by department
-  const groupedProfiles = profiles.reduce((groups, profile) => {
-    const dept = profile.department || "Student Services";
-    if (!groups[dept]) groups[dept] = [];
-    groups[dept].push(profile);
-    return groups;
-  }, {});
+  // ── HARDCODED SEMANTIC SECTIONS for Student Affairs & Services ──
+  // Backend returns profiles sorted by priority ASC, createdAt DESC.
+  // Sections: Dean=1, Department Heads=2, Advisors/Coordinators=3+
+  const SERVICES_SECTIONS = [
+    { label: 'Dean of Student Affairs',       min: 1, max: 1 },
+    { label: 'Department Heads',              min: 2, max: 2 },
+    { label: 'Advisors & Support Staff',      min: 3, max: 10 },
+  ];
+
+  const getSectionProfiles = (min, max) =>
+    profiles.filter(p => (p.priority ?? 10) >= min && (p.priority ?? 10) <= max);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-28 pb-20 px-4 sm:px-6 lg:px-8">
@@ -239,7 +247,7 @@ export const ServicesDirectory = () => {
             <h3 className="text-lg font-bold text-gray-900 mb-1">Failed to load profiles</h3>
             <p className="text-gray-500 text-sm px-6">{error}</p>
           </div>
-        ) : Object.keys(groupedProfiles).length === 0 ? (
+        ) : profiles.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-gray-200 max-w-md mx-auto shadow-sm">
             <HeartHandshake className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-gray-900 mb-1">No Student Services Profiles</h3>
@@ -247,101 +255,88 @@ export const ServicesDirectory = () => {
           </div>
         ) : (
           <div className="space-y-16">
-            {Object.entries(groupedProfiles).map(([department, deptProfiles]) => (
-              <div key={department} className="space-y-6">
-                {/* Department Section Title */}
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
-                    {department}
-                  </h2>
-                  <div className="h-[2px] bg-gray-200 w-full rounded-full" />
-                </div>
-
-                {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {deptProfiles.map((profile, index) => {
-                    const imageUrl = profile.imageUrl?.startsWith("/uploads")
-                      ? `${API_BASE}${profile.imageUrl}`
-                      : (profile.imageUrl || "");
-
-                    return (
-                      <motion.div
-                        key={profile._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`relative bg-white rounded-2xl p-6 shadow-sm border ${profile.isActive === false ? 'opacity-60 border-amber-200 bg-amber-50/10' : 'border-gray-200/80 hover:border-rose-200'} flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(244,63,94,0.08)] group`}
-                        onClick={() => navigate(`/profile/${profile._id}`)}
-                      >
-                        {/* RBAC Action Overlay Bar */}
-                        {isAdmin && (
-                          <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditClick(profile);
+            {/* ── Student Affairs & Services: hardcoded semantic sections ── */}
+            {SERVICES_SECTIONS.map(({ label, min, max }) => {
+              const sectionProfiles = getSectionProfiles(min, max);
+              if (sectionProfiles.length === 0) return null;
+              return (
+                <div key={label} className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
+                      {label}
+                    </h2>
+                    <div className="h-[2px] bg-rose-100 w-full rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {sectionProfiles.map((profile, index) => {
+                      const imageUrl = profile.imageUrl?.startsWith("/uploads")
+                        ? `${API_BASE}${profile.imageUrl}`
+                        : (profile.imageUrl || "");
+                      return (
+                        <motion.div
+                          key={profile._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className={`relative bg-white rounded-2xl p-6 shadow-sm border ${
+                            profile.isActive === false
+                              ? 'opacity-60 border-amber-200 bg-amber-50/10'
+                              : 'border-gray-200/80 hover:border-rose-200'
+                          } flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(244,63,94,0.08)] group`}
+                          onClick={() => navigate(`/profile/${profile._id}`)}
+                        >
+                          {isAdmin && (
+                            <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEditClick(profile); }}
+                                className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
+                                title="Edit details"
+                              >✏️ Edit</button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeactivateToggleClick(profile); }}
+                                className={`${
+                                  profile.isActive === false
+                                    ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
+                                    : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
+                                } font-bold text-xs px-2 py-1 rounded transition-colors`}
+                                title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
+                              >
+                                {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
+                              </button>
+                            </div>
+                          )}
+                          {profile.isActive === false && (
+                            <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
+                              Deactivated
+                            </span>
+                          )}
+                          <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-rose-50 bg-gray-55 shadow-md flex items-center justify-center">
+                            <img
+                              src={imageUrl}
+                              alt={profile.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=FFF1F2&color=E11D48&size=192`;
                               }}
-                              className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
-                              title="Edit details"
-                            >
-                              ✏️ Edit
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeactivateToggleClick(profile);
-                              }}
-                              className={`${profile.isActive === false ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50' : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'} font-bold text-xs px-2 py-1 rounded transition-colors`}
-                              title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
-                            >
-                              {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
-                            </button>
+                            />
                           </div>
-                        )}
-
-                        {/* Image Container */}
-                        {profile.isActive === false && (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
-                            Deactivated
-                          </span>
-                        )}
-                        <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-rose-50 bg-gray-55 shadow-md flex items-center justify-center">
-                          <img
-                            src={imageUrl}
-                            alt={profile.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=FFF1F2&color=E11D48&size=192`;
-                            }}
-                          />
-                        </div>
-
-                        {/* Name and Title */}
-                        <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-rose-600 transition-colors">
-                          {profile.name}
-                        </h3>
-                        <p className="text-rose-600 font-semibold text-sm mb-4">
-                          {profile.title}
-                        </p>
-
-                        {/* Bio Excerpt */}
-                        <div className="text-gray-600 text-sm mb-6 flex-grow text-left w-full bg-gray-50 p-4 rounded-xl border border-gray-100 line-clamp-3">
-                          <p>{profile.background || "No bio summary listed."}</p>
-                        </div>
-
-                        {/* Footer Action */}
-                        <div className="mt-auto w-full pt-4 border-t border-gray-100">
-                          <span className="text-rose-700 font-bold hover:underline flex items-center justify-center gap-1.5 text-sm">
-                            View Full Profile
-                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                          </span>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                          <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-rose-600 transition-colors">{profile.name}</h3>
+                          <p className="text-rose-600 font-semibold text-sm mb-4">{profile.title}</p>
+                          <div className="text-gray-600 text-sm mb-6 flex-grow text-left w-full bg-gray-50 p-4 rounded-xl border border-gray-100 line-clamp-3">
+                            <p>{profile.background || "No bio summary listed."}</p>
+                          </div>
+                          <div className="mt-auto w-full pt-4 border-t border-gray-100">
+                            <span className="text-rose-700 font-bold hover:underline flex items-center justify-center gap-1.5 text-sm">
+                              View Full Profile <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </span>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -435,6 +430,18 @@ export const ServicesDirectory = () => {
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-gray-800"
                         placeholder="e.g. Counseling & Wellness Center"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Rank Priority <span className="font-normal text-gray-400">(1=Dean, 2=Dept Head, 3=Advisor)</span></label>
+                      <select
+                        value={formData.priority}
+                        onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white text-gray-800 outline-none"
+                      >
+                        <option value={1}>1 — Dean of Student Affairs</option>
+                        <option value={2}>2 — Department Head</option>
+                        <option value={3}>3 — Advisor / Support Staff</option>
+                      </select>
                     </div>
                   </div>
                 </div>

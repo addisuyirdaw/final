@@ -296,7 +296,7 @@ router.delete('/:id', protect, async (req, res) => {
   try {
     const report = await ActivityReport.findById(req.params.id).populate('club');
     if (!report) {
-      return res.status(404).json({ success: false, message: 'Report not found' });
+      return res.status(200).json({ success: true, message: 'Report already deleted' });
     }
 
     const club = report.club;

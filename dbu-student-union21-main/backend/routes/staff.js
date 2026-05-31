@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
       filter.pageGroup = req.query.pageGroup;
     }
     const profiles = await Staff.find(filter)
-      .sort({ order: 1, createdAt: 1 });
+      .sort({ priority: 1, createdAt: -1 });
     res.json({ success: true, profiles });
   } catch (err) {
     console.error('Staff GET error:', err);
@@ -61,7 +61,7 @@ router.get('/admin/all', protect, systemAdminOnly, async (req, res) => {
       filter.pageGroup = req.query.pageGroup;
     }
     const profiles = await Staff.find(filter)
-      .sort({ order: 1, createdAt: 1 });
+      .sort({ priority: 1, createdAt: -1 });
     res.json({ success: true, profiles });
   } catch (err) {
     console.error('Staff admin GET error:', err);
@@ -118,6 +118,7 @@ router.post('/', protect, systemAdminOnly, upload.single('image'), async (req, r
       background,
       responsibility,
       imageUrl,
+      priority: parseInt(req.body.priority) || 10,
       order: parseInt(order) || 0,
       isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true
     });
@@ -145,6 +146,7 @@ router.put('/:id', protect, systemAdminOnly, upload.single('image'), async (req,
       updateData.imageUrl = `/uploads/${req.file.filename}`;
     }
 
+    if (updateData.priority !== undefined) updateData.priority = parseInt(updateData.priority) || 10;
     if (updateData.order !== undefined) updateData.order = parseInt(updateData.order) || 0;
     if (updateData.isActive !== undefined) updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
 
@@ -194,7 +196,7 @@ router.put('/:id', protect, systemAdminOnly, upload.single('image'), async (req,
 // Also support PATCH /api/staff/:id for flexibility
 router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { name, title, pageGroup, department, background, responsibility, order, isActive } = req.body;
+    const { name, title, pageGroup, department, background, responsibility, order, isActive, priority } = req.body;
     
     let updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -205,6 +207,7 @@ router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (re
     if (responsibility !== undefined) updateData.responsibility = responsibility;
     if (order !== undefined) updateData.order = parseInt(order) || 0;
     if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
+    if (priority !== undefined) updateData.priority = parseInt(priority) || 10;
     
     if (req.file) {
       updateData.imageUrl = `/uploads/leadership/${req.file.filename}`;

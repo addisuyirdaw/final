@@ -26,6 +26,14 @@ const eventSchema = new mongoose.Schema({
     type: String,
     enum: ['planned', 'ongoing', 'completed', 'cancelled'],
     default: 'planned'
+  },
+  attendanceCode: {
+    type: String,
+    trim: true
+  },
+  activeCheckIn: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -86,8 +94,16 @@ const clubSchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'restricted'],
+      enum: ['pending', 'approved', 'rejected', 'restricted', 'Inactive_Ghost'],
       default: 'pending'
+    },
+    attendanceCount: {
+      type: Number,
+      default: 0
+    },
+    absentStreak: {
+      type: Number,
+      default: 0
     },
     joinedAt: {
       type: Date,
@@ -170,6 +186,14 @@ const clubSchema = new mongoose.Schema({
       type: Number,
       default: 0
     }
+  },
+  minAttendanceForCertificate: {
+    type: Number,
+    default: 75
+  },
+  totalEventsHeld: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

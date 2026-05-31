@@ -122,6 +122,353 @@ export function Clubs() {
   // Expandable member panel per card
   const [expandedClubId, setExpandedClubId] = useState(null);
   const [expandedClubData, setExpandedClubData] = useState({});
+
+  // Live Check-in & Certification states
+  const [checkInCode, setCheckInCode] = useState("");
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [eligibleData, setEligibleData] = useState(null);
+  const [loadingEligibility, setLoadingEligibility] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [eventForm, setEventForm] = useState({ title: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [startingSessionEventId, setStartingSessionEventId] = useState(null);
+  const [endingSessionEventId, setEndingSessionEventId] = useState(null);
+
+  const fetchEligibility = async (clubId) => {
+    setLoadingEligibility(true);
+    try {
+      const res = await apiService.verifyCertificateEligibility(clubId);
+      if (res.success) {
+        setEligibleData(res);
+      }
+    } catch (err) {
+      console.error("Error fetching eligibility:", err);
+    } finally {
+      setLoadingEligibility(false);
+    }
+  };
+
+  const handleCheckIn = async (e) => {
+    e.preventDefault();
+    if (!checkInCode || checkInCode.trim().length !== 4) {
+      toast.error("Please enter a valid 4-digit check-in code.");
+      return;
+    }
+    setCheckingIn(true);
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const res = await apiService.checkInClub({ clubId, sessionCode: checkInCode.trim() });
+      if (res.success) {
+        toast.success(res.message || "Successfully checked in!");
+        setCheckInCode("");
+        // Refresh club details to get updated attendanceCount/attendees list
+        const updatedDetails = await apiService.getClub(clubId);
+        setSelectedClubDetails(updatedDetails);
+        // Refresh eligibility data
+        fetchEligibility(clubId);
+      } else {
+        toast.error(res.message || "Invalid check-in code.");
+      }
+    } catch (err) {
+      toast.error(err.message || "Check-in failed. Please try again.");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    if (!eventForm.title || !eventForm.date) {
+      toast.error("Title and Date are required.");
+      return;
+    }
+    setCreatingEvent(true);
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const res = await apiService.createClubEvent(clubId, eventForm);
+      if (res.success) {
+        toast.success("Event created successfully!");
+        setEventForm({ title: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
+        setShowCreateEvent(false);
+        // Refresh club details to get updated event list
+        const updatedDetails = await apiService.getClub(clubId);
+        setSelectedClubDetails(updatedDetails);
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to create event");
+    } finally {
+      setCreatingEvent(false);
+    }
+  };
+
+  const handleStartSession = async (eventId) => {
+    setStartingSessionEventId(eventId);
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const res = await apiService.startCheckInSession(clubId, eventId);
+      if (res.success) {
+        toast.success(`Check-in started! Code: ${res.code}`);
+        // Refresh club details
+        const updatedDetails = await apiService.getClub(clubId);
+        setSelectedClubDetails(updatedDetails);
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to start session");
+    } finally {
+      setStartingSessionEventId(null);
+    }
+  };
+
+  const handleEndSession = async (eventId) => {
+    if (!window.confirm("Are you sure you want to end this check-in session? This will lock attendance and process absent streaks.")) return;
+    setEndingSessionEventId(eventId);
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const res = await apiService.endCheckInSession(clubId, eventId);
+      if (res.success) {
+        toast.success("Check-in ended. Absentee streaks processed!");
+        // Refresh club details
+        const updatedDetails = await apiService.getClub(clubId);
+        setSelectedClubDetails(updatedDetails);
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to end session");
+    } finally {
+      setEndingSessionEventId(null);
+    }
+  };
+
+  const handleDownloadCertificate = () => {
+    if (!eligibleData || !eligibleData.eligible) return;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=650');
+    const sealUrl = "https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=150";
+    const userId = user?._id || user?.id || "";
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Official Certificate of Merit - Debre Berhan University</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Montserrat:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: 'Montserrat', sans-serif;
+              background-color: #fcfcfc;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+            }
+            .cert-container {
+              width: 820px;
+              height: 570px;
+              padding: 25px;
+              border: 15px double #b8860b;
+              background: white;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+              position: relative;
+              text-align: center;
+              box-sizing: border-box;
+            }
+            .inner-border {
+              border: 2px solid #b8860b;
+              height: 100%;
+              width: 100%;
+              padding: 20px;
+              box-sizing: border-box;
+              position: relative;
+            }
+            .university-title {
+              font-family: 'Cinzel', serif;
+              font-size: 24px;
+              font-weight: 800;
+              color: #0b2240;
+              letter-spacing: 2px;
+              margin-bottom: 5px;
+            }
+            .subtitle {
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 3px;
+              color: #b8860b;
+              font-weight: 700;
+              margin-bottom: 25px;
+            }
+            .cert-heading {
+              font-family: 'Cinzel', serif;
+              font-size: 34px;
+              font-weight: 700;
+              color: #b8860b;
+              letter-spacing: 1px;
+              margin-bottom: 20px;
+            }
+            .presentation-text {
+              font-size: 14px;
+              color: #555;
+              margin-bottom: 10px;
+              font-style: italic;
+            }
+            .recipient-name {
+              font-family: 'Great Vibes', cursive;
+              font-size: 42px;
+              color: #0b2240;
+              margin: 15px 0;
+              border-bottom: 1.5px solid #eaeaea;
+              display: inline-block;
+              padding-bottom: 2px;
+              min-width: 250px;
+            }
+            .description {
+              font-size: 13px;
+              color: #444;
+              max-width: 600px;
+              margin: 0 auto 30px auto;
+              line-height: 1.6;
+            }
+            .signatures {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-top: 25px;
+              padding: 0 40px;
+            }
+            .signature-block {
+              width: 180px;
+              text-align: center;
+            }
+            .signature-line {
+              border-top: 1px solid #b8860b;
+              margin-top: 10px;
+              padding-top: 5px;
+              font-size: 11px;
+              font-weight: 700;
+              color: #333;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .signature-title {
+              font-size: 9px;
+              color: #777;
+              margin-top: 2px;
+            }
+            .seal-block {
+              text-align: center;
+            }
+            .seal-image {
+              width: 65px;
+              height: 65px;
+              border-radius: 50%;
+              object-fit: cover;
+              border: 2px solid #b8860b;
+              padding: 2px;
+              background: white;
+            }
+            .cert-id {
+              position: absolute;
+              bottom: 10px;
+              right: 15px;
+              font-size: 9px;
+              font-family: monospace;
+              color: #aaa;
+            }
+            .print-btn {
+              position: fixed;
+              top: 15px;
+              right: 15px;
+              padding: 10px 18px;
+              background: #b8860b;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              font-weight: bold;
+              cursor: pointer;
+              box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+              font-family: sans-serif;
+              font-size: 13px;
+            }
+            .print-btn:hover {
+              background: #966f0a;
+            }
+            @media print {
+              .print-btn {
+                display: none;
+              }
+              body {
+                background: white;
+              }
+              .cert-container {
+                box-shadow: none;
+                border-color: #b8860b !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+          <div class="cert-container">
+            <div class="inner-border">
+              <div class="university-title">DEBRE BERHAN UNIVERSITY</div>
+              <div class="subtitle">Office of Student Affairs & Campus Life</div>
+              
+              <div class="cert-heading">Certificate of Achievement</div>
+              
+              <div class="presentation-text">This is officially awarded to</div>
+              <div class="recipient-name">${eligibleData.studentName}</div>
+              
+              <div class="description">
+                for outstanding dedication, active participation, and exemplary leadership in the 
+                <strong>${eligibleData.clubName}</strong>. By achieving a verified attendance rate of 
+                <strong>${eligibleData.percentage}%</strong> across all registered sessions in the 2026/2027 academic year, 
+                this student has demonstrated commendable commitment to campus co-curricular excellence.
+              </div>
+              
+              <div class="signatures">
+                <div class="signature-block">
+                  <div style="font-family: 'Great Vibes', cursive; font-size: 20px; color: #444; height: 25px;">Kirkos Ashebir</div>
+                  <div class="signature-line">Kirkos Ashebir</div>
+                  <div class="signature-title">Student Union President</div>
+                </div>
+                
+                <div class="seal-block">
+                  <img class="seal-image" src="${sealUrl}" alt="DBU Seal" />
+                  <div style="font-size: 8px; font-weight: bold; color: #b8860b; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;">OFFICIAL SEAL</div>
+                </div>
+                
+                <div class="signature-block">
+                  <div style="font-family: 'Great Vibes', cursive; font-size: 20px; color: #444; height: 25px;">Dr. Asmare Malese</div>
+                  <div class="signature-line">Dr. Asmare Malese</div>
+                  <div class="signature-title">Dean of Student Affairs</div>
+                </div>
+              </div>
+              
+              <div class="cert-id">Verification ID: DBU-${selectedClubDetails._id || selectedClubDetails.id}-${userId.substring(18)}</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  useEffect(() => {
+    if (showClubDetails && selectedClubDetails) {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const userId = user?._id || user?.id;
+      const isApprovedMember = selectedClubDetails.members?.some(
+        m => String(m.user?._id || m.user) === String(userId) && m.status === 'approved'
+      );
+      if (isApprovedMember) {
+        fetchEligibility(clubId);
+      } else {
+        setEligibleData(null);
+      }
+    } else {
+      setEligibleData(null);
+    }
+  }, [showClubDetails, selectedClubDetails?._id, selectedClubDetails?.id]);
+
   const categories = [
     "All",
     ...(user ? ["Joined"] : []),
@@ -1661,6 +2008,276 @@ export function Clubs() {
                   <p className="text-gray-600 text-sm leading-relaxed">{selectedClubDetails?.description || "No description available."}</p>
                 </div>
 
+                {/* Live Check-in, Certification Trackers & Event Manager */}
+                {(() => {
+                  const userId = user?._id || user?.id;
+                  const activeMember = selectedClubDetails && ((selectedClubDetails.userMembershipStatus === 'approved') || (userId && Array.isArray(selectedClubDetails?.members) && 
+                    selectedClubDetails.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved')));
+                  
+                  return (
+                    <>
+                      {/* Approved Student Member View */}
+                      {activeMember && (
+                        <>
+                          {/* Live Check-In Alert */}
+                          {(() => {
+                            const activeEvent = selectedClubDetails.events?.find(e => e.activeCheckIn === true);
+                            if (!activeEvent) return null;
+                            return (
+                              <div className="mb-6 p-5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 animate-pulse">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-lg animate-bounce">
+                                    ⚡
+                                  </div>
+                                  <div>
+                                    <h4 className="font-extrabold text-sm text-emerald-950">Active Live Attendance Check-In</h4>
+                                    <p className="text-xs text-emerald-700 font-semibold mt-0.5">Session: {activeEvent.title}</p>
+                                  </div>
+                                </div>
+                                <form onSubmit={handleCheckIn} className="flex gap-2 w-full md:w-auto">
+                                  <input
+                                    type="text"
+                                    maxLength="4"
+                                    placeholder="Code"
+                                    value={checkInCode}
+                                    onChange={(e) => setCheckInCode(e.target.value.replace(/[^0-9]/g, ""))}
+                                    disabled={checkingIn}
+                                    className="px-4 py-2 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-center font-mono font-bold w-32 tracking-widest text-emerald-900 bg-white"
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={checkingIn || checkInCode.length !== 4}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-md transition-all text-xs disabled:opacity-50"
+                                  >
+                                    {checkingIn ? "Checking..." : "Submit"}
+                                  </button>
+                                </form>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Certification and Awards eligibility progress card */}
+                          {eligibleData && (
+                            <div className="mb-8 p-5 bg-gradient-to-br from-indigo-950 to-slate-900 text-white rounded-3xl border border-indigo-900 shadow-xl relative overflow-hidden">
+                              <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-xl"></div>
+                              <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-xl"></div>
+                              
+                              <h4 className="font-extrabold text-sm text-amber-400 mb-4 uppercase tracking-widest flex items-center gap-2">
+                                ✨ Zero-Intervention Certificate Eligibility
+                              </h4>
+                              
+                              <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className="relative w-20 h-20 flex items-center justify-center bg-slate-900/50 rounded-full border border-indigo-900/50">
+                                    <svg className="w-16 h-16 transform -rotate-90">
+                                      <circle cx="32" cy="32" r="28" stroke="#1e293b" strokeWidth="4" fill="transparent" />
+                                      <circle 
+                                        cx="32" 
+                                        cy="32" 
+                                        r="28" 
+                                        stroke={eligibleData.eligible ? "#10b981" : "#f59e0b"} 
+                                        strokeWidth="4" 
+                                        fill="transparent" 
+                                        strokeDasharray="175.9" 
+                                        strokeDashoffset={175.9 - (175.9 * Math.min(100, eligibleData.percentage)) / 100}
+                                        className="transition-all duration-1000 ease-out"
+                                      />
+                                    </svg>
+                                    <span className="absolute text-xs font-black text-white">
+                                      {eligibleData.percentage}%
+                                    </span>
+                                  </div>
+                                  
+                                  <div>
+                                    <p className="text-xs text-indigo-200 font-semibold">Your Verified Attendance</p>
+                                    <p className="text-lg font-black text-white mt-0.5">
+                                      {eligibleData.attended} / {eligibleData.totalEvents} Sessions
+                                    </p>
+                                    <p className="text-[10px] text-indigo-300 mt-0.5">
+                                      Requirement: {eligibleData.required}% minimum attendance
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-col items-center md:items-end text-center md:text-right">
+                                  {eligibleData.eligible ? (
+                                    <>
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2 uppercase tracking-wide">
+                                        👑 Certified Eligible
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={handleDownloadCertificate}
+                                        className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] flex items-center gap-1.5 border border-amber-300"
+                                      >
+                                        📜 Download Digital Certificate
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2 uppercase tracking-wide">
+                                        🔒 locked · {eligibleData.percentage}% / {eligibleData.required}%
+                                      </span>
+                                      <p className="text-[10px] text-gray-400 max-w-[240px]">
+                                        Keep attending live sessions! You need {eligibleData.required}% to unlock your verified digital certificate of merit.
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Club Leader / Coordinator / System Admin View */}
+                      {(isLeader || isCoordinator || user?.isAdmin) && (
+                        <div className="mb-8 p-6 bg-white rounded-3xl border border-gray-100 shadow-md">
+                          <div className="flex justify-between items-center mb-6">
+                            <div>
+                              <h3 className="font-extrabold text-gray-900 flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-indigo-600" /> Event & Attendance Manager
+                              </h3>
+                              <p className="text-xs text-gray-400 mt-0.5">Create sessions and manage live student check-ins</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowCreateEvent(!showCreateEvent)}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
+                            >
+                              <Plus className="w-4 h-4" /> {showCreateEvent ? "Cancel" : "Create Event"}
+                            </button>
+                          </div>
+
+                          {/* Create Event Inline Form */}
+                          {showCreateEvent && (
+                            <form onSubmit={handleCreateEvent} className="mb-6 p-5 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                              <h4 className="font-bold text-sm text-gray-800">Add New Event</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">Event Title *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Weekly Debate Session"
+                                    value={eventForm.title}
+                                    onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">Location / Venue</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Block 42, Room 102"
+                                    value={eventForm.location}
+                                    onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">Date *</label>
+                                  <input
+                                    type="date"
+                                    required
+                                    value={eventForm.date}
+                                    onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">Description</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Discussion on modern digital democracy"
+                                    value={eventForm.description}
+                                    onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2 pt-2">
+                                <button
+                                  type="submit"
+                                  disabled={creatingEvent}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-bold shadow-md transition-colors text-xs disabled:opacity-50"
+                                >
+                                  {creatingEvent ? "Creating..." : "Save Event"}
+                                </button>
+                              </div>
+                            </form>
+                          )}
+
+                          {/* Events List */}
+                          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            {!selectedClubDetails.events || selectedClubDetails.events.length === 0 ? (
+                              <div className="text-center py-8 text-gray-400 italic text-sm">No events scheduled yet.</div>
+                            ) : (
+                              [...selectedClubDetails.events]
+                                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                .map((event) => (
+                                  <div key={event._id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-sm text-gray-800">{event.title}</h4>
+                                        {event.activeCheckIn && (
+                                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                            Live Check-In Open
+                                          </span>
+                                        )}
+                                        {event.status === 'completed' && (
+                                          <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                            Completed
+                                          </span>
+                                        )}
+                                      </div>
+                                      {event.description && <p className="text-xs text-gray-500 mt-1">{event.description}</p>}
+                                      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400 font-medium">
+                                        <span>📅 {new Date(event.date).toLocaleDateString()}</span>
+                                        {event.location && <span>📍 {event.location}</span>}
+                                        {event.status === 'completed' && <span>👥 {event.attendees?.length || 0} Attended</span>}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                      {event.status === 'planned' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleStartSession(event._id)}
+                                          disabled={startingSessionEventId === event._id}
+                                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                                        >
+                                          {startingSessionEventId === event._id ? "Starting..." : "Start Session"}
+                                        </button>
+                                      )}
+
+                                      {event.status === 'ongoing' && event.activeCheckIn && (
+                                        <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-2.5 rounded-xl border border-emerald-200">
+                                          <div className="text-center">
+                                            <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Attendance Code</p>
+                                            <p className="text-xl font-black text-emerald-950 tracking-wider leading-none mt-0.5 font-mono">{event.attendanceCode}</p>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleEndSession(event._id)}
+                                            disabled={endingSessionEventId === event._id}
+                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                                          >
+                                            {endingSessionEventId === event._id ? "Ending..." : "End & Close Check-In"}
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
                 {/* Structural Leaders */}
                 <div className="mb-8">
                   <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -2270,8 +2887,8 @@ export function Clubs() {
                 ) : (
                   <div className="space-y-4">
                     {managerPendingReports.map(report => (
-                      <div key={report._id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all group">
-                        <div className="flex items-start justify-between mb-3">
+                      <div key={report._id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all group relative">
+                        <div className="flex items-start justify-between mb-3 pr-8">
                           <div className="flex gap-4">
                             <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                               <FileText />
@@ -2280,41 +2897,62 @@ export function Clubs() {
                               <h4 className="font-bold text-lg text-gray-900">{report.title}</h4>
                             </div>
                           </div>
-                          <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest ${
-                            report.status === 'PUBLISHED' || report.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 
-                            report.status === 'RETURNED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {report.status === 'PUBLISHED' || report.status === 'APPROVED' ? 'Accepted' : 
-                             report.status === 'RETURNED' ? 'Rejected' : 'Pending'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest ${
+                              report.status === 'PUBLISHED' || report.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 
+                              report.status === 'RETURNED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {report.status === 'PUBLISHED' || report.status === 'APPROVED' ? 'Accepted' : 
+                               report.status === 'RETURNED' ? 'Rejected' : 'Pending'}
+                            </span>
+                            
+                            {/* Dropdown Menu Trigger */}
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownId(activeDropdownId === report._id ? null : report._id);
+                                }}
+                                className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                              >
+                                <MoreVertical className="w-5 h-5" />
+                              </button>
+                              
+                              {activeDropdownId === report._id && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-1 overflow-hidden">
+                                  <button
+                                    onClick={() => { setSelectedReport(report); setShowReportReviewModal(true); }}
+                                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                                  >
+                                    <Search className="w-4 h-4 text-indigo-500" /> Review / Open
+                                  </button>
+                                  <div className="border-t border-gray-50 my-1"></div>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (window.confirm("Are you sure you want to permanently delete this member submission?")) {
+                                        try {
+                                          await apiService.deleteReport(report._id);
+                                          toast.success("Submission deleted successfully!");
+                                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                                          fetchManagerPendingReports(clubId);
+                                        } catch (err) {
+                                          toast.error(err.message || "Failed to delete submission");
+                                        }
+                                      }
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold text-left"
+                                  >
+                                    <span>🗑️</span> Remove Submission
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                         <p className="text-sm text-gray-600 line-clamp-2 mb-4">{report.description}</p>
                         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                           <span className="text-xs text-gray-400">By {report.submittedBy?.name} on {new Date(report.date).toLocaleDateString()}</span>
-                          <div className="flex items-center gap-4">
-                            <button
-                              onClick={() => { setSelectedReport(report); setShowReportReviewModal(true); }}
-                              className="text-purple-600 text-sm font-bold flex items-center gap-1 hover:underline">
-                              Open Detail View <Search className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (window.confirm("Are you sure you want to permanently delete this member submission and its associated file?")) {
-                                  try {
-                                    await apiService.deleteReport(report._id);
-                                    toast.success("Submission deleted successfully!");
-                                    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
-                                    fetchManagerPendingReports(clubId);
-                                  } catch (err) {
-                                    toast.error(err.message || "Failed to delete submission");
-                                  }
-                                }
-                              }}
-                              className="text-red-600 hover:text-red-800 text-sm font-bold flex items-center gap-1">
-                              🗑️ Remove
-                            </button>
-                          </div>
                         </div>
                       </div>
                     ))}
@@ -2462,13 +3100,67 @@ export function Clubs() {
                 ) : (
                   <div className="space-y-6">
                     {clubReports.map((report) => (
-                      <div key={report._id} className={`bg-white p-6 rounded-2xl shadow-sm border ${report.reportType === 'ANNUAL_REPORT' ? 'border-red-200 bg-red-50/10' : 'border-gray-100'}`}>
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-gray-900">
-                            {report.title}
-                            {report.reportType === 'ANNUAL_REPORT' && <span className="ml-2 text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold uppercase">Annual Report</span>}
-                          </h3>
-                          <span className="text-xs text-gray-400 font-medium">{new Date(report.date).toLocaleDateString()}</span>
+                      <div key={report._id} className={`bg-white p-6 rounded-2xl shadow-sm border relative ${report.reportType === 'ANNUAL_REPORT' ? 'border-red-200 bg-red-50/10' : 'border-gray-100'}`}>
+                        <div className="flex justify-between items-start mb-4 pr-8">
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">
+                              {report.title}
+                              {report.reportType === 'ANNUAL_REPORT' && <span className="ml-2 text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold uppercase">Annual Report</span>}
+                            </h3>
+                            <span className="text-xs text-gray-400 font-medium">{new Date(report.date).toLocaleDateString()}</span>
+                          </div>
+                          
+                          {/* Dropdown Menu Trigger */}
+                          <div className="absolute top-6 right-6">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId(activeDropdownId === report._id ? null : report._id);
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                              title="More Options"
+                            >
+                              <MoreVertical className="w-5 h-5" />
+                            </button>
+                            
+                            {activeDropdownId === report._id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 py-1 overflow-hidden">
+                                {report.fileUrl && (
+                                  <a
+                                    href={report.fileUrl ? `${apiService.baseURL}/reports/download/${report.fileUrl.split('/').pop()}` : '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                                  >
+                                    <span>📄</span> Download File
+                                  </a>
+                                )}
+                                {(isLeader || isCoordinator || user?.isAdmin) && (
+                                  <>
+                                    <div className="border-t border-gray-50 my-1"></div>
+                                    <button
+                                      onClick={async () => {
+                                        if (window.confirm("Are you sure you want to permanently delete this report?")) {
+                                          try {
+                                            await apiService.deleteReport(report._id);
+                                            toast.success("Report deleted successfully!");
+                                            const clubId = selectedClub._id || selectedClub.id;
+                                            const reports = await apiService.getClubReports(clubId);
+                                            setClubReports(reports);
+                                          } catch (error) {
+                                            toast.error(error.message || "Failed to delete report");
+                                          }
+                                        }
+                                      }}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold text-left"
+                                    >
+                                      <span>🗑️</span> Delete Report
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <p className="text-gray-600 text-sm leading-relaxed mb-4 whitespace-pre-wrap">{report.description}</p>
 
@@ -2485,38 +3177,6 @@ export function Clubs() {
                             <div className="flex items-center gap-2 text-xs text-amber-700 font-bold bg-amber-50 w-fit px-3 py-1 rounded-full border border-amber-200">
                               <CheckCircle className="w-3 h-3 text-amber-500" /> PENDING COORDINATOR REVIEW
                             </div>
-                          )}
-
-                          {report.fileUrl && (
-                            <a
-                              href={report.fileUrl ? `${apiService.baseURL}/reports/download/${report.fileUrl.split('/').pop()}` : '#'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm font-medium text-indigo-600 hover:text-indigo-800 mt-2 flex items-center gap-1">
-                              <span>📄</span> View Attached File
-                            </a>
-                          )}
-
-                          {(isLeader || isCoordinator || user?.isAdmin) && (
-                            <button
-                              onClick={async () => {
-                                if (window.confirm("Are you sure you want to permanently delete this report and its associated file?")) {
-                                  try {
-                                    await apiService.deleteReport(report._id);
-                                    toast.success("Report deleted successfully!");
-                                    // Refresh reports list
-                                    const clubId = selectedClub._id || selectedClub.id;
-                                    const reports = await apiService.getClubReports(clubId);
-                                    setClubReports(reports);
-                                  } catch (error) {
-                                    toast.error(error.message || "Failed to delete report");
-                                  }
-                                }
-                              }}
-                              className="text-xs text-red-600 hover:text-red-800 font-bold transition-colors uppercase tracking-widest mt-3 flex items-center gap-1 w-fit border-t border-gray-100 pt-2"
-                            >
-                              <span>🗑️</span> Delete Report
-                            </button>
                           )}
                         </div>
                       </div>

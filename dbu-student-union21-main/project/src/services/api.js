@@ -567,6 +567,38 @@ class ApiService {
       body: JSON.stringify({ message })
     });
   }
+
+  // ── CLUB LIVE CHECK-IN & CERTIFICATION UPGRADE ──
+  async checkInClub(checkInData) {
+    return this.request('/clubs/checkin', {
+      method: 'POST',
+      body: JSON.stringify(checkInData)
+    });
+  }
+
+  async createClubEvent(clubId, eventData) {
+    return this.request(`/clubs/${clubId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(eventData)
+    });
+  }
+
+  async startCheckInSession(clubId, eventId) {
+    return this.request(`/clubs/${clubId}/events/${eventId}/checkin/start`, {
+      method: 'POST'
+    });
+  }
+
+  async endCheckInSession(clubId, eventId) {
+    return this.request(`/clubs/${clubId}/events/${eventId}/checkin/end`, {
+      method: 'POST'
+    });
+  }
+
+  async verifyCertificateEligibility(clubId, userId) {
+    const query = userId ? `?userId=${userId}` : '';
+    return this.request(`/clubs/${clubId}/certificate/verify${query}`);
+  }
 }
 
 export const apiService = new ApiService();

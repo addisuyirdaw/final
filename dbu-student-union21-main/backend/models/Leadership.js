@@ -29,9 +29,13 @@ const leadershipSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // priority: lower number = higher rank in the directory
+  // EXECUTIVES:    University President=1, Vice Academic=2, Others=3
+  // SERVICES:      Dean of Student Affairs=1, Dept Heads=2, Advisors=3
+  // STUDENT UNION: President=1, Vice President=2, Secretary=3, Coordinators=4
   priority: {
     type: Number,
-    default: 0
+    default: 10
   },
   bioDetails: [bioDetailSchema],
   isActive: {
@@ -50,7 +54,7 @@ leadershipSchema.pre('save', function(next) {
   next();
 });
 
-// Sort by priority descending (higher number = higher priority), then by createdAt
-leadershipSchema.index({ priority: -1, createdAt: 1 });
+// Sort by priority ascending (lower number = higher rank), then newest first
+leadershipSchema.index({ priority: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Leadership', leadershipSchema);

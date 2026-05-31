@@ -39,7 +39,7 @@ const upload = multer({
 router.get('/all', async (req, res) => {
   try {
     const profiles = await Staff.find({ isActive: true })
-      .sort({ order: 1, createdAt: 1 });
+      .sort({ priority: 1, createdAt: -1 });
     res.json({ success: true, profiles });
   } catch (err) {
     console.error('Staff GET error:', err);
@@ -53,7 +53,7 @@ router.get('/group/:pageGroup', async (req, res) => {
   try {
     const { pageGroup } = req.params;
     const profiles = await Staff.find({ pageGroup, isActive: true })
-      .sort({ order: 1, createdAt: 1 });
+      .sort({ priority: 1, createdAt: -1 });
     res.json({ success: true, profiles });
   } catch (err) {
     console.error('Staff GET by group error:', err);
@@ -81,7 +81,7 @@ router.get('/profile/:id', async (req, res) => {
 router.get('/admin/all', protect, systemAdminOnly, async (req, res) => {
   try {
     const profiles = await Staff.find()
-      .sort({ order: 1, createdAt: 1 });
+      .sort({ priority: 1, createdAt: -1 });
     res.json({ success: true, profiles });
   } catch (err) {
     console.error('Staff admin GET error:', err);
@@ -93,7 +93,7 @@ router.get('/admin/all', protect, systemAdminOnly, async (req, res) => {
 // @desc   Upload a new staff profile (admin only)
 router.post('/add', protect, systemAdminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { name, title, pageGroup, department, background, responsibility, order, isActive } = req.body;
+    const { name, title, pageGroup, department, background, responsibility, order, isActive, priority } = req.body;
 
     if (!name || !title || !pageGroup || !department || !background || !responsibility) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
@@ -116,6 +116,7 @@ router.post('/add', protect, systemAdminOnly, upload.single('image'), async (req
       background,
       responsibility,
       imageUrl,
+      priority: parseInt(priority) || 10,
       order: parseInt(order) || 0,
       isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true
     });
@@ -131,7 +132,7 @@ router.post('/add', protect, systemAdminOnly, upload.single('image'), async (req
 // @desc   Update profile (admin only)
 router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (req, res) => {
   try {
-    const { name, title, pageGroup, department, background, responsibility, order, isActive } = req.body;
+    const { name, title, pageGroup, department, background, responsibility, order, isActive, priority } = req.body;
     
     let updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -142,6 +143,7 @@ router.patch('/:id', protect, systemAdminOnly, upload.single('image'), async (re
     if (responsibility !== undefined) updateData.responsibility = responsibility;
     if (order !== undefined) updateData.order = parseInt(order) || 0;
     if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
+    if (priority !== undefined) updateData.priority = parseInt(priority) || 10;
     
     if (req.file) {
       updateData.imageUrl = `/uploads/leadership/${req.file.filename}`;

@@ -40,8 +40,8 @@ exports.processChatQuery = async (req, res) => {
 
     // 1. Fetch live data for RAG context
     const rawClubs = await Club.find({}).select('name category description status members leadership founded').populate('leadership.president', 'name').lean();
-    const staffMembers = await Staff.find({ isActive: true }).lean();
-    const leadershipMembers = await Leadership.find({ isActive: true }).lean();
+    const staffMembers = await Staff.find({ isActive: true }).sort({ priority: 1, createdAt: -1 }).lean();
+    const leadershipMembers = await Leadership.find({ isActive: true }).sort({ priority: 1, createdAt: -1 }).lean();
 
     const clubs = rawClubs.map(c => {
       let rep = null;
