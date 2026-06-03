@@ -629,6 +629,11 @@ class ApiService {
   async deleteTemplate(id) {
     return this.request(`/templates/${id}`, { method: 'DELETE' });
   }
+
+  /** Delete a directive by ID (Admin/Coordinator only) */
+  async deleteDirective(id) {
+    return this.deletePost(id);
+  }
 }
 
 export const apiService = new ApiService();

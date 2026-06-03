@@ -409,7 +409,7 @@ export function Dashboard() {
 	const handleDeleteDirective = async (id) => {
 		if (!window.confirm('Delete this directive permanently?')) return;
 		try {
-			await apiService.deletePost(id);
+			await apiService.deleteDirective(id);
 			setDbDirectives(prev => prev.filter(d => d._id !== id));
 		} catch (err) {
 			alert('Failed to delete directive: ' + (err.message || 'Unknown error'));

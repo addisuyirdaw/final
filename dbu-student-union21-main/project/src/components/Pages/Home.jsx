@@ -111,60 +111,40 @@ export const Home = () => {
 	// Carousel State
 	const [currentSlide, setCurrentSlide] = useState(0);
 
-	const staticCarouselSlides = [
-		{ id: 0, image: "/image.png/pre.jpg" },
-		{ id: 1, image: "/image.png/building..jpg" },
-		{ id: 2, image: "/image.png/reward1.jpg" },
-		{ id: 3, image: "/image.png/reward2.jpg" },
-		{ id: 4, image: "/image.png/kal.jpg" },
-		{ id: 5, image: "/image.png/5976613440006589280.jpg" },
-		{ id: 6, image: "/image.png/holiday.jpg" },
-		{ id: 7, image: "/image.png/CAFE.jpg" },
-		{ id: 8, image: "/image.png/drgetnet.jpg" },
-		{ id: 9, image: "/image.png/5976780750457604990.jpg" },
-		{ id: 10, image: "/image.png/5976780750457604994.jpg" },
-		{ id: 11, image: "/image.png/5976780750457605001.jpg" },
-		{ id: 12, image: "/image.png/add.jpg" },
-		{ id: 13, image: "/image.png/gizew.jpg" },
-	];
-	const [carouselSlides, setCarouselSlides] = useState(staticCarouselSlides);
+	const [carouselSlides, setCarouselSlides] = useState([]);
+
+	const fetchCarousel = useCallback(async () => {
+		try {
+			const posts = await apiService.getPosts({ type: 'Directive' });
+			const directivesArray = Array.isArray(posts) ? posts : (posts?.posts || posts?.data || []);
+			
+			const mappedSlides = directivesArray.map((d, i) => {
+				let imageUrl = d.image || '';
+				if (imageUrl) {
+					if (!imageUrl.startsWith('http') && !imageUrl.startsWith('https')) {
+						const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+						imageUrl = `${CAROUSEL_API_BASE}${normalizedPath}`;
+					}
+				} else {
+					imageUrl = "/image.png/building..jpg";
+				}
+				return {
+					id: d._id || i,
+					dbId: d._id,
+					image: imageUrl,
+					caption: d.title || '',
+					isDynamic: true
+				};
+			});
+			setCarouselSlides(mappedSlides);
+		} catch (err) {
+			console.error('Error fetching carousel directives:', err);
+			setCarouselSlides([]);
+		}
+	}, []);
 
 	// Fetch dynamic carousel slides from API
 	useEffect(() => {
-		const fetchCarousel = async () => {
-			try {
-				const res = await fetch(`${CAROUSEL_API_BASE}/api/carousel/get`);
-				const data = await res.json();
-				if (data.success && data.slides && data.slides.length > 0) {
-				const dynamicSlides = data.slides.map((s, i) => {
-					let imageUrl = s.imageUrl || '';
-					if (imageUrl) {
-						// Relative path — prepend backend base URL
-						if (!imageUrl.startsWith('http') && !imageUrl.startsWith('https')) {
-							const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-							imageUrl = `${CAROUSEL_API_BASE}${normalizedPath}`;
-						}
-						// else: already absolute URL, use as-is
-					} else {
-						// No image — use local fallback
-						imageUrl = "/image.png/building..jpg";
-					}
-					return {
-						id: s._id || i,
-						dbId: s._id,
-						image: imageUrl,
-						caption: s.caption || '',
-						isDynamic: true
-					};
-				});
-					setCarouselSlides([...dynamicSlides, ...staticCarouselSlides]); // dynamic slides go FIRST
-				}
-			} catch {
-				// Network error — only static slides will show
-			}
-		};
-
-		// Admin delete a dynamic slide from the homepage carousel
 		window.__refreshCarousel = fetchCarousel;
 
 		const fetchLeadership = async () => {
@@ -176,7 +156,7 @@ export const Home = () => {
 					setLeadershipProfiles(data.profiles);
 				}
 			} catch {
-				// Network error — keep static fallback
+				// Network error
 			} finally {
 				setLeadershipLoading(false);
 			}
@@ -184,7 +164,7 @@ export const Home = () => {
 
 		fetchCarousel();
 		fetchLeadership();
-	}, []);
+	}, [fetchCarousel]);
 
 	const carouselCaptions = [
 		"Celebrating Our Rich Cultural Heritage",
@@ -194,30 +174,29 @@ export const Home = () => {
 	];
 
 	useEffect(() => {
+		if (carouselSlides.length === 0) return;
 		const timer = setInterval(() => {
 			setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
 		}, 5000);
 		return () => clearInterval(timer);
 	}, [carouselSlides.length]);
 
-	const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
-	const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselSlides.length - 1 : prev - 1));
+	const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % (carouselSlides.length || 1));
+	const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? (carouselSlides.length || 1) - 1 : prev - 1));
 
 	// Admin: delete a dynamic carousel slide from the homepage
 	const deleteCarouselSlide = useCallback(async (dbId) => {
-		if (!window.confirm('Remove this slide from the carousel?')) return;
+		if (!window.confirm('Remove this slide/directive from the carousel?')) return;
 		try {
-			const token = localStorage.getItem('token');
-			const res = await fetch(`${CAROUSEL_API_BASE}/api/carousel/${dbId}`, {
-				method: 'DELETE',
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const data = await res.json();
-			if (data.success) {
-				setCarouselSlides(prev => prev.filter(s => s.dbId !== dbId));
-				setCurrentSlide(0);
+			await apiService.deleteDirective(dbId);
+			setCarouselSlides(prev => prev.filter(s => s.dbId !== dbId));
+			setCurrentSlide(0);
+			if (typeof loadData === 'function') {
+				loadData();
 			}
-		} catch {}
+		} catch (err) {
+			console.error('Failed to delete directive slide:', err);
+		}
 	}, []);
 
 	useEffect(() => {

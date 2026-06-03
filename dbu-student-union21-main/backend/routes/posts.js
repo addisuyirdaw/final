@@ -271,6 +271,27 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
       });
     }
 
+    // Clean up corresponding carousel slide if this post has an image
+    if (post.image) {
+      try {
+        const Carousel = require('../models/Carousel');
+        const slide = await Carousel.findOne({ imageUrl: post.image });
+        if (slide) {
+          const path = require('path');
+          const fs = require('fs');
+          // Remove physical file
+          const filePath = path.join(__dirname, '..', slide.imageUrl);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+          await slide.deleteOne();
+          console.log(`🗑️ Deleted corresponding carousel slide for post image: ${post.image}`);
+        }
+      } catch (carouselErr) {
+        console.error('Failed to clean up carousel slide:', carouselErr.message);
+      }
+    }
+
     await Post.findByIdAndDelete(req.params.id);
 
     return res.json({
