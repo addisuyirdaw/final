@@ -1,4 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://dbu-student-portal-2.onrender.com/api' : 'http://localhost:5000/api');
+// In production the VITE_API_URL env var points to the Render backend.
+// In development, dynamically resolve from window.location.hostname so that
+// mobile phones and other devices on the same network don't drop to localhost.
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? 'https://dbu-student-union-api.onrender.com/api'
+    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:5000/api`);
 
 class ApiService {
   constructor() {
@@ -598,6 +605,29 @@ class ApiService {
   async verifyCertificateEligibility(clubId, userId) {
     const query = userId ? `?userId=${userId}` : '';
     return this.request(`/clubs/${clubId}/certificate/verify${query}`);
+  }
+
+  // ── Global Admin Template Repository ──────────────────────────────────────
+
+  /** Fetch all uploaded admin templates (accessible to all logged-in users) */
+  async getTemplates() {
+    return this.request('/templates');
+  }
+
+  /**
+   * Upload a new template PDF (Admin only).
+   * @param {FormData} formData  Must contain: file (PDF), title, description, category
+   */
+  async uploadTemplate(formData) {
+    return this.request('/templates/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  /** Delete a template by ID (Admin only) */
+  async deleteTemplate(id) {
+    return this.request(`/templates/${id}`, { method: 'DELETE' });
   }
 }
 

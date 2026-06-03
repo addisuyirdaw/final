@@ -32,7 +32,8 @@ const activityReportSchema = new mongoose.Schema({
     type: String
   },
   fileData: {
-    type: String
+    type: String,
+    select: false
   },
   fileName: {
     type: String

@@ -35,38 +35,47 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkTokenExpiration = () => {
+    // 1. Initial user session load (runs once on mount)
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        if (userData.token && isTokenExpired(userData.token)) {
+          // Clean up expired session
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          sessionStorage.clear();
+        } else {
+          setUser(userData);
+        }
+      }
+    } catch {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
+    }
+    setLoading(false);
+
+    // 2. Snappy auto-logout check (runs every 5 seconds without triggering state updates if valid)
+    const interval = setInterval(() => {
       try {
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) {
-          const userData = JSON.parse(savedUser);
-          if (userData.token && isTokenExpired(userData.token)) {
-            console.warn("Session expired - auto logging out");
-            setUser(null);
-            localStorage.removeItem("user");
-            localStorage.removeItem("token");
-            sessionStorage.removeItem("user");
-            sessionStorage.removeItem("token");
-            sessionStorage.clear();
-            if (!window.location.pathname.includes('/login')) {
-              window.location.href = "/login";
-            }
-          } else {
-            setUser(userData);
+        const token = localStorage.getItem("token");
+        if (token && isTokenExpired(token)) {
+          console.warn("Session expired - auto logging out");
+          setUser(null);
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+          sessionStorage.removeItem("token");
+          sessionStorage.clear();
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = "/login";
           }
         }
-      } catch {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("user");
-        sessionStorage.removeItem("token");
-        sessionStorage.clear();
+      } catch (err) {
+        console.error("Auto-logout check error:", err);
       }
-      setLoading(false);
-    };
-
-    checkTokenExpiration();
-    const interval = setInterval(checkTokenExpiration, 5000); // Check every 5s for snappy auto-logout
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);

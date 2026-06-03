@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { processChatQuery } = require('../controllers/aiController');
+const { handleChat } = require('../controllers/aiController');
 
-router.post('/chat', processChatQuery);
+router.post('/chat', handleChat);
 
 module.exports = router;
+

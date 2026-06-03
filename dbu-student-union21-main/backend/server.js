@@ -22,6 +22,7 @@ const aiRoutes = require("./routes/ai");
 const carouselRoutes = require("./routes/carousel");
 const leadershipRoutes = require("./routes/leadership");
 const staffRoutes = require("./routes/staff");
+const templateRoutes = require("./routes/templates");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -70,7 +71,7 @@ app.use(
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased limit for development
+  max: process.env.NODE_ENV === 'development' ? 50000 : 1000, // Large threshold in development
   message: {
     success: false,
     message: "Too many requests from this IP, please try again later."
@@ -78,9 +79,9 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-// Body parsing middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Body parsing middleware — 50 MB limit to handle PDF uploads without server hangs
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Logging middleware
 if (process.env.NODE_ENV === "development") {
@@ -171,7 +172,20 @@ app.use('/uploads', (req, res, next) => {
       return next();
     }
 
-    // 5. /uploads/:filename (root — uploaded via /api/staff POST/PUT which copies here)
+    // 5. /uploads/templates/:filename  →  Template.fileData
+    const templatesMatch = cleanUrl.match(/^\/templates\/([^/]+)$/i);
+    if (templatesMatch) {
+      const filename = templatesMatch[1];
+      const filePath = path.join(uploadsPath, 'templates', filename);
+      const Template = require('./models/Template');
+      const tmpl = await Template.findOne({ pdfUrl: { $regex: filename } }).select('+fileData');
+      if (tmpl && tmpl.fileData) {
+        return healAndServe(filePath, Buffer.from(tmpl.fileData, 'base64'));
+      }
+      return next();
+    }
+
+    // 6. /uploads/:filename (root — uploaded via /api/staff POST/PUT which copies here)
     const rootMatch = cleanUrl.match(/^\/([^/]+)$/i);
     if (rootMatch) {
       const filename = rootMatch[1];
@@ -213,6 +227,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/carousel", carouselRoutes);
 app.use("/api/leadership", leadershipRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/templates", templateRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -284,6 +299,11 @@ const startServer = async () => {
       console.log(`✅ Environment: ${process.env.NODE_ENV || "development"}`);
       console.log(`✅ Health check: http://localhost:${PORT}/health`);
     });
+
+    // Increase timeouts to prevent Render / cloud proxy drops on large file uploads
+    server.timeout = 120000;          // 2 min request timeout
+    server.keepAliveTimeout = 65000;  // keep TCP alive past load-balancer idle window
+    server.headersTimeout = 70000;    // must be > keepAliveTimeout
 
     // Handle server errors
     server.on('error', (error) => {

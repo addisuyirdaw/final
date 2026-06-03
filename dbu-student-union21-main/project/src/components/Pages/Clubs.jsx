@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus } from "lucide-react";
+import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus, Download, Upload, BookOpen, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
@@ -125,6 +125,7 @@ export function Clubs() {
 
   // Live Check-in & Certification states
   const [checkInCode, setCheckInCode] = useState("");
+  const [checkInTimeLeft, setCheckInTimeLeft] = useState(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [eligibleData, setEligibleData] = useState(null);
   const [loadingEligibility, setLoadingEligibility] = useState(false);
@@ -133,6 +134,20 @@ export function Clubs() {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [startingSessionEventId, setStartingSessionEventId] = useState(null);
   const [endingSessionEventId, setEndingSessionEventId] = useState(null);
+
+  // ── Global Admin Template Repository states ───────────────────────────────
+  const [templates, setTemplates] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_templates');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [showTemplateUpload, setShowTemplateUpload] = useState(false);
+  const [templateForm, setTemplateForm] = useState({ title: '', description: '', category: 'Other', file: null });
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
 
   const fetchEligibility = async (clubId) => {
     setLoadingEligibility(true);
@@ -193,6 +208,8 @@ export function Clubs() {
         // Refresh club details to get updated event list
         const updatedDetails = await apiService.getClub(clubId);
         setSelectedClubDetails(updatedDetails);
+        // ── Instant carousel sync: update the matching club card in the clubs list ──
+        setClubs(prev => prev.map(c => (String(c._id || c.id) === String(clubId) ? { ...c, events: updatedDetails.events } : c)));
       }
     } catch (err) {
       toast.error(err.message || "Failed to create event");
@@ -208,6 +225,7 @@ export function Clubs() {
       const res = await apiService.startCheckInSession(clubId, eventId);
       if (res.success) {
         toast.success(`Check-in started! Code: ${res.code}`);
+        setCheckInTimeLeft(600);
         // Refresh club details
         const updatedDetails = await apiService.getClub(clubId);
         setSelectedClubDetails(updatedDetails);
@@ -485,6 +503,66 @@ export function Clubs() {
 
   const { id: urlClubId } = useParams();
 
+  // ── Fetch templates once on mount and when user session is loaded ──────────
+  const fetchTemplates = async () => {
+    if (!user) return;
+    setLoadingTemplates(true);
+    try {
+      const res = await apiService.getTemplates();
+      const list = res.templates || [];
+      setTemplates(list);
+      localStorage.setItem('cached_templates', JSON.stringify(list));
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const handleUploadTemplate = async (e) => {
+    e.preventDefault();
+    if (!templateForm.file) return toast.error('Please select a file to upload');
+    if (!templateForm.title.trim()) return toast.error('Please enter a title');
+    setUploadingTemplate(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', templateForm.file);
+      fd.append('title', templateForm.title.trim());
+      fd.append('description', templateForm.description.trim());
+      fd.append('category', templateForm.category);
+      const res = await apiService.uploadTemplate(fd);
+      if (res.success) {
+        toast.success('Template uploaded successfully!');
+        setTemplates(prev => {
+          const updated = [res.template, ...prev];
+          localStorage.setItem('cached_templates', JSON.stringify(updated));
+          return updated;
+        });
+        setTemplateForm({ title: '', description: '', category: 'Other', file: null });
+        setShowTemplateUpload(false);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to upload template');
+    } finally {
+      setUploadingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id) => {
+    if (!window.confirm('Delete this template? This cannot be undone.')) return;
+    try {
+      await apiService.deleteTemplate(id);
+      setTemplates(prev => {
+        const updated = prev.filter(t => t._id !== id);
+        localStorage.setItem('cached_templates', JSON.stringify(updated));
+        return updated;
+      });
+      toast.success('Template deleted');
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete template');
+    }
+  };
+
   useEffect(() => {
     fetchClubs();
     markAsSeen('clubs');
@@ -493,6 +571,68 @@ export function Clubs() {
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchTemplates();
+    }
+  }, [user]);
+
+  const formatTime = (seconds) => {
+    if (seconds === null || seconds === undefined) return "";
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  useEffect(() => {
+    if (selectedClubDetails?.events) {
+      const activeEvent = selectedClubDetails.events.find(e => e.activeCheckIn === true);
+      if (activeEvent) {
+        const elapsedSec = Math.floor((Date.now() - new Date(activeEvent.updatedAt).getTime()) / 1000);
+        const remaining = Math.max(0, 600 - elapsedSec);
+        if (remaining > 0) {
+          setCheckInTimeLeft(remaining);
+          return;
+        }
+      }
+    }
+    setCheckInTimeLeft(null);
+  }, [selectedClubDetails]);
+
+  useEffect(() => {
+    if (checkInTimeLeft === null) return;
+
+    if (checkInTimeLeft <= 0) {
+      const activeEvent = selectedClubDetails?.events?.find(e => e.activeCheckIn === true);
+      if (activeEvent) {
+        const clubId = selectedClubDetails._id || selectedClubDetails.id;
+        toast.error("Check-in session has expired and locked automatically.");
+        
+        apiService.endCheckInSession(clubId, activeEvent._id)
+          .then(async (res) => {
+            if (res.success) {
+              const updatedDetails = await apiService.getClub(clubId);
+              setSelectedClubDetails(updatedDetails);
+            }
+          })
+          .catch(err => {
+            console.log("Auto-end session response:", err.message);
+            apiService.getClub(clubId).then(updated => {
+              setSelectedClubDetails(updated);
+            }).catch(() => {});
+          });
+      }
+      setCheckInTimeLeft(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCheckInTimeLeft(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [checkInTimeLeft, selectedClubDetails?._id, selectedClubDetails?.id]);
 
   useEffect(() => {
     if (urlClubId && clubs.length > 0) {
@@ -682,34 +822,43 @@ export function Clubs() {
   const fetchClubReports = async (clubId) => {
     try {
       const reports = await apiService.getClubReports(clubId);
-      setClubReports(reports);
+      setClubReports(reports || []);
       setSelectedClub(clubs.find(c => (c._id || c.id) === clubId));
       setShowClubReports(true);
     } catch (error) {
       console.error("Failed to fetch club reports:", error);
       toast.error("Failed to load reports");
+      setClubReports([]);
     }
   };
 
   const fetchPendingReports = async () => {
     try {
       const reports = await apiService.getPendingReports();
-      setPendingReports(reports);
+      setPendingReports(reports || []);
       setShowPendingReports(true);
     } catch (error) {
-      console.error("Failed to fetch pending reports:", error);
+      console.error("Gracefully caught reports fetch failure:", error);
       toast.error("Failed to load pending reports");
+      setPendingReports([]);
     }
   };
 
-  const fetchManagerPendingReports = async (clubId) => {
+  const fetchManagerPendingReports = async (clubId, silentRefresh = false) => {
+    // Guard: never fire the request with an undefined or invalid clubId
+    if (!clubId || clubId === 'undefined') {
+      console.warn("fetchManagerPendingReports called with invalid clubId:", clubId);
+      setManagerPendingReports([]);
+      return;
+    }
     try {
       const reports = await apiService.getPendingManagerReports(clubId);
-      setManagerPendingReports(reports);
-      setShowManagerPendingReports(true);
+      setManagerPendingReports(reports || []);
+      if (!silentRefresh) setShowManagerPendingReports(true);
     } catch (error) {
       console.error("Failed to fetch manager reports:", error);
-      toast.error("Failed to load member reports");
+      if (!silentRefresh) toast.error("Failed to load member reports");
+      setManagerPendingReports([]);
     }
   };
 
@@ -749,12 +898,13 @@ export function Clubs() {
   const fetchInbox = async (clubId) => {
     try {
       const messages = await apiService.getClubInbox(clubId);
-      setInboxMessages(messages);
+      setInboxMessages(messages || []);
       setSelectedClubDetails(clubs.find(c => (c._id || c.id) === clubId));
       setShowInboxModal(true);
     } catch (error) {
       console.error("Failed to fetch inbox:", error);
       toast.error("Failed to load inbox");
+      setInboxMessages([]);
     }
   };
 
@@ -767,7 +917,7 @@ export function Clubs() {
       setReplyContent("");
       // Refresh inbox
       const messages = await apiService.getClubInbox(selectedClubDetails._id || selectedClubDetails.id);
-      setInboxMessages(messages);
+      setInboxMessages(messages || []);
     } catch (error) {
       console.error("Failed to reply:", error);
       toast.error(error.message || "Failed to send reply");
@@ -783,6 +933,7 @@ export function Clubs() {
     } catch (error) {
       console.error("Failed to fetch join requests:", error);
       toast.error("Failed to fetch join requests");
+      setJoinRequests([]);
     }
   };
 
@@ -1141,13 +1292,19 @@ export function Clubs() {
       return;
     }
 
+    // ── Instant optimistic removal so the carousel updates immediately ──
+    setClubs(prev => prev.filter(c => String(c._id || c.id) !== String(clubId)));
+
     try {
       await apiService.deleteClub(clubId);
-      await fetchClubs();
       toast.success("Club deleted successfully!");
+      // Background sync to confirm server state
+      fetchClubs();
     } catch (error) {
       console.error("Failed to delete club:", error);
       toast.error("Failed to delete club");
+      // Restore clubs list on failure
+      fetchClubs();
     }
   };
 
@@ -1245,9 +1402,9 @@ export function Clubs() {
                   className="relative bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                   <FileText className="w-4 h-4 mr-2" />
                   Review Reports
-                  {pendingReports.length > 0 && (
+                  {(pendingReports || []).length > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
-                      {pendingReports.length}
+                      {(pendingReports || []).length}
                     </span>
                   )}
                 </button>
@@ -1513,8 +1670,8 @@ export function Clubs() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
-            {filteredClubs.length > 0 ? (
-              filteredClubs.map((club, index) => {
+            {(filteredClubs || []).length > 0 ? (
+              (filteredClubs || []).map((club, index) => {
                 const userId = user?._id || user?.id;
                 const isLeader = userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId));
                 const activeMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) && 
@@ -2030,8 +2187,24 @@ export function Clubs() {
                                     ⚡
                                   </div>
                                   <div>
-                                    <h4 className="font-extrabold text-sm text-emerald-950">Active Live Attendance Check-In</h4>
-                                    <p className="text-xs text-emerald-700 font-semibold mt-0.5">Session: {activeEvent.title}</p>
+                                    <h4 className="font-extrabold text-sm text-emerald-950 flex items-center gap-2">
+                                      Active Live Attendance Check-In
+                                      {checkInTimeLeft !== null && (
+                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                                          checkInTimeLeft < 60 ? "bg-red-100 text-red-600 animate-pulse font-black" : "bg-emerald-100 text-emerald-800"
+                                        }`}>
+                                          ⏱️ {formatTime(checkInTimeLeft)}
+                                        </span>
+                                      )}
+                                    </h4>
+                                    <p className="text-xs text-emerald-700 font-semibold mt-0.5">
+                                      Session: {activeEvent.title}
+                                      {checkInTimeLeft !== null && checkInTimeLeft < 60 && (
+                                        <span className="text-red-500 font-bold ml-2 animate-pulse">
+                                          (Closing soon!)
+                                        </span>
+                                      )}
+                                    </p>
                                   </div>
                                 </div>
                                 <form onSubmit={handleCheckIn} className="flex gap-2 w-full md:w-auto">
@@ -2257,6 +2430,16 @@ export function Clubs() {
                                             <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Attendance Code</p>
                                             <p className="text-xl font-black text-emerald-950 tracking-wider leading-none mt-0.5 font-mono">{event.attendanceCode}</p>
                                           </div>
+                                          {checkInTimeLeft !== null && (
+                                            <div className="text-center border-l border-gray-100 pl-3">
+                                              <p className="text-[8px] font-bold text-indigo-600 uppercase tracking-widest">Time Remaining</p>
+                                              <p className={`text-xl font-mono leading-none mt-0.5 ${
+                                                checkInTimeLeft < 60 ? "text-red-500 font-black animate-pulse" : "text-slate-800 font-bold"
+                                              }`}>
+                                                {formatTime(checkInTimeLeft)}
+                                              </p>
+                                            </div>
+                                          )}
                                           <button
                                             type="button"
                                             onClick={() => handleEndSession(event._id)}
@@ -2641,12 +2824,12 @@ export function Clubs() {
                 </div>
 
                 <div className="space-y-4">
-                  {joinRequests.length === 0 ? (
+                  {!(joinRequests || []).length ? (
                     <p className="text-gray-600 text-center py-8">
                       No pending join requests
                     </p>
                   ) : (
-                    joinRequests.map((request) => (
+                    (joinRequests || []).map((request) => (
                       <div
                         key={request._id}
                         className="border border-gray-200 rounded-lg p-4">
@@ -2818,7 +3001,7 @@ export function Clubs() {
                 <button onClick={() => setShowPendingReports(false)} className="text-gray-400 hover:text-gray-600">✕</button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                {pendingReports.length === 0 ? (
+                {!(pendingReports || []).length ? (
                   <div className="text-center py-20">
                     <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
                     <h3 className="text-xl font-bold text-gray-900">All caught up!</h3>
@@ -2826,7 +3009,7 @@ export function Clubs() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {pendingReports.map(report => (
+                    {(pendingReports || []).map(report => (
                       <div key={report._id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all group">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex gap-4">
@@ -2878,7 +3061,7 @@ export function Clubs() {
                 <button onClick={() => setShowManagerPendingReports(false)} className="text-gray-400 hover:text-gray-600">✕</button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                {managerPendingReports.length === 0 ? (
+                {!(managerPendingReports || []).length ? (
                   <div className="text-center py-20">
                     <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
                     <h3 className="text-xl font-bold text-gray-900">All caught up!</h3>
@@ -2886,7 +3069,7 @@ export function Clubs() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {managerPendingReports.map(report => (
+                    {(managerPendingReports || []).map(report => (
                       <div key={report._id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all group relative">
                         <div className="flex items-start justify-between mb-3 pr-8">
                           <div className="flex gap-4">
@@ -2934,8 +3117,9 @@ export function Clubs() {
                                         try {
                                           await apiService.deleteReport(report._id);
                                           toast.success("Submission deleted successfully!");
-                                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
-                                          fetchManagerPendingReports(clubId);
+                                          // Use the report's own club ID as the most reliable source
+                                          const clubId = report.club?._id || report.club || selectedClubDetails?._id || selectedClubDetails?.id;
+                                          fetchManagerPendingReports(clubId, true);
                                         } catch (err) {
                                           toast.error(err.message || "Failed to delete submission");
                                         }
@@ -3059,12 +3243,13 @@ export function Clubs() {
                     onClick={async () => {
                       if (window.confirm("Are you sure you want to permanently delete this submission?")) {
                         try {
+                          // Use the report's own club ID as the most reliable source
+                          const clubId = selectedReport.club?._id || selectedReport.club || selectedClubDetails?._id || selectedClubDetails?.id;
                           await apiService.deleteReport(selectedReport._id);
                           toast.success("Submission deleted successfully!");
                           setShowReportReviewModal(false);
                           setSelectedReport(null);
-                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
-                          fetchManagerPendingReports(clubId);
+                          fetchManagerPendingReports(clubId, true);
                         } catch (err) {
                           toast.error(err.message || "Failed to delete submission");
                         }
@@ -3092,14 +3277,14 @@ export function Clubs() {
                 <button onClick={() => setShowClubReports(false)} className="text-gray-400 hover:text-gray-600">✕</button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                {clubReports.length === 0 ? (
+                {!(clubReports || []).length ? (
                   <div className="text-center py-20">
                     <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 font-medium">No activity reports published yet.</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {clubReports.map((report) => (
+                    {(clubReports || []).map((report) => (
                       <div key={report._id} className={`bg-white p-6 rounded-2xl shadow-sm border relative ${report.reportType === 'ANNUAL_REPORT' ? 'border-red-200 bg-red-50/10' : 'border-gray-100'}`}>
                         <div className="flex justify-between items-start mb-4 pr-8">
                           <div>
@@ -3261,11 +3446,11 @@ export function Clubs() {
                 <button onClick={() => setShowInboxModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
               </div>
               <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
-                {inboxMessages.length === 0 ? (
+                {!(inboxMessages || []).length ? (
                   <p className="text-center text-gray-500 py-8 italic">No messages in inbox.</p>
                 ) : (
                   <div className="space-y-4">
-                    {inboxMessages.map(msg => (
+                    {(inboxMessages || []).map(msg => (
                       <div key={msg._id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                         <div className="flex justify-between items-start mb-2">
                           <div>
@@ -3313,6 +3498,233 @@ export function Clubs() {
           </div>
         )}
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          🏛️  UNIVERSITY REFERENCE TEMPLATES & ANNUAL SERVICE SAMPLES
+          Visible to ALL logged-in users. Upload only for Admin/Coordinator.
+          ══════════════════════════════════════════════════════════════════ */}
+      {user && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Section header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
+                <BookOpen className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">🏛️ University Reference Templates</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Official documents & annual service samples for club representatives</p>
+              </div>
+            </div>
+
+            {/* Admin upload toggle */}
+            {(user?.isAdmin || isCoordinator) && (
+              <button
+                id="template-upload-toggle-btn"
+                onClick={() => setShowTemplateUpload(v => !v)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200"
+              >
+                <Upload className="w-4 h-4" />
+                {showTemplateUpload ? 'Cancel Upload' : 'Upload New Template'}
+              </button>
+            )}
+          </div>
+
+          {/* Admin upload form */}
+          {showTemplateUpload && (user?.isAdmin || isCoordinator) && (
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 bg-white rounded-2xl border border-indigo-100 shadow-lg p-6"
+            >
+              <h3 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-indigo-600" /> Upload Reference Document
+              </h3>
+              <form onSubmit={handleUploadTemplate} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Document Title <span className="text-red-500">*</span></label>
+                  <input
+                    id="template-title-input"
+                    type="text"
+                    value={templateForm.title}
+                    onChange={e => setTemplateForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Annual Activity Report Template 2025"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    id="template-category-select"
+                    value={templateForm.category}
+                    onChange={e => setTemplateForm(f => ({ ...f, category: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {['Annual Report','Budget Request','Event Proposal','Membership Form','Activity Plan','Financial Statement','Other'].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">File (PDF / Word / Excel) <span className="text-red-500">*</span></label>
+                  <input
+                    id="template-file-input"
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                    onChange={e => setTemplateForm(f => ({ ...f, file: e.target.files[0] }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    id="template-desc-input"
+                    value={templateForm.description}
+                    onChange={e => setTemplateForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Brief description of what this document is for..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                </div>
+                <div className="sm:col-span-2 flex justify-end">
+                  <button
+                    id="template-upload-submit-btn"
+                    type="submit"
+                    disabled={uploadingTemplate}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {uploadingTemplate ? (
+                      <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Upload className="w-4 h-4" /> Publish Template</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {/* Template grid */}
+          {loadingTemplates ? (
+            <div className="flex justify-center items-center py-16">
+              <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <span className="ml-3 text-gray-500 text-sm">Loading templates...</span>
+            </div>
+          ) : !(templates || []).length ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300">
+              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No reference templates uploaded yet.</p>
+              {(user?.isAdmin || isCoordinator) && (
+                <p className="text-sm text-indigo-500 mt-1">Use the "Upload New Template" button above to add your first document.</p>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {(templates || []).map((tmpl, idx) => (
+                <motion.div
+                  key={tmpl._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.06 }}
+                  className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                >
+                  {/* Coloured top bar by category */}
+                  <div className={`h-1.5 w-full ${
+                    tmpl.category === 'Annual Report' ? 'bg-gradient-to-r from-blue-500 to-indigo-500' :
+                    tmpl.category === 'Budget Request' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                    tmpl.category === 'Event Proposal' ? 'bg-gradient-to-r from-orange-500 to-amber-500' :
+                    tmpl.category === 'Membership Form' ? 'bg-gradient-to-r from-pink-500 to-rose-500' :
+                    tmpl.category === 'Activity Plan' ? 'bg-gradient-to-r from-teal-500 to-cyan-500' :
+                    tmpl.category === 'Financial Statement' ? 'bg-gradient-to-r from-violet-500 to-purple-500' :
+                    'bg-gradient-to-r from-gray-400 to-slate-500'
+                  }`} />
+
+                  <div className="p-5">
+                    {/* Category badge */}
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 mb-3">
+                      {tmpl.category}
+                    </span>
+
+                    {/* File icon + title */}
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2">{tmpl.title}</h3>
+                        {tmpl.description && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tmpl.description}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Meta */}
+                    <div className="text-xs text-gray-400 mb-4">
+                      Uploaded by <span className="font-medium text-gray-600">{tmpl.uploadedByName || tmpl.uploadedBy?.name || 'Admin'}</span>
+                      &nbsp;·&nbsp;
+                      {new Date(tmpl.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {tmpl.downloadCount > 0 && (
+                        <span> &nbsp;·&nbsp; {tmpl.downloadCount} download{tmpl.downloadCount !== 1 ? 's' : ''}</span>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        id={`template-download-btn-${tmpl._id}`}
+                        onClick={async () => {
+                          try {
+                            const user = JSON.parse(localStorage.getItem('user') || '{}');
+                            const filename = tmpl.pdfUrl?.split('/').pop();
+                            const res = await fetch(`${apiService.baseURL}/templates/download/${filename}`, {
+                              headers: { Authorization: `Bearer ${user.token}` }
+                            });
+                            if (!res.ok) throw new Error('Download failed');
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = tmpl.fileName || filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                            setTemplates(prev => {
+                              const updated = prev.map(t => t._id === tmpl._id ? { ...t, downloadCount: (t.downloadCount||0)+1 } : t);
+                              localStorage.setItem('cached_templates', JSON.stringify(updated));
+                              return updated;
+                            });
+                          } catch (err) {
+                            toast.error('Failed to download file. Please try again.');
+                          }
+                        }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm hover:shadow-md"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        📥 Download Reference PDF
+                      </button>
+
+                      {/* Admin delete */}
+                      {(user?.isAdmin || isCoordinator) && (
+                        <button
+                          id={`template-delete-btn-${tmpl._id}`}
+                          onClick={() => handleDeleteTemplate(tmpl._id)}
+                          className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Delete template"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
