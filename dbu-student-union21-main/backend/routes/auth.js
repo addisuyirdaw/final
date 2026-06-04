@@ -38,7 +38,7 @@ const uploadAvatar = multer({
 	},
 }).single("profileImage");
 
-const { transporter } = require("../utils/emailService");
+const { sendEmail } = require("../utils/emailService");
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -527,7 +527,9 @@ router.post("/forgot-password", async (req, res) => {
 	try {
 		// Accept either email or username (identifier)
 		const { email, identifier } = req.body;
-		const lookup = identifier || email;
+		const lookup = (identifier || email || '').trim();
+
+		console.log('🔑 Forgot-password request for:', lookup);
 
 		if (!lookup) {
 			return res.status(400).json({
@@ -536,18 +538,20 @@ router.post("/forgot-password", async (req, res) => {
 			});
 		}
 
-		// Search by email OR by username
+		// Search by email OR by username (case-insensitive)
 		const user = await User.findOne({
 			$or: [
-				{ email: lookup },
-				{ username: lookup }
+				{ email: { $regex: new RegExp(`^${lookup}$`, 'i') } },
+				{ username: { $regex: new RegExp(`^${lookup}$`, 'i') } },
 			]
 		});
+
+		console.log('🔎 User found:', user ? `${user.username} (${user.email || 'no email'})` : 'NOT FOUND');
 
 		if (!user) {
 			return res.status(404).json({
 				success: false,
-				message: "No account found with that email or username",
+				message: "No account found with that email or username. Check the spelling and try again.",
 			});
 		}
 
@@ -555,124 +559,86 @@ router.post("/forgot-password", async (req, res) => {
 		if (!user.email) {
 			return res.status(400).json({
 				success: false,
-				message: "This account has no email address registered. Please contact the administrator to reset your password.",
+				message: "This account has no email address on file. Please contact the administrator to reset your password.",
 			});
 		}
 
-		// Get reset token
+		// Generate reset token
 		const resetToken = crypto.randomBytes(20).toString("hex");
 
-		// Hash token and set to resetPasswordToken field
-		user.resetPasswordToken = crypto
-			.createHash("sha256")
-			.update(resetToken)
-			.digest("hex");
-
-		// Set expire
+		// Hash and save token
+		user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 		user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
 		await user.save({ validateBeforeSave: false });
 
-		// Create reset url
+		// Build reset URL
 		const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+		const isDev = process.env.NODE_ENV !== 'production';
 
-		// Email options
-		const mailOptions = {
-			from: process.env.EMAIL_USER,
-			to: user.email,
-			subject: "DBU Student Council - Password Reset Request",
-			html: `
-				<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9;">
-					<div style="text-align: center; margin-bottom: 30px;">
-						<h1 style="color: #2563eb; margin: 0;">DBU Student Council</h1>
-						<p style="color: #666; margin-top: 5px;">Password Reset Request</p>
-					</div>
-					
-					<div style="background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-						<h2 style="color: #333; margin-top: 0;">Hello ${user.name},</h2>
-						
-						<p style="color: #555; line-height: 1.6;">
-							You have requested to reset your password for your DBU Student Council Portal account.
-						</p>
-						
-						<p style="color: #555; line-height: 1.6;">
-							Please click the button below to reset your password. This link will expire in <strong>10 minutes</strong>.
-						</p>
-						
-						<div style="text-align: center; margin: 30px 0;">
-							<a href="${resetUrl}" style="background: linear-gradient(to right, #2563eb, #1d4ed8); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Reset Password</a>
-						</div>
-						
-						<p style="color: #888; font-size: 14px; line-height: 1.6;">
-							If the button doesn't work, copy and paste this link into your browser:
-						</p>
-						<p style="background-color: #f0f4f8; padding: 10px; border-radius: 4px; word-break: break-all; font-size: 12px; color: #2563eb;">
-							${resetUrl}
-						</p>
-						
-						<hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-						
-						<p style="color: #999; font-size: 12px; line-height: 1.5;">
-							If you did not request this password reset, please ignore this email. Your password will remain unchanged.
-						</p>
-					</div>
-					
-					<div style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
-						<p>© ${new Date().getFullYear()} DBU Student Council Portal. All rights reserved.</p>
-					</div>
+		// Build HTML email
+		const html = `
+			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9;">
+				<div style="text-align: center; margin-bottom: 30px;">
+					<h1 style="color: #2563eb; margin: 0;">DBU Student Council</h1>
+					<p style="color: #666; margin-top: 5px;">Password Reset Request</p>
 				</div>
-			`,
-		};
+				<div style="background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+					<h2 style="color: #333; margin-top: 0;">Hello ${user.name},</h2>
+					<p style="color: #555; line-height: 1.6;">You have requested to reset your password for your DBU Student Council Portal account.</p>
+					<p style="color: #555; line-height: 1.6;">Click the button below to reset your password. This link expires in <strong>10 minutes</strong>.</p>
+					<div style="text-align: center; margin: 30px 0;">
+						<a href="${resetUrl}" style="background: linear-gradient(to right, #2563eb, #1d4ed8); color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Reset Password</a>
+					</div>
+					<p style="color: #888; font-size: 14px;">If the button doesn't work, copy this link into your browser:</p>
+					<p style="background-color: #f0f4f8; padding: 10px; border-radius: 4px; word-break: break-all; font-size: 12px; color: #2563eb;">${resetUrl}</p>
+					<hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+					<p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
+				</div>
+				<div style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+					<p>© ${new Date().getFullYear()} DBU Student Council Portal.</p>
+				</div>
+			</div>`;
 
-		// Send email
+		// Send email using the sendEmail helper
 		try {
-			console.log("Attempting to send password reset email...");
-			console.log("From:", process.env.EMAIL_USER);
-			console.log("To:", user.email);
+			console.log('📧 Sending reset email to:', user.email);
+			const info = await sendEmail({ to: user.email, subject: 'DBU Student Council - Password Reset Request', html });
+			console.log('✅ Reset email sent! ID:', info.messageId);
 
-			const info = await transporter.sendMail(mailOptions);
-			console.log("Password reset email sent successfully!");
-			console.log("Message ID:", info.messageId);
-			console.log("Sent to:", user.email);
-
-			// In development, also return the reset URL directly so users aren't blocked by email delivery
-			const isDev = process.env.NODE_ENV !== 'production';
 			return res.status(200).json({
 				success: true,
-				message: `Password reset link has been sent to ${user.email}. Also check your spam/junk folder.`,
-				...(isDev && { resetUrl, devNote: "Dev mode: use this link directly if email not received" }),
+				message: `Password reset link sent to ${user.email}. Check your spam/junk folder too.`,
+				...(isDev && { resetUrl, devNote: 'Dev mode: use this link directly if email not received' }),
 			});
 		} catch (emailError) {
-			console.error("Email sending failed:", emailError);
+			console.error('❌ Reset email failed:', emailError.message);
 
-			// Even if email fails in dev mode, return the reset link directly
-			const isDev = process.env.NODE_ENV !== 'production';
+			// In dev mode — always return the reset link directly so students are never blocked
 			if (isDev) {
-				console.log("DEV MODE: Email failed but providing reset link directly:", resetUrl);
 				return res.status(200).json({
 					success: true,
-					message: `Email delivery failed, but here is your direct reset link (dev mode only).`,
+					message: 'Email delivery failed. Use the direct link below to reset your password.',
 					resetUrl,
-					devNote: "Email sending failed — use this link directly to reset your password",
+					devNote: 'SMTP failed — click the button below to reset directly',
 				});
 			}
 
-			// Reset the token fields if email fails in production
+			// In production — clear the token and return error
 			user.resetPasswordToken = undefined;
 			user.resetPasswordExpire = undefined;
 			await user.save({ validateBeforeSave: false });
-
 			return res.status(500).json({
 				success: false,
-				message: "Failed to send reset email. Please contact the administrator.",
+				message: 'Failed to send reset email. Please contact the administrator.',
 			});
 		}
 
 	} catch (error) {
-		console.error("Forgot password error:", error);
+		console.error('Forgot password error:', error);
 		return res.status(500).json({
 			success: false,
-			message: "Could not send reset email",
+			message: 'Server error processing password reset request.',
+			error: process.env.NODE_ENV !== 'production' ? error.message : undefined,
 		});
 	}
 });
