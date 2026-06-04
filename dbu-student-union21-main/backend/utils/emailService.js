@@ -1,11 +1,27 @@
 const nodemailer = require("nodemailer");
 
+// Build transporter using explicit SMTP config (supports Gmail App Passwords)
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
     },
+    tls: {
+        rejectUnauthorized: false, // allow self-signed certs in dev
+    },
+});
+
+// Verify SMTP connection on startup
+transporter.verify((error, success) => {
+    if (error) {
+        console.error('❌ SMTP Connection FAILED:', error.message);
+        console.error('   Check EMAIL_USER, EMAIL_PASSWORD, SMTP_HOST, SMTP_PORT in .env');
+    } else {
+        console.log('✅ SMTP Server is ready to send emails');
+    }
 });
 
 const sendEmail = async (options) => {
