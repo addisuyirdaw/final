@@ -85,7 +85,164 @@ const ActivitySkeleton = () => (
 	</div>
 );
 
+// ── Leadership Branch Creator Component (Admin Only) ────────────────────────
+const LeadershipBranchCreator = ({ apiService }) => {
+	const [branchName, setBranchName] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [status, setStatus] = useState(null); // { type: 'success'|'error', message: string }
+	const [recentBranches, setRecentBranches] = useState([]);
+
+	// Load existing departments on mount
+	useEffect(() => {
+		apiService.getDepartments()
+			.then(data => setRecentBranches(data.departments || []))
+			.catch(() => {});
+	}, [apiService]);
+
+	const handleDeploy = async (e) => {
+		e.preventDefault();
+		const trimmed = branchName.trim();
+		if (!trimmed) return;
+
+		setIsSubmitting(true);
+		setStatus(null);
+		try {
+			const result = await apiService.createDepartment({ name: trimmed });
+			if (result?.success || result?.department) {
+				const newDept = result.department;
+				setRecentBranches(prev => [newDept, ...prev]);
+				setBranchName('');
+				setStatus({ type: 'success', message: `✅ "${newDept?.name || trimmed}" is now live in the Union & Leadership dropdown!` });
+				// 🔔 Notify Header to re-fetch departments instantly — no page reload needed
+				window.dispatchEvent(new CustomEvent('departments-updated'));
+			} else {
+				throw new Error(result?.message || 'Unknown error from server');
+			}
+		} catch (err) {
+			setStatus({ type: 'error', message: `❌ Failed: ${err.message}` });
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleDelete = async (id, name) => {
+		if (!window.confirm(`Remove "${name}" from the dropdown menu?`)) return;
+		try {
+			await apiService.deleteDepartment(id);
+			setRecentBranches(prev => prev.filter(d => d._id !== id));
+			window.dispatchEvent(new CustomEvent('departments-updated'));
+		} catch (err) {
+			alert('Delete failed: ' + err.message);
+		}
+	};
+
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ delay: 0.7 }}
+			className="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
+
+			{/* Card Header */}
+			<div className="bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 p-5 sm:p-6 text-white">
+				<div className="flex items-center gap-3">
+					<div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">
+						🏛️
+					</div>
+					<div>
+						<h3 className="text-lg sm:text-xl font-bold tracking-tight">Create Top-Level Leadership Branch</h3>
+						<p className="text-indigo-200 text-sm mt-0.5">Deploy a new sector directly into the Union &amp; Leadership dropdown menu</p>
+					</div>
+				</div>
+			</div>
+
+			{/* Input Form */}
+			<form onSubmit={handleDeploy} className="p-5 sm:p-6 border-b border-gray-100 bg-gradient-to-b from-indigo-50/40 to-white">
+				<label className="block text-sm font-semibold text-gray-700 mb-2">
+					New Major Dropdown Branch Name
+				</label>
+				<div className="flex flex-col sm:flex-row gap-3">
+					<input
+						id="branch-name-input"
+						type="text"
+						value={branchName}
+						onChange={e => { setBranchName(e.target.value); setStatus(null); }}
+						placeholder="Enter new major dropdown branch name (e.g., University Dining Office)..."
+						className="flex-1 border border-indigo-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none transition-all duration-200 bg-white shadow-sm"
+						disabled={isSubmitting}
+						maxLength={80}
+					/>
+					<motion.button
+						id="deploy-branch-btn"
+						type="submit"
+						disabled={isSubmitting || !branchName.trim()}
+						whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
+						whileTap={{ scale: 0.97 }}
+						className="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-xl shadow-md transition-all duration-200 text-sm whitespace-nowrap">
+						{isSubmitting ? (
+							<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Deploying...</>
+						) : (
+							<>⚡ Deploy to Main Menu Dropdown</>
+						)}
+					</motion.button>
+				</div>
+
+				{/* Status feedback */}
+				<AnimatePresence mode="wait">
+					{status && (
+						<motion.p
+							key={status.message}
+							initial={{ opacity: 0, y: -6 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0 }}
+							className={`mt-3 text-sm font-medium px-3 py-2 rounded-lg ${
+								status.type === 'success'
+									? 'bg-green-50 text-green-700 border border-green-200'
+									: 'bg-red-50 text-red-700 border border-red-200'
+							}`}>
+							{status.message}
+						</motion.p>
+					)}
+				</AnimatePresence>
+			</form>
+
+			{/* Live Branches List */}
+			<div className="p-5 sm:p-6 bg-white">
+				<h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+					<div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+					Live Dropdown Branches ({recentBranches.length})
+				</h4>
+				{recentBranches.length === 0 ? (
+					<p className="text-sm text-gray-400 italic">No custom branches created yet. Add one above.</p>
+				) : (
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+						{recentBranches.map((dept) => (
+							<motion.div
+								key={dept._id}
+								initial={{ opacity: 0, scale: 0.95 }}
+								animate={{ opacity: 1, scale: 1 }}
+								className="flex items-center justify-between gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 group">
+								<div className="flex items-center gap-2 min-w-0">
+									<span className="text-lg">🏛️</span>
+									<span className="text-sm font-semibold text-indigo-800 truncate">{dept.name}</span>
+								</div>
+								<button
+									onClick={() => handleDelete(dept._id, dept.name)}
+									title="Remove from dropdown"
+									className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-100 hover:bg-red-200 text-red-500 hover:text-red-700 transition-all duration-150">
+									<Trash2 className="w-3.5 h-3.5" />
+								</button>
+							</motion.div>
+						))}
+					</div>
+				)}
+			</div>
+		</motion.div>
+	);
+};
+
 export function Dashboard() {
+
 	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
@@ -951,6 +1108,11 @@ export function Dashboard() {
 						</motion.button>
 					</div>
 				</motion.div>
+			)}
+
+			{/* 🏛️ Major Leadership Branch Creator — Admin Only */}
+			{user?.isAdmin && (
+				<LeadershipBranchCreator apiService={apiService} />
 			)}
 		</div>
 	);

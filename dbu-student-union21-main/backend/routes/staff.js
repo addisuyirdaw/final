@@ -43,6 +43,9 @@ router.get('/', async (req, res) => {
     if (req.query.pageGroup) {
       filter.pageGroup = req.query.pageGroup;
     }
+    if (req.query.department) {
+      filter.department = req.query.department;
+    }
     const profiles = await Staff.find(filter)
       .sort({ priority: 1, createdAt: -1 });
     res.json({ success: true, profiles });
@@ -59,6 +62,9 @@ router.get('/admin/all', protect, systemAdminOnly, async (req, res) => {
     const filter = {};
     if (req.query.pageGroup) {
       filter.pageGroup = req.query.pageGroup;
+    }
+    if (req.query.department) {
+      filter.department = req.query.department;
     }
     const profiles = await Staff.find(filter)
       .sort({ priority: 1, createdAt: -1 });
@@ -114,8 +120,6 @@ router.post('/', protect, systemAdminOnly, upload.single('image'), async (req, r
       } catch (e) { console.error('Staff POST: fileData read error', e.message); }
     } else if (req.body.imageUrl) {
       imageUrl = req.body.imageUrl;
-    } else {
-      return res.status(400).json({ success: false, message: 'Image file or URL is required' });
     }
 
     const profile = await Staff.create({

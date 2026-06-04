@@ -29,6 +29,67 @@ export const LeadershipManager = () => {
   const [pendingFile, setPendingFile] = useState(null);
   const fileInputRef = useRef(null);
 
+  const [departments, setDepartments] = useState([]);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [deptLoading, setDeptLoading] = useState(false);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/departments`);
+      const data = await res.json();
+      if (data.success) setDepartments(data.departments);
+    } catch (err) {
+      console.error("Failed to fetch departments:", err);
+    }
+  };
+
+  const handleCreateDepartment = async (e) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+    setDeptLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/departments`, {
+        method: "POST",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name: newDeptName.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Department created successfully!");
+        setNewDeptName("");
+        fetchDepartments();
+      } else {
+        showToast(data.message || "Failed to create department", "error");
+      }
+    } catch {
+      showToast("Network error creating department", "error");
+    } finally {
+      setDeptLoading(false);
+    }
+  };
+
+  const handleDeleteDepartment = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete the department "${name}"? This will remove it from the header navigation bar.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/departments/${id}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Department deleted successfully!");
+        fetchDepartments();
+      } else {
+        showToast(data.message || "Failed to delete department", "error");
+      }
+    } catch {
+      showToast("Network error deleting department", "error");
+    }
+  };
+
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
@@ -52,7 +113,10 @@ export const LeadershipManager = () => {
   };
 
   useEffect(() => {
-    if (user?.isAdmin) fetchProfiles();
+    if (user?.isAdmin) {
+      fetchProfiles();
+      fetchDepartments();
+    }
   }, [user]);
 
   const handleFiles = (files) => {
@@ -118,10 +182,6 @@ export const LeadershipManager = () => {
 
       if (pendingFile) {
         data.append("image", pendingFile);
-      } else if (!editingId) {
-        showToast("Please select an image", "error");
-        setUploading(false);
-        return;
       }
 
       const url = editingId 
@@ -232,70 +292,132 @@ export const LeadershipManager = () => {
           </button>
         </div>
 
-        {/* Profiles Grid */}
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : profiles.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No profiles yet</h3>
-            <p className="text-gray-500">Click "Add Staff Member" to get started.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {profiles.map((profile) => (
-              <div key={profile._id} className={`bg-white rounded-2xl shadow-sm border transition-all hover:shadow-md ${profile.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
-                <div className="relative h-48 rounded-t-2xl overflow-hidden bg-gray-100">
-                  <img
-                    src={profile.imageUrl.startsWith("/uploads") ? `${API_BASE}${profile.imageUrl}` : profile.imageUrl}
-                    alt={profile.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A`; }}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Manage Departments */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-blue-600" />
+                Departments Manager
+              </h2>
+              
+              <form onSubmit={handleCreateDepartment} className="space-y-3 mb-6">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Create New Department</label>
+                  <input
+                    type="text"
+                    required
+                    value={newDeptName}
+                    onChange={(e) => setNewDeptName(e.target.value)}
+                    placeholder="e.g. University Dining Office"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <div className="absolute top-3 right-3 flex gap-2">
-                    <button
-                      onClick={() => toggleActive(profile)}
-                      className={`px-2 py-1 text-xs font-bold rounded-md text-white shadow-sm ${profile.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-500 hover:bg-gray-600'}`}
-                    >
-                      {profile.isActive ? "LIVE" : "HIDDEN"}
-                    </button>
-                  </div>
-                  <div className="absolute top-3 left-3 flex flex-col gap-1">
-                    <span className="bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                      Order: {profile.order}
-                    </span>
-                  </div>
                 </div>
-                
-                <div className="p-5">
-                  <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-md mb-2 font-semibold">
-                    {getPageGroupLabel(profile.pageGroup)}
-                  </span>
-                  <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{profile.name}</h3>
-                  <p className="text-gray-700 font-medium text-sm mb-1 line-clamp-1">{profile.title}</p>
-                  <p className="text-gray-500 text-xs mb-3 line-clamp-1">Dept: {profile.department}</p>
-                  
-                  <div className="flex gap-2 pt-3 border-t border-gray-100">
-                    <button
-                      onClick={() => handleEdit(profile)}
-                      className="flex-1 flex items-center justify-center gap-1 py-2 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded-lg transition-colors border border-gray-200 hover:border-blue-200"
-                    >
-                      <Edit className="w-4 h-4" /> Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(profile._id)}
-                      className="w-10 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-lg transition-colors border border-gray-200 hover:border-red-200"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                <button
+                  type="submit"
+                  disabled={deptLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors disabled:opacity-70"
+                >
+                  {deptLoading ? "Creating..." : "[ + Create New Department ]"}
+                </button>
+              </form>
+
+              <hr className="border-gray-100 my-4" />
+
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Active Departments ({departments.length})</h3>
+                {departments.length === 0 ? (
+                  <p className="text-xs text-gray-400">No departments added yet.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {departments.map((dept) => (
+                      <div key={dept._id} className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 group">
+                        <span className="text-sm font-semibold text-gray-800 truncate" title={dept.name}>
+                          {dept.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDepartment(dept._id, dept.name)}
+                          className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Delete Department"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
-            ))}
+            </div>
           </div>
-        )}
+
+          {/* Right Column: Profiles Grid */}
+          <div className="lg:col-span-2">
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : profiles.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-1">No profiles yet</h3>
+                <p className="text-gray-500">Click "Add Staff Member" to get started.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {profiles.map((profile) => (
+                  <div key={profile._id} className={`bg-white rounded-2xl shadow-sm border transition-all hover:shadow-md ${profile.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
+                    <div className="relative h-48 rounded-t-2xl overflow-hidden bg-gray-100">
+                      <img
+                        src={profile.imageUrl.startsWith("/uploads") ? `${API_BASE}${profile.imageUrl}` : profile.imageUrl}
+                        alt={profile.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A`; }}
+                      />
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        <button
+                          onClick={() => toggleActive(profile)}
+                          className={`px-2 py-1 text-xs font-bold rounded-md text-white shadow-sm ${profile.isActive ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-500 hover:bg-gray-600'}`}
+                        >
+                          {profile.isActive ? "LIVE" : "HIDDEN"}
+                        </button>
+                      </div>
+                      <div className="absolute top-3 left-3 flex flex-col gap-1">
+                        <span className="bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                          Order: {profile.order}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-5">
+                      <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-md mb-2 font-semibold">
+                        {getPageGroupLabel(profile.pageGroup)}
+                      </span>
+                      <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{profile.name}</h3>
+                      <p className="text-gray-700 font-medium text-sm mb-1 line-clamp-1">{profile.title}</p>
+                      <p className="text-gray-550 text-xs mb-3 line-clamp-1">Dept: {profile.department}</p>
+                      
+                      <div className="flex gap-2 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => handleEdit(profile)}
+                          className="flex-1 flex items-center justify-center gap-1 py-2 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded-lg transition-colors border border-gray-200 hover:border-blue-200"
+                        >
+                          <Edit className="w-4 h-4" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(profile._id)}
+                          className="w-10 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-lg transition-colors border border-gray-200 hover:border-red-200"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Add/Edit Modal */}
         <AnimatePresence>
@@ -320,7 +442,7 @@ export const LeadershipManager = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Image Upload Sidebar */}
                     <div className="md:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
                       <div
                         onClick={() => fileInputRef.current?.click()}
                         className="relative w-full aspect-[3/4] rounded-xl overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 bg-gray-50 cursor-pointer flex flex-col items-center justify-center group transition-colors"
@@ -400,7 +522,13 @@ export const LeadershipManager = () => {
                             onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="e.g. Office of the Dean"
+                            list="admin-departments-list"
                           />
+                          <datalist id="admin-departments-list">
+                            {departments.map((d) => (
+                              <option key={d._id} value={d.name} />
+                            ))}
+                          </datalist>
                         </div>
                       </div>
 

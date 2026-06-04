@@ -634,6 +634,26 @@ class ApiService {
   async deleteDirective(id) {
     return this.deletePost(id);
   }
+
+  // ── Leadership Departments ─────────────────────────────────────────────────
+
+  /** Fetch all top-level leadership departments (public) */
+  async getDepartments() {
+    return this.request('/departments');
+  }
+
+  /** Create a new top-level leadership branch (Admin only) */
+  async createDepartment(data) {
+    return this.request('/departments', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  /** Delete a leadership department by ID (Admin only) */
+  async deleteDepartment(id) {
+    return this.request(`/departments/${id}`, { method: 'DELETE' });
+  }
 }
 
 export const apiService = new ApiService();

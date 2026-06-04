@@ -59,8 +59,21 @@ export const ServicesDirectory = () => {
     }
   };
 
+  const [departments, setDepartments] = useState([]);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/departments`);
+      const data = await res.json();
+      if (data.success) setDepartments(data.departments);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchServices();
+    fetchDepartments();
   }, []);
 
   const handleFiles = (files) => {
@@ -138,10 +151,6 @@ export const ServicesDirectory = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!activeProfile && !pendingFile) {
-      toast.error("Please select a profile photo.");
-      return;
-    }
     setUploading(true);
 
     try {
@@ -366,7 +375,7 @@ export const ServicesDirectory = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Photo Upload Box */}
                   <div className="md:col-span-1">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Profile Photo {activeProfile ? "" : "*"}</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Profile Photo</label>
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 hover:border-rose-500 bg-gray-55 cursor-pointer flex flex-col items-center justify-center group transition-all"
@@ -429,7 +438,13 @@ export const ServicesDirectory = () => {
                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-gray-800"
                         placeholder="e.g. Counseling & Wellness Center"
+                        list="services-depts-datalist"
                       />
+                      <datalist id="services-depts-datalist">
+                        {departments.map((dept) => (
+                          <option key={dept._id} value={dept.name} />
+                        ))}
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Rank Priority <span className="font-normal text-gray-400">(1=Dean, 2=Dept Head, 3=Advisor)</span></label>

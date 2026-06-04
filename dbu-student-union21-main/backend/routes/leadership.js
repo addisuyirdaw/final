@@ -112,8 +112,6 @@ router.post('/add', protect, systemAdminOnly, upload.single('image'), async (req
       } catch (e) { console.error('Leadership POST: fileData read error', e.message); }
     } else if (req.body.imageUrl) {
       imageUrl = req.body.imageUrl;
-    } else {
-      return res.status(400).json({ success: false, message: 'Image file or URL is required' });
     }
 
     const profile = await Staff.create({

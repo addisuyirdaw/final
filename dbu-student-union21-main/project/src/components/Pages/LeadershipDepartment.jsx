@@ -1,22 +1,25 @@
 /** @format */
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Loader, Users, ShieldAlert, Sparkles, X, Upload, Image as ImageIcon, Edit, Trash2 } from "lucide-react";
+import { ArrowRight, Loader, Award, ShieldAlert, Sparkles, ArrowLeft, X, Upload, Image as ImageIcon, Edit } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
 const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "http://localhost:5000/api")).replace(/\/api$/, "");
 
-export const Union = () => {
+export const LeadershipDepartment = () => {
+  const { departmentId } = useParams();
   const { user } = useAuth();
-  const isAdmin = user && (user.role === "system_admin" || user.role === "admin" || user.isAdmin === true) && (user.username === "dbu10101030" || user.username?.toLowerCase() === "dbu10101030");
+  const isAdmin = user && (user.role === "system_admin" || user.role === "admin" || user.isAdmin === true);
   const navigate = useNavigate();
+
+  const [department, setDepartment] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Modal & Edit/Add State
+  // Modal & Edit/Add States
   const [openModal, setOpenModal] = useState(false);
   const [activeProfile, setActiveProfile] = useState(null); // null = Add, object = Edit
   const [uploading, setUploading] = useState(false);
@@ -26,55 +29,60 @@ export const Union = () => {
     department: "",
     background: "",
     responsibility: "",
-    pageGroup: "student_union",
-    priority: 4
+    pageGroup: "student_services",
+    priority: 10
   });
   const [preview, setPreview] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
   const fileInputRef = useRef(null);
 
-  const fetchUnion = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const url = isAdmin 
-        ? `${API_BASE}/api/staff/admin/all?pageGroup=student_union`
-        : `${API_BASE}/api/staff?pageGroup=student_union`;
+      setError("");
+
+      // 1. Fetch Department Info
+      const deptRes = await fetch(`${API_BASE}/api/departments/${departmentId}`);
+      const deptData = await deptRes.json();
+
+      if (!deptData.success) {
+        setError(deptData.message || "Department not found");
+        setLoading(false);
+        return;
+      }
+      setDepartment(deptData.department);
+
+      // 2. Fetch Staff filtered by this Department name
+      const staffUrl = isAdmin 
+        ? `${API_BASE}/api/staff/admin/all?department=${encodeURIComponent(deptData.department.name)}`
+        : `${API_BASE}/api/staff?department=${encodeURIComponent(deptData.department.name)}`;
       
       const headers = {};
       if (isAdmin) {
         headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
       }
-      
-      const res = await fetch(url, { headers });
-      const data = await res.json();
-      if (data.success) {
-        setProfiles(data.profiles);
+
+      const staffRes = await fetch(staffUrl, { headers });
+      const staffData = await staffRes.json();
+
+      if (staffData.success) {
+        setProfiles(staffData.profiles);
       } else {
-        setError(data.message || "Failed to load profiles");
+        setError(staffData.message || "Failed to load profiles");
       }
     } catch (err) {
+      console.error("Error loading department profiles:", err);
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const [departments, setDepartments] = useState([]);
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/departments`);
-      const data = await res.json();
-      if (data.success) setDepartments(data.departments);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   useEffect(() => {
-    fetchUnion();
-    fetchDepartments();
-  }, []);
+    if (departmentId) {
+      fetchData();
+    }
+  }, [departmentId]);
 
   const handleFiles = (files) => {
     const file = files[0];
@@ -93,11 +101,11 @@ export const Union = () => {
     setFormData({
       name: "",
       title: "",
-      department: "",
+      department: department ? department.name : "",
       background: "",
       responsibility: "",
-      pageGroup: "student_union",
-      priority: 4
+      pageGroup: "student_services",
+      priority: 10
     });
     setPreview(null);
     setPendingFile(null);
@@ -112,8 +120,8 @@ export const Union = () => {
       department: profile.department || "",
       background: profile.background || "",
       responsibility: profile.responsibility || "",
-      pageGroup: profile.pageGroup || "student_union",
-      priority: profile.priority !== undefined ? profile.priority : 4
+      pageGroup: profile.pageGroup || "student_services",
+      priority: profile.priority !== undefined ? profile.priority : 10
     });
     setPreview(profile.imageUrl?.startsWith("/uploads") ? `${API_BASE}${profile.imageUrl}` : profile.imageUrl);
     setPendingFile(null);
@@ -140,7 +148,7 @@ export const Union = () => {
       const data = await res.json();
       if (data.success) {
         toast.success(nextStatus ? "Profile reactivated successfully!" : "Profile deactivated successfully!");
-        fetchUnion();
+        fetchData();
       } else {
         toast.error(data.message || "Failed to update profile status");
       }
@@ -188,7 +196,7 @@ export const Union = () => {
         setActiveProfile(null);
         setPendingFile(null);
         setPreview(null);
-        fetchUnion();
+        fetchData();
       } else {
         toast.error(result.message || "Failed to save profile slot");
       }
@@ -199,160 +207,145 @@ export const Union = () => {
     }
   };
 
-  // ── HARDCODED SEMANTIC SECTIONS for Student Union Executive Committee ──
-  // Backend returns profiles sorted by priority ASC, createdAt DESC.
-  // Sections: President=1, Vice President=2, Secretary=3, Coordinators=4+
-  const UNION_SECTIONS = [
-    { label: 'Student Union President',       min: 1, max: 1 },
-    { label: 'Vice Presidents',               min: 2, max: 2 },
-    { label: 'Secretary',                     min: 3, max: 3 },
-    { label: 'Coordinators & Committee',      min: 4, max: 10 },
-  ];
-
-  const getSectionProfiles = (min, max) =>
-    profiles.filter(p => (p.priority ?? 10) >= min && (p.priority ?? 10) <= max);
-
   return (
     <div className="min-h-screen bg-gray-50 pt-28 pb-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        
-        {/* Page Header */}
-        <div className="text-center mb-16 relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-6 opacity-10">
-            <Users className="w-24 h-24 text-blue-600" />
-          </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-100 uppercase tracking-widest mb-4">
-            <Sparkles className="w-3.5 h-3.5" /> Student Voice
-          </span>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-950 mb-4 tracking-tight">
-            Student Union
-          </h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-6">
-            Meet your elected Student Union representatives leading student initiatives, organizing campus events, and representing student rights.
-          </p>
+        {/* Back Link */}
+        <Link to="/" className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition-colors mb-6">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+        </Link>
 
-          {isAdmin && (
-            <div className="flex justify-center">
-              <button
-                onClick={handleAddClick}
-                className="mb-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-200"
-              >
-                ➕ Add Completely New Leader
-              </button>
+        {/* Page Header */}
+        {department && (
+          <div className="text-center mb-16 relative">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-6 opacity-10">
+              <Award className="w-24 h-24 text-sky-700" />
             </div>
-          )}
-        </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-100 uppercase tracking-widest mb-4">
+              <Sparkles className="w-3.5 h-3.5" /> DBU Leadership
+            </span>
+            <h1 className="text-4xl md:text-5xl font-black text-gray-950 mb-4 tracking-tight">
+              {department.name}
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-6">
+              View official leadership and administrative staff members serving in the {department.name}.
+            </p>
+
+            {isAdmin && (
+              <div className="flex justify-center gap-4 flex-wrap">
+                <button
+                  onClick={handleAddClick}
+                  className="mb-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2 cursor-pointer"
+                >
+                  ➕ Add Completely New Leader
+                </button>
+                <Link
+                  to="/admin"
+                  className="mb-6 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition duration-200 text-sm flex items-center gap-2"
+                >
+                  Manage Profiles in Staff Manager
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Profiles Grid */}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="text-center">
               <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">Loading union profiles...</p>
+              <p className="text-gray-500 font-medium">Loading leadership profiles...</p>
             </div>
           </div>
         ) : error ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 max-w-md mx-auto shadow-sm">
             <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Failed to load profiles</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Error Loading Profiles</h3>
             <p className="text-gray-500 text-sm px-6">{error}</p>
           </div>
         ) : profiles.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-gray-200 max-w-md mx-auto shadow-sm">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-gray-900 mb-1">No Student Union Profiles</h3>
-            <p className="text-gray-500 text-sm px-6">No profiles found in the database. Add union representatives through the Admin panel.</p>
+            <Award className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 mb-1">No Active Profiles</h3>
+            <p className="text-gray-500 text-sm px-6">
+              No staff profiles are currently assigned to this department. Seed profiles or add them in the admin dashboard.
+            </p>
           </div>
         ) : (
-          <div className="space-y-16">
-            {/* ── Student Union Executive Committee: hardcoded semantic sections ── */}
-            {UNION_SECTIONS.map(({ label, min, max }) => {
-              const sectionProfiles = getSectionProfiles(min, max);
-              if (sectionProfiles.length === 0) return null;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {profiles.map((profile, index) => {
+              const imageUrl = profile.imageUrl?.startsWith("/uploads")
+                ? `${API_BASE}${profile.imageUrl}`
+                : (profile.imageUrl || "");
               return (
-                <div key={label} className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
-                      {label}
-                    </h2>
-                    <div className="h-[2px] bg-blue-100 w-full rounded-full" />
+                <motion.div
+                  key={profile._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`relative bg-white rounded-2xl p-6 shadow-sm border ${
+                    profile.isActive === false
+                      ? "opacity-60 border-amber-200 bg-amber-50/10"
+                      : "border-gray-200/80 hover:border-blue-200"
+                  } flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(30,58,138,0.08)] group`}
+                  onClick={() => navigate(`/profile/${profile._id}`)}
+                >
+                  {isAdmin && (
+                    <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleEditClick(profile); }}
+                        className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
+                        title="Edit details"
+                      >✏️ Edit</button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeactivateToggleClick(profile); }}
+                        className={`${
+                          profile.isActive === false
+                            ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
+                            : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
+                        } font-bold text-xs px-2 py-1 rounded transition-colors`}
+                        title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
+                      >
+                        {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
+                      </button>
+                    </div>
+                  )}
+                  {profile.isActive === false && (
+                    <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
+                      Deactivated
+                    </span>
+                  )}
+                  <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-sky-50 bg-gray-55 shadow-md">
+                    <img
+                      src={imageUrl}
+                      alt={profile.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A&size=192`;
+                      }}
+                    />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {sectionProfiles.map((profile, index) => {
-                      const imageUrl = profile.imageUrl?.startsWith("/uploads")
-                        ? `${API_BASE}${profile.imageUrl}`
-                        : (profile.imageUrl || "");
-                      return (
-                        <motion.div
-                          key={profile._id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className={`relative bg-white rounded-2xl p-6 shadow-sm border ${
-                            profile.isActive === false
-                              ? 'opacity-60 border-amber-200 bg-amber-50/10'
-                              : 'border-gray-200/80 hover:border-blue-200'
-                          } flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(37,99,235,0.08)] group`}
-                          onClick={() => navigate(`/profile/${profile._id}`)}
-                        >
-                          {isAdmin && (
-                            <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleEditClick(profile); }}
-                                className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
-                                title="Edit details"
-                              >✏️ Edit</button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeactivateToggleClick(profile); }}
-                                className={`${
-                                  profile.isActive === false
-                                    ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
-                                    : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
-                                } font-bold text-xs px-2 py-1 rounded transition-colors`}
-                                title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
-                              >
-                                {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
-                              </button>
-                            </div>
-                          )}
-                          {profile.isActive === false && (
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
-                              Deactivated
-                            </span>
-                          )}
-                          <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-blue-5 bg-gray-55 shadow-md flex items-center justify-center">
-                            <img
-                              src={imageUrl}
-                              alt={profile.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EFF6FF&color=2563EB&size=192`;
-                              }}
-                            />
-                          </div>
-                          <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{profile.name}</h3>
-                          <p className="text-blue-600 font-semibold text-sm mb-4">{profile.title}</p>
-                          <div className="text-gray-600 text-sm mb-6 flex-grow text-left w-full bg-gray-50 p-4 rounded-xl border border-gray-100 line-clamp-3">
-                            <p>{profile.background || "No bio summary listed."}</p>
-                          </div>
-                          <div className="mt-auto w-full pt-4 border-t border-gray-100">
-                            <span className="text-blue-600 font-bold hover:underline flex items-center justify-center gap-1.5 text-sm">
-                              View Full Profile <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                  <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">
+                    {profile.name}
+                  </h3>
+                  <p className="text-blue-600 font-semibold text-sm mb-4">{profile.title}</p>
+                  <div className="text-gray-600 text-sm mb-6 flex-grow text-left w-full bg-gray-50 p-4 rounded-xl border border-gray-100 line-clamp-3">
+                    <p>{profile.background || "No bio summary listed."}</p>
                   </div>
-                </div>
+                  <div className="mt-auto w-full pt-4 border-t border-gray-100">
+                    <span className="text-blue-700 font-bold hover:underline flex items-center justify-center gap-1.5 text-sm">
+                      View Full Profile <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </div>
+                </motion.div>
               );
             })}
           </div>
         )}
-
       </div>
 
-      {/* Unified Edit/Add Popup Modal */}
+      {/* Unified Add/Edit popup modal */}
       <AnimatePresence>
         {openModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -364,8 +357,8 @@ export const Union = () => {
             >
               <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  {activeProfile ? "Modify Union Representative Slot" : "Reserve New Union Representative Slot"}
+                  <Award className="w-5 h-5 text-blue-600" />
+                  {activeProfile ? "Modify Leadership Profile Slot" : "Reserve New Leadership Profile Slot"}
                 </h2>
                 <button onClick={() => setOpenModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
                   <X className="w-6 h-6" />
@@ -414,7 +407,7 @@ export const Union = () => {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                        placeholder="e.g. Addisu Yirdaw"
+                        placeholder="e.g. Dr. Tigist Bekele"
                       />
                     </div>
 
@@ -426,40 +419,31 @@ export const Union = () => {
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                        placeholder="e.g. Student Union President"
+                        placeholder="e.g. Dining Services Coordinator"
                       />
                     </div>
 
                     <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Department / Profession *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                      placeholder="e.g. Student Affairs Council"
-                      list="union-depts-datalist"
-                    />
-                    <datalist id="union-depts-datalist">
-                      {departments.map((dept) => (
-                        <option key={dept._id} value={dept.name} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Rank Priority <span className="font-normal text-gray-400">(1=President, 2=VP, 3=Secretary, 4=Coordinator)</span></label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 outline-none"
-                    >
-                      <option value={1}>1 — Student Union President</option>
-                      <option value={2}>2 — Vice President</option>
-                      <option value={3}>3 — Secretary</option>
-                      <option value={4}>4 — Coordinator / Committee Member</option>
-                    </select>
-                  </div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Department / Unit</label>
+                      <input
+                        type="text"
+                        required
+                        disabled
+                        value={formData.department}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1">Rank / Priority <span className="font-normal text-gray-400">(1=Top, 10=Default)</span></label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={formData.priority}
+                        onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 10 })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -470,7 +454,7 @@ export const Union = () => {
                     <select
                       value={formData.pageGroup}
                       onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-855 outline-none"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 outline-none"
                       required
                     >
                       <option value="university_exec">University Executives</option>
@@ -488,19 +472,19 @@ export const Union = () => {
                       value={formData.background}
                       onChange={(e) => setFormData({ ...formData, background: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-800"
-                      placeholder="Academic history, election background, credentials..."
+                      placeholder="Academic qualifications, professional background, years of service..."
                     ></textarea>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Responsibility / Function Details *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Responsibility / Service Details *</label>
                     <textarea
                       required
                       rows="3"
                       value={formData.responsibility}
                       onChange={(e) => setFormData({ ...formData, responsibility: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-800"
-                      placeholder="Mandates, representative duties, committee roles..."
+                      placeholder="Core duties, leadership scope, mandate..."
                     ></textarea>
                   </div>
                 </div>
@@ -531,4 +515,4 @@ export const Union = () => {
   );
 };
 
-export default Union;
+export default LeadershipDepartment;

@@ -1,12 +1,15 @@
 /** @format */
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom"; // ✅ Added useLocation
-import { Menu, X, User, LogOut, Bell, MapPin, Mail, CircleUserRound } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Menu, X, User, LogOut, Bell, MapPin, Mail, CircleUserRound, Building2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { NotificationBadge } from "./NotificationBadge";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { apiService } from "../../services/api";
 import "../../app.css";
+
+const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "http://localhost:5000/api")).replace(/\/api$/, "");
 
 export function Header() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,6 +20,25 @@ export function Header() {
 	const location = useLocation(); // ✅ Get current route
 	const notifRef = useRef(null);
 	const [selectedClub, setSelectedClub] = useState(null);
+	const [departments, setDepartments] = useState([]);
+
+	const fetchDepts = React.useCallback(async () => {
+		try {
+			const data = await apiService.getDepartments();
+			if (data.success) {
+				setDepartments(data.departments);
+			}
+		} catch (err) {
+			console.error("Error fetching departments in header:", err);
+		}
+	}, []);
+
+	useEffect(() => {
+		fetchDepts();
+		// Re-fetch whenever admin creates / deletes a department
+		window.addEventListener("departments-updated", fetchDepts);
+		return () => window.removeEventListener("departments-updated", fetchDepts);
+	}, [fetchDepts]);
 
 	const clubsData = [
 		{ id: "tecktonic", name: "Tecktonic", desc: "The hub for digital transformation. Focuses on software engineering, AI research, and competitive coding.", activities: "Hackathons, Tech-Talks, and Hardware Prototyping." },
@@ -66,6 +88,35 @@ export function Header() {
 		{ name: "Student Services", href: "/student-services" },
 		{ name: "Dormitory Management", href: "/dormitory-management" },
 	];
+
+	// Filter out any departments fetched from the database that are duplicates of the core leadership pages
+	const coreNames = leadershipPages.map(p => p.name.toLowerCase().trim());
+	const blacklist = [
+		"club",
+		"ልዩ",
+		"vice president",
+		"vice president, administration and develo",
+		"audit and finace student union",
+		"executive committee",
+		"clubs & associations committee",
+		"housing & accommodation services",
+		"office of the dean",
+		"psychology & guidance department",
+		"president's office"
+	];
+	const customDepartments = departments.filter(dept => {
+		if (!dept.name) return false;
+		const nameLower = dept.name.toLowerCase().trim();
+		if (coreNames.includes(nameLower)) return false;
+		
+		const matchesBlacklist = blacklist.some(item => 
+			nameLower === item || 
+			nameLower.startsWith(item) ||
+			nameLower.includes("vice president") ||
+			nameLower.includes("audit and finace")
+		);
+		return !matchesBlacklist;
+	});
 
 	const protectedNavigation = [
 		...(user
@@ -182,16 +233,29 @@ export function Header() {
 							</React.Fragment>
 						))}
 						
-						{/* Leadership Dropdown */}
+						{/* ── Union & Leadership Dropdown — Hybrid Dynamic ── */}
 						<div className="relative group">
 							<button className="text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-1">
 								Union & Leadership <span className="text-xs">▼</span>
 							</button>
 							<div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-								<div className="py-2">
+								<div className="py-2 max-h-80 overflow-y-auto">
 									{leadershipPages.map(page => (
-										<Link key={page.href} to={page.href} className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium">
+										<Link
+											key={page.href}
+											to={page.href}
+											className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
+										>
 											{page.name}
+										</Link>
+									))}
+									{customDepartments.map(dept => (
+										<Link
+											key={dept._id}
+											to={`/leadership/${dept._id}`}
+											className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
+										>
+											{dept.name}
 										</Link>
 									))}
 								</div>
@@ -319,12 +383,27 @@ export function Header() {
 							</React.Fragment>
 						))}
 
-						{/* Mobile Leadership Menu */}
+						{/* ── Mobile: Union & Leadership — Hybrid Dynamic ── */}
 						<div className="pt-2 pb-1 border-t border-gray-100 mt-2">
 							<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Union & Leadership Directory</p>
 							{leadershipPages.map(page => (
-								<Link key={page.href} to={page.href} onClick={() => setIsMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium">
+								<Link
+									key={page.href}
+									to={page.href}
+									onClick={() => setIsMenuOpen(false)}
+									className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium"
+								>
 									{page.name}
+								</Link>
+							))}
+							{customDepartments.map(dept => (
+								<Link
+									key={dept._id}
+									to={`/leadership/${dept._id}`}
+									onClick={() => setIsMenuOpen(false)}
+									className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium"
+								>
+									{dept.name}
 								</Link>
 							))}
 						</div>

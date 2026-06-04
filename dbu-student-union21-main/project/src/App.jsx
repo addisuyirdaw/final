@@ -31,6 +31,7 @@ import { Executives } from "./components/Pages/Executives";
 import { Union } from "./components/Pages/Union";
 import { ServicesDirectory } from "./components/Pages/ServicesDirectory";
 import { Dormitory } from "./components/Pages/Dormitory";
+import { LeadershipDepartment } from "./components/Pages/LeadershipDepartment";
 import { Profile } from "./components/Pages/Profile";
 import { UserManagement } from "./components/Admin/UserManagement";
 import "./index.css";
@@ -194,6 +195,7 @@ function AppContent() {
           <Route path="/student-union" element={<Union />} />
           <Route path="/student-services" element={<ServicesDirectory />} />
           <Route path="/dormitory-management" element={<Dormitory />} />
+          <Route path="/leadership/:departmentId" element={<LeadershipDepartment />} />
           <Route path="/profile/:id" element={<LeadershipProfile />} />
           <Route path="/restricted" element={user?.isRestricted ? <RestrictedAccess /> : <Navigate to="/" replace />} />
           <Route path="/blocked" element={<RestrictedAccess />} />

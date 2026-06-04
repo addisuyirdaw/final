@@ -16,13 +16,19 @@ import {
   FileText,
   X,
   Loader,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FolderPlus,
+  Trash2,
+  Building2,
+  Plus
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+
+const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "http://localhost:5000/api")).replace(/\/api$/, "");
 
 // Create User Modal Component
 const CreateUserModal = ({ onClose, onSuccess }) => {
@@ -239,8 +245,84 @@ export function AdminDashboard() {
   // Modal states
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
+  // Department Manager state
+  const [departments, setDepartments] = useState([]);
+  const [deptLoading, setDeptLoading] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [deptSaving, setDeptSaving] = useState(false);
+  const [deletingDeptId, setDeletingDeptId] = useState(null);
+
+  const isSystemAdmin = user && (user.role === 'system_admin' || user.role === 'admin' || user.isAdmin === true) &&
+    (user.username === 'dbu10101030' || user.username?.toLowerCase() === 'dbu10101030');
+
+  const fetchDepartments = async () => {
+    try {
+      setDeptLoading(true);
+      const res = await fetch(`${API_BASE}/api/departments`);
+      const data = await res.json();
+      if (data.success) setDepartments(data.departments);
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    } finally {
+      setDeptLoading(false);
+    }
+  };
+
+  const handleCreateDept = async (e) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+    try {
+      setDeptSaving(true);
+      const res = await fetch(`${API_BASE}/api/departments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ name: newDeptName.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Department "${data.department.name}" created!`);
+        setNewDeptName("");
+        fetchDepartments();
+        window.dispatchEvent(new Event('departments-updated'));
+      } else {
+        toast.error(data.message || 'Failed to create department');
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setDeptSaving(false);
+    }
+  };
+
+  const handleDeleteDept = async (deptId, deptName) => {
+    if (!window.confirm(`Delete department "${deptName}"? Staff members assigned to it will remain but the header link will be removed.`)) return;
+    try {
+      setDeletingDeptId(deptId);
+      const res = await fetch(`${API_BASE}/api/departments/${deptId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Department "${deptName}" deleted.`);
+        fetchDepartments();
+        window.dispatchEvent(new Event('departments-updated'));
+      } else {
+        toast.error(data.message || 'Failed to delete department');
+      }
+    } catch (err) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setDeletingDeptId(null);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
+    fetchDepartments();
   }, [selectedTimeframe]);
 
   const fetchDashboardData = async () => {
@@ -610,6 +692,88 @@ export function AdminDashboard() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── Department Manager ───────────────────────────────────────── */}
+      {isSystemAdmin && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="bg-white rounded-xl p-6 shadow-sm border border-blue-100"
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Department / Navigation Manager</h3>
+              <p className="text-sm text-gray-500">Create or remove entries from the "Union &amp; Leadership" header dropdown</p>
+            </div>
+          </div>
+
+          {/* Create new dept */}
+          <form onSubmit={handleCreateDept} className="flex gap-3 mb-6">
+            <input
+              type="text"
+              value={newDeptName}
+              onChange={(e) => setNewDeptName(e.target.value)}
+              placeholder="e.g. University Dining Office"
+              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              required
+            />
+            <button
+              type="submit"
+              disabled={deptSaving || !newDeptName.trim()}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-60"
+            >
+              {deptSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {deptSaving ? 'Creating...' : 'Create'}
+            </button>
+          </form>
+
+          {/* Dept list */}
+          {deptLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader className="w-6 h-6 text-blue-500 animate-spin" />
+            </div>
+          ) : departments.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <FolderPlus className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No departments yet. Create the first one above.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <AnimatePresence>
+                {departments.map(dept => (
+                  <motion.div
+                    key={dept._id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    className="flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg group hover:border-blue-200 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-800">{dept.name}</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteDept(dept._id, dept.name)}
+                      disabled={deletingDeptId === dept._id}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete department"
+                    >
+                      {deletingDeptId === dept._id
+                        ? <Loader className="w-4 h-4 animate-spin" />
+                        : <Trash2 className="w-4 h-4" />}
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              <p className="text-xs text-gray-400 pt-1">Total: {departments.length} department{departments.length !== 1 ? 's' : ''} — each appears as a link in the site header.</p>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Modals */}
       {showCreateUserModal && (

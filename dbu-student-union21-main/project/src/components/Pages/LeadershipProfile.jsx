@@ -22,6 +22,9 @@ export const LeadershipProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("background");
+  const [backUrl, setBackUrl] = useState("/");
+  const [backLabel, setBackLabel] = useState("Directory");
+  const [departments, setDepartments] = useState([]);
   
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -60,6 +63,39 @@ export const LeadershipProfile = () => {
           isActive: data.profile.isActive !== undefined ? data.profile.isActive : true
         });
         setPreview(data.profile.imageUrl.startsWith("/uploads") ? `${API_BASE}${data.profile.imageUrl}` : data.profile.imageUrl);
+        
+        // Resolve dynamic back URL and load departments
+        const pg = data.profile.pageGroup || "university_exec";
+        let defaultUrl = "/";
+        let defaultLabel = "Directory";
+        switch (pg) {
+          case "university_exec": defaultUrl = "/executives"; defaultLabel = "Executives Directory"; break;
+          case "student_union": defaultUrl = "/student-union"; defaultLabel = "Student Union Directory"; break;
+          case "student_services": defaultUrl = "/student-services"; defaultLabel = "Student Services Directory"; break;
+          case "dormitory": defaultUrl = "/dormitory-management"; defaultLabel = "Dormitory Directory"; break;
+        }
+
+        try {
+          const deptsRes = await fetch(`${API_BASE}/api/departments`);
+          const deptsData = await deptsRes.json();
+          if (deptsData.success) {
+            setDepartments(deptsData.departments);
+            const match = deptsData.departments.find(d => d.name === data.profile.department);
+            if (match) {
+              setBackUrl(`/leadership/${match._id}`);
+              setBackLabel(match.name);
+            } else {
+              setBackUrl(defaultUrl);
+              setBackLabel(defaultLabel);
+            }
+          } else {
+            setBackUrl(defaultUrl);
+            setBackLabel(defaultLabel);
+          }
+        } catch (e) {
+          setBackUrl(defaultUrl);
+          setBackLabel(defaultLabel);
+        }
       } else {
         setError(data.message || "Profile not found");
       }
@@ -234,8 +270,8 @@ export const LeadershipProfile = () => {
     <div className="min-h-screen bg-gray-50 pt-28 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <Link to={getBackUrl()} className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to {getBackLabel()}
+          <Link to={backUrl} className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to {backLabel}
           </Link>
           
           {/* Admin Control Bar */}
@@ -513,7 +549,6 @@ export const LeadershipProfile = () => {
                           <option value="dormitory">Dormitory Management</option>
                         </select>
                       </div>
-                      <div>
                         {/* Dynamic Department text field as per Instruction 3! */}
                         <label className="block text-sm font-bold text-gray-700 mb-1">Department *</label>
                         <input
@@ -524,8 +559,13 @@ export const LeadershipProfile = () => {
                           onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="e.g. Office of the Dean"
+                          list="depts-datalist"
                         />
-                      </div>
+                        <datalist id="depts-datalist">
+                          {departments.map((dept) => (
+                            <option key={dept._id} value={dept.name} />
+                          ))}
+                        </datalist>
                     </div>
                   </div>
                 </div>

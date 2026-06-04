@@ -8,10 +8,10 @@ const staffSchema = new mongoose.Schema({
     required: true,
     enum: ['university_exec', 'student_union', 'student_services', 'dormitory']
   },
-  department: { type: String, required: true }, // Subcategories inside pages (e.g., Office of the Dean)
+  department: { type: String, required: true }, // Subcategories inside pages (dynamic string populated by created departments)
   background: { type: String, required: true }, // History/Credentials
   responsibility: { type: String, required: true }, // Specific job duties / Functions
-  imageUrl: { type: String, required: true },
+  imageUrl: { type: String },
   // Persistent base64 backup of the uploaded image — used for self-healing on ephemeral filesystems
   fileData: { type: String, select: false }, // base64 encoded image content
   fileName: { type: String },

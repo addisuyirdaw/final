@@ -23,6 +23,7 @@ const carouselRoutes = require("./routes/carousel");
 const leadershipRoutes = require("./routes/leadership");
 const staffRoutes = require("./routes/staff");
 const templateRoutes = require("./routes/templates");
+const departmentRoutes = require("./routes/departments");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -228,6 +229,7 @@ app.use("/api/carousel", carouselRoutes);
 app.use("/api/leadership", leadershipRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/templates", templateRoutes);
+app.use("/api/departments", departmentRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
