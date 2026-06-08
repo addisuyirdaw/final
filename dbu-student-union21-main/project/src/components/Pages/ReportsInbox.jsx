@@ -33,7 +33,13 @@ export const ReportsInbox = () => {
   const handleReview = async (e) => {
     e.preventDefault();
     try {
-      await apiService.reviewReport(selectedReport._id, { status: reviewStatus, feedback: reviewFeedback });
+      if (reviewStatus === 'APPROVED' || reviewStatus === 'PUBLISHED') {
+        await apiService.approveReport(selectedReport._id, { feedback: reviewFeedback });
+      } else if (reviewStatus === 'RETURNED') {
+        await apiService.returnReport(selectedReport._id, { feedback: reviewFeedback });
+      } else {
+        await apiService.reviewReport(selectedReport._id, { status: reviewStatus, feedback: reviewFeedback });
+      }
       setShowReviewModal(false);
       setSelectedReport(null);
       setReviewFeedback('');

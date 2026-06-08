@@ -25,6 +25,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
+import { useElectionVisibility } from "../../contexts/FeatureVisibilityContext";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -230,6 +231,8 @@ const CreateUserModal = ({ onClose, onSuccess }) => {
 export function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { electionVisible, refresh: refreshVisibility } = useElectionVisibility();
+  const [togglingElection, setTogglingElection] = useState(false);
   const [stats, setStats] = useState({
     users: { total: 0, active: 0, admins: 0, students: 0 },
     complaints: { total: 0, pending: 0, resolved: 0, underReview: 0 },
@@ -396,6 +399,20 @@ export function AdminDashboard() {
       toast.success('Report export started. You will receive it via email.');
     } catch (error) {
       toast.error('Failed to export report');
+    }
+  };
+
+  const handleToggleElection = async () => {
+    try {
+      setTogglingElection(true);
+      const result = await apiService.toggleElectionVisibility();
+      await refreshVisibility();
+      toast.success(result.message || 'Election visibility updated');
+    } catch (error) {
+      console.error('Toggle election error:', error);
+      toast.error(error.message || 'Failed to update election visibility');
+    } finally {
+      setTogglingElection(false);
     }
   };
 
@@ -597,6 +614,70 @@ export function AdminDashboard() {
             </button>
           ))}
         </div>
+      </motion.div>
+
+      {/* ── Presentation Controls ─────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 shadow-lg border border-slate-700"
+      >
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-lg">🎛️</span>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">Presentation Controls</h3>
+            <p className="text-sm text-slate-400">Master switches for feature visibility during evaluations</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+              electionVisible ? 'bg-emerald-400 shadow-emerald-400/50 shadow-[0_0_8px_2px]' : 'bg-red-400 shadow-red-400/50 shadow-[0_0_8px_2px]'
+            }`} />
+            <div>
+              <p className="text-white font-semibold text-sm">🗳️ Election Portal</p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {electionVisible
+                  ? 'Currently visible — Elections link shows in nav & dashboard'
+                  : 'Currently hidden — Elections link removed from all views'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            id="btn-toggle-election-visibility"
+            onClick={handleToggleElection}
+            disabled={togglingElection}
+            className={`relative inline-flex items-center gap-3 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 min-w-[180px] justify-center ${
+              electionVisible
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
+                : 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/30'
+            } disabled:opacity-60 disabled:cursor-not-allowed`}
+          >
+            {togglingElection ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Updating...
+              </>
+            ) : (
+              <>
+                <span className="text-base">{electionVisible ? '👁️' : '🙈'}</span>
+                {electionVisible ? 'HIDE Elections' : 'SHOW Elections'}
+              </>
+            )}
+          </button>
+        </div>
+
+        <p className="text-xs text-slate-500 mt-3">
+          ⚠️ Changes take effect immediately across all active sessions. State is persisted to the database.
+        </p>
       </motion.div>
 
       {/* Recent Activity & System Status */}

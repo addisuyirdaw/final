@@ -320,6 +320,20 @@ class ApiService {
     });
   }
 
+  async approveReport(reportId, reviewData) {
+    return this.request(`/reports/${reportId}/approve`, {
+      method: 'PUT',
+      body: JSON.stringify(reviewData)
+    });
+  }
+
+  async returnReport(reportId, reviewData) {
+    return this.request(`/reports/${reportId}/return`, {
+      method: 'PUT',
+      body: JSON.stringify(reviewData)
+    });
+  }
+
   async getInboxReports() {
     const response = await this.request('/reports/inbox');
     return response.reports || [];
@@ -653,6 +667,23 @@ class ApiService {
   /** Delete a leadership department by ID (Admin only) */
   async deleteDepartment(id) {
     return this.request(`/departments/${id}`, { method: 'DELETE' });
+  }
+
+  // ── System Configuration ──────────────────────────────────────────────────
+
+  /** Fetch global system config (public — no auth needed) */
+  async getSystemConfig() {
+    return this.request('/config');
+  }
+
+  /** Toggle election portal visibility (Admin only) */
+  async toggleElectionVisibility() {
+    return this.request('/config/toggle-election', { method: 'POST' });
+  }
+
+  /** Toggle any feature visibility (Admin only) */
+  async toggleFeatureVisibility(key) {
+    return this.request(`/config/toggle/${key}`, { method: 'POST' });
   }
 }
 

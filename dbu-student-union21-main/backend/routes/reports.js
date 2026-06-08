@@ -181,11 +181,17 @@ router.get('/club/:clubId', protect, async (req, res) => {
 
     let query = { club: req.params.clubId };
 
-    // If not a leader/coordinator, they can only see PUBLISHED reports
+    // If not a leader/coordinator:
+    // - They can see all PUBLISHED reports
+    // - They can also see their OWN reports (any status) so they get coordinator feedback on RETURNED reports
     if (!isLeader) {
-      // Must be a member to see even published reports (or optionally they can be public?)
-      // We will assume published reports are public/member-accessible
-      query.status = 'PUBLISHED';
+      query = {
+        club: req.params.clubId,
+        $or: [
+          { status: 'PUBLISHED' },
+          { submittedBy: req.user._id }
+        ]
+      };
     }
 
     const reports = await ActivityReport.find(query)
@@ -271,6 +277,88 @@ router.patch('/:id/review', protect, async (req, res) => {
   } catch (error) {
     console.error('Review report error:', error);
     res.status(500).json({ success: false, message: 'Server error reviewing report' });
+  }
+});
+
+// @desc    Approve and publish report
+// @route   PUT /api/reports/:id/approve
+// @access  Private/Coordinator/Admin/ClubLeader
+router.put('/:id/approve', protect, async (req, res) => {
+  try {
+    const report = await ActivityReport.findById(req.params.id).populate('club');
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    const club = report.club;
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isLeader = club && (
+      (club.leadership?.president?.toString() === req.user._id.toString()) ||
+      (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
+      req.user.role === 'president'
+    );
+
+    if (!isCoordinator && !isLeader) {
+      return res.status(403).json({ success: false, message: 'Not authorized to approve this report' });
+    }
+
+    const feedbackText = req.body.feedback !== undefined ? req.body.feedback : req.body.coordinatorFeedback;
+    report.status = 'PUBLISHED';
+    if (feedbackText !== undefined) {
+      report.feedback = feedbackText;
+      report.coordinatorFeedback = feedbackText;
+    }
+    await report.save();
+
+    res.json({
+      success: true,
+      message: 'Report approved and published successfully',
+      report
+    });
+  } catch (error) {
+    console.error('Approve report error:', error);
+    res.status(500).json({ success: false, message: 'Server error approving report' });
+  }
+});
+
+// @desc    Send back (return) report for revision
+// @route   PUT /api/reports/:id/return
+// @access  Private/Coordinator/Admin/ClubLeader
+router.put('/:id/return', protect, async (req, res) => {
+  try {
+    const report = await ActivityReport.findById(req.params.id).populate('club');
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    const club = report.club;
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isLeader = club && (
+      (club.leadership?.president?.toString() === req.user._id.toString()) ||
+      (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
+      req.user.role === 'president'
+    );
+
+    if (!isCoordinator && !isLeader) {
+      return res.status(403).json({ success: false, message: 'Not authorized to return this report' });
+    }
+
+    const feedbackText = req.body.feedback !== undefined ? req.body.feedback : req.body.coordinatorFeedback;
+    report.status = 'RETURNED';
+    if (feedbackText !== undefined) {
+      report.feedback = feedbackText;
+      report.coordinatorFeedback = feedbackText;
+    }
+    await report.save();
+
+    res.json({
+      success: true,
+      message: 'Report returned successfully',
+      report
+    });
+  } catch (error) {
+    console.error('Return report error:', error);
+    res.status(500).json({ success: false, message: 'Server error returning report' });
   }
 });
 

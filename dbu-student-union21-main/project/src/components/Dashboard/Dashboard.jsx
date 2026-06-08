@@ -21,11 +21,16 @@ import {
 	Archive,
 	Image as ImageIcon,
 	X,
-	Upload
+	Upload,
+	Pencil,
+	ChevronDown,
+	ChevronUp
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiService } from "../../services/api";
+import { useFeatureVisibility } from "../../contexts/FeatureVisibilityContext";
+import toast from "react-hot-toast";
 import "../../app.css";
 
 // Animated Counter Component
@@ -244,6 +249,20 @@ const LeadershipBranchCreator = ({ apiService }) => {
 export function Dashboard() {
 
 	const { user } = useAuth();
+	const {
+		electionVisible,
+		leadershipVisible,
+		clubsVisible,
+		servicesVisible,
+		complaintsVisible,
+		refresh: refreshVisibility
+	} = useFeatureVisibility();
+	const [togglingKeys, setTogglingKeys] = useState({});
+	const isElectionToggler = user && (
+		['dbu10101020', 'dbu10101030'].includes(user.username) ||
+		user.role === 'president' ||
+		user.role === 'system_admin'
+	);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [error, setError] = useState(null);
@@ -264,6 +283,24 @@ export function Dashboard() {
 	// DB-backed directives state
 	const [dbDirectives, setDbDirectives] = useState([]);
 	const [directivesLoading, setDirectivesLoading] = useState(true);
+
+	// Edit directive state
+	const [editingDirectiveId, setEditingDirectiveId] = useState(null);
+	const [editDirectiveForm, setEditDirectiveForm] = useState({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+	const [editDirectiveUploading, setEditDirectiveUploading] = useState(false);
+	const [showPublishedDropdown, setShowPublishedDropdown] = useState(false);
+
+	// Edit club event state
+	const [clubEvents, setClubEvents] = useState(() => {
+		try {
+			return JSON.parse(localStorage.getItem('club_events') || '[]');
+		} catch {
+			return [];
+		}
+	});
+	const [editingEventId, setEditingEventId] = useState(null);
+	const [editEventForm, setEditEventForm] = useState({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+	const [showEventsDropdown, setShowEventsDropdown] = useState(false);
 
 	const [stats, setStats] = useState([
 		{
@@ -455,6 +492,20 @@ export function Dashboard() {
 		return () => clearInterval(interval);
 	}, [loadDashboardStats]);
 
+	const handleToggleFeature = async (key, displayName) => {
+		try {
+			setTogglingKeys(prev => ({ ...prev, [key]: true }));
+			const result = await apiService.toggleFeatureVisibility(key);
+			await refreshVisibility();
+			toast.success(result.message || `${displayName} visibility updated`);
+		} catch (error) {
+			console.error(`Toggle ${key} error:`, error);
+			toast.error(error.message || `Failed to update ${displayName} visibility`);
+		} finally {
+			setTogglingKeys(prev => ({ ...prev, [key]: false }));
+		}
+	};
+
 	const getGreeting = () => {
 		const hour = new Date().getHours();
 		if (hour < 12) return "Good morning";
@@ -544,6 +595,7 @@ export function Dashboard() {
 			if (result?.success || result?.post) {
 				// Reload directives from DB
 				await loadDirectives();
+				setShowPublishedDropdown(true);
 				setShowDirectiveForm(false);
 				setDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
 				setDirectiveImage(null);
@@ -568,19 +620,116 @@ export function Dashboard() {
 		try {
 			await apiService.deleteDirective(id);
 			setDbDirectives(prev => prev.filter(d => d._id !== id));
+			if (editingDirectiveId === id) setEditingDirectiveId(null);
 		} catch (err) {
 			alert('Failed to delete directive: ' + (err.message || 'Unknown error'));
+		}
+	};
+
+	const handleStartEditDirective = (dir) => {
+		setEditingDirectiveId(dir._id);
+		setEditDirectiveForm({
+			title: dir.title || '',
+			category: dir.category || 'Academic',
+			priority: dir.important ? 'Urgent' : 'Normal',
+			message: dir.content || '',
+		});
+	};
+
+	const handleCancelEditDirective = () => {
+		setEditingDirectiveId(null);
+		setEditDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+	};
+
+	const handleUpdateDirective = async (e, id) => {
+		e.preventDefault();
+		setEditDirectiveUploading(true);
+		try {
+			const categoryMap = { 'Academic': 'Academic', 'Housing': 'Housing', 'Guidance': 'Guidance' };
+			const postCategory = categoryMap[editDirectiveForm.category] || 'General';
+			const result = await apiService.updatePost(id, {
+				title: editDirectiveForm.title,
+				content: editDirectiveForm.message,
+				category: postCategory,
+				important: editDirectiveForm.priority === 'Urgent',
+				type: 'Directive',
+				status: 'published',
+			});
+			if (result?.success || result?.post) {
+				await loadDirectives();
+				setEditingDirectiveId(null);
+				setEditDirectiveForm({ title: '', category: 'Academic', priority: 'Normal', message: '' });
+				alert('✅ Directive updated successfully!');
+			} else {
+				throw new Error(result?.message || 'Failed to update directive');
+			}
+		} catch (err) {
+			alert('Failed to update directive: ' + (err.message || 'Unknown error'));
+		} finally {
+			setEditDirectiveUploading(false);
 		}
 	};
 
 	const handlePostEvent = (e) => {
 		e.preventDefault();
 		const current = JSON.parse(localStorage.getItem('club_events') || '[]');
-		current.unshift({ ...eventForm, id: Date.now(), author: user?.name || 'Club Leader', timestamp: new Date().toISOString() });
+		const newEvent = { ...eventForm, id: Date.now(), author: user?.name || 'Club Leader', timestamp: new Date().toISOString() };
+		current.unshift(newEvent);
 		localStorage.setItem('club_events', JSON.stringify(current));
+		setClubEvents(current);
 		setShowEventForm(false);
 		setEventForm({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+		setShowEventsDropdown(true);
 		alert("Club Event published successfully.");
+	};
+
+	const handleDeleteEvent = (id) => {
+		if (!window.confirm('Delete this event permanently?')) return;
+		const current = JSON.parse(localStorage.getItem('club_events') || '[]');
+		const filtered = current.filter(evt => evt.id !== id);
+		localStorage.setItem('club_events', JSON.stringify(filtered));
+		setClubEvents(filtered);
+		if (editingEventId === id) setEditingEventId(null);
+	};
+
+	const handleStartEditEvent = (evt) => {
+		setEditingEventId(evt.id);
+		setEditEventForm({
+			name: evt.name || '',
+			club: evt.club || 'Tecktonic',
+			date: evt.date || '',
+			location: evt.location || '',
+			description: evt.description || '',
+		});
+	};
+
+	const handleCancelEditEvent = () => {
+		setEditingEventId(null);
+		setEditEventForm({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+	};
+
+	const handleUpdateEvent = (e, id) => {
+		e.preventDefault();
+		const current = JSON.parse(localStorage.getItem('club_events') || '[]');
+		const updated = current.map(evt => {
+			if (evt.id === id) {
+				return {
+					...evt,
+					name: editEventForm.name,
+					club: editEventForm.club,
+					date: editEventForm.date,
+					location: editEventForm.location,
+					description: editEventForm.description,
+					timestamp: new Date().toISOString(),
+				};
+			}
+			return evt;
+		});
+		localStorage.setItem('club_events', JSON.stringify(updated));
+		setClubEvents(updated);
+		setEditingEventId(null);
+		setEditEventForm({ name: '', club: 'Tecktonic', date: '', location: '', description: '' });
+		alert("Club Event updated successfully.");
 	};
 
 	// Use database directives
@@ -941,35 +1090,164 @@ export function Dashboard() {
 							</form>
 						)}
 
-						<div className="p-4 sm:p-6 bg-white">
-							<h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Recent Directives</h4>
-							<div className="space-y-4">
-								{directivesLoading ? (
-									<p className="text-gray-400 text-sm animate-pulse">Loading directives…</p>
-								) : dbDirectives.length > 0 ? dbDirectives.slice(0, 3).map(dir => (
-									<div key={dir._id} className="border border-gray-100 rounded-lg p-4 flex justify-between items-start group hover:bg-gray-50">
-										<div>
-											<span className={`text-xs font-bold px-2 py-1 rounded-full mb-2 inline-block ${dir.important ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
-												{dir.important ? 'Urgent' : 'Normal'}
-											</span>
-											<h5 className="font-bold text-gray-900">{dir.title}</h5>
-											<p className="text-xs text-gray-500 mt-1">
-												Posted {Math.floor((Date.now() - new Date(dir.createdAt).getTime()) / 60000)} min ago
-												{dir.author?.name ? ` by ${dir.author.name}` : ''}
-											</p>
-										</div>
-										<div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-											<button
-												onClick={() => handleDeleteDirective(dir._id)}
-												className="p-1.5 text-gray-400 hover:text-red-600 rounded bg-white shadow-sm border border-gray-200"
-												title="Delete directive"
-											><Trash2 className="w-4 h-4" /></button>
-										</div>
-									</div>
-								)) : (
-									<p className="text-gray-500 text-sm">No directives posted yet.</p>
+						<div className="p-4 sm:p-6 bg-white border-t border-gray-100">
+							<button
+								type="button"
+								onClick={() => setShowPublishedDropdown(!showPublishedDropdown)}
+								className="w-full flex items-center justify-between text-sm font-bold text-gray-700 uppercase tracking-wider py-2 hover:text-red-700 transition-colors focus:outline-none"
+							>
+								<span className="flex items-center gap-2">
+									<FileText className="w-4 h-4 text-red-500" />
+									Posted & Published Directives ({dbDirectives.length})
+								</span>
+								{showPublishedDropdown ? (
+									<ChevronUp className="w-5 h-5 text-gray-500" />
+								) : (
+									<ChevronDown className="w-5 h-5 text-gray-500" />
 								)}
-							</div>
+							</button>
+
+							<AnimatePresence>
+								{showPublishedDropdown && (
+									<motion.div
+										initial={{ opacity: 0, height: 0 }}
+										animate={{ opacity: 1, height: 'auto' }}
+										exit={{ opacity: 0, height: 0 }}
+										transition={{ duration: 0.2 }}
+										className="space-y-4 mt-4 overflow-hidden"
+									>
+										{directivesLoading ? (
+											<p className="text-gray-400 text-sm animate-pulse">Loading directives…</p>
+										) : dbDirectives.length > 0 ? dbDirectives.map(dir => (
+											<div key={dir._id} className="border border-gray-100 rounded-lg overflow-hidden group hover:border-red-200 transition-colors">
+												{/* Directive summary row */}
+												<div className="p-4 flex justify-between items-start hover:bg-gray-50">
+													<div className="flex-1 min-w-0">
+														<span className={`text-xs font-bold px-2 py-1 rounded-full mb-2 inline-block ${dir.important ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+															{dir.important ? 'Urgent' : 'Normal'}
+														</span>
+														<h5 className="font-bold text-gray-900 truncate">{dir.title}</h5>
+														<p className="text-xs text-gray-500 mt-1">
+															Posted {Math.floor((Date.now() - new Date(dir.createdAt).getTime()) / 60000)} min ago
+															{dir.author?.name ? ` by ${dir.author.name}` : ''}
+														</p>
+													</div>
+													<div className="flex gap-2 ml-3 flex-shrink-0">
+														<button
+															type="button"
+															onClick={() => editingDirectiveId === dir._id ? handleCancelEditDirective() : handleStartEditDirective(dir)}
+															className={`p-1.5 rounded border shadow-sm transition-colors ${
+																editingDirectiveId === dir._id
+																	? 'bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200'
+																	: 'bg-white border-gray-200 text-gray-400 hover:text-amber-600 hover:border-amber-300'
+															}`}
+															title={editingDirectiveId === dir._id ? 'Cancel edit' : 'Edit directive'}
+														>
+															{editingDirectiveId === dir._id ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+														</button>
+														<button
+															type="button"
+															onClick={() => handleDeleteDirective(dir._id)}
+															className="p-1.5 text-gray-400 hover:text-red-600 rounded bg-white shadow-sm border border-gray-200 hover:border-red-300 transition-colors"
+															title="Delete directive"
+														>
+															<Trash2 className="w-4 h-4" />
+														</button>
+													</div>
+												</div>
+
+												{/* Inline Edit Form */}
+												<AnimatePresence>
+													{editingDirectiveId === dir._id && (
+														<motion.div
+															initial={{ opacity: 0, height: 0 }}
+															animate={{ opacity: 1, height: 'auto' }}
+															exit={{ opacity: 0, height: 0 }}
+															transition={{ duration: 0.2 }}
+														>
+															<form
+																onSubmit={(e) => handleUpdateDirective(e, dir._id)}
+																className="p-4 bg-amber-50 border-t border-amber-100 space-y-3"
+															>
+																<p className="text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+																	<Pencil className="w-3 h-3" /> Editing Directive
+																</p>
+																<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+																	<div className="sm:col-span-2">
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Title</label>
+																		<input
+																			required
+																			value={editDirectiveForm.title}
+																			onChange={e => setEditDirectiveForm({ ...editDirectiveForm, title: e.target.value })}
+																			type="text"
+																			className="w-full border border-amber-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 rounded-lg px-3 py-2 text-sm outline-none bg-white"
+																		/>
+																	</div>
+																	<div>
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+																		<select
+																			value={editDirectiveForm.category}
+																			onChange={e => setEditDirectiveForm({ ...editDirectiveForm, category: e.target.value })}
+																			className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-white"
+																		>
+																			<option>Academic</option>
+																			<option>Housing</option>
+																			<option>Guidance</option>
+																		</select>
+																	</div>
+																	<div>
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
+																		<select
+																			value={editDirectiveForm.priority}
+																			onChange={e => setEditDirectiveForm({ ...editDirectiveForm, priority: e.target.value })}
+																			className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-white"
+																		>
+																			<option>Normal</option>
+																			<option>Urgent</option>
+																		</select>
+																	</div>
+																	<div className="sm:col-span-2">
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Message Body</label>
+																		<textarea
+																			required
+																			rows={3}
+																			value={editDirectiveForm.message}
+																			onChange={e => setEditDirectiveForm({ ...editDirectiveForm, message: e.target.value })}
+																			className="w-full border border-amber-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 rounded-lg px-3 py-2 text-sm outline-none bg-white resize-none"
+																		/>
+																	</div>
+																</div>
+																<div className="flex gap-2 pt-1">
+																	<button
+																		type="submit"
+																		disabled={editDirectiveUploading}
+																		className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+																	>
+																		{editDirectiveUploading ? (
+																			<><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+																		) : (
+																			<><CheckCircle className="w-4 h-4" /> Save Changes</>
+																		)}
+																	</button>
+																	<button
+																		type="button"
+																		onClick={handleCancelEditDirective}
+																		className="flex items-center gap-2 bg-white hover:bg-gray-100 text-gray-600 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 transition-colors"
+																	>
+																		<X className="w-4 h-4" /> Cancel
+																	</button>
+																</div>
+															</form>
+														</motion.div>
+													)}
+												</AnimatePresence>
+											</div>
+										)) : (
+											<p className="text-gray-500 text-sm">No directives posted yet.</p>
+										)}
+									</motion.div>
+								)}
+							</AnimatePresence>
 						</div>
 					</motion.div>
 				)}
@@ -1029,11 +1307,171 @@ export function Dashboard() {
 							</form>
 						)}
 
-						<div className="p-4 sm:p-6 bg-white">
-							<h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Your Posted Events</h4>
-							<div className="space-y-4">
-								<p className="text-gray-500 text-sm">No recent events posted.</p>
-							</div>
+						<div className="p-4 sm:p-6 bg-white border-t border-gray-100">
+							<button
+								type="button"
+								onClick={() => setShowEventsDropdown(!showEventsDropdown)}
+								className="w-full flex items-center justify-between text-sm font-bold text-gray-700 uppercase tracking-wider py-2 hover:text-blue-600 transition-colors focus:outline-none"
+							>
+								<span className="flex items-center gap-2">
+									<Calendar className="w-4 h-4 text-blue-500" />
+									Your Posted Events ({clubEvents.length})
+								</span>
+								{showEventsDropdown ? (
+									<ChevronUp className="w-5 h-5 text-gray-500" />
+								) : (
+									<ChevronDown className="w-5 h-5 text-gray-500" />
+								)}
+							</button>
+
+							<AnimatePresence>
+								{showEventsDropdown && (
+									<motion.div
+										initial={{ opacity: 0, height: 0 }}
+										animate={{ opacity: 1, height: 'auto' }}
+										exit={{ opacity: 0, height: 0 }}
+										transition={{ duration: 0.2 }}
+										className="space-y-4 mt-4 overflow-hidden"
+									>
+										{clubEvents.length > 0 ? clubEvents.map(evt => (
+											<div key={evt.id} className="border border-gray-100 rounded-lg overflow-hidden group hover:border-blue-200 transition-colors">
+												{/* Event summary row */}
+												<div className="p-4 flex justify-between items-start hover:bg-gray-50">
+													<div className="flex-1 min-w-0">
+														<span className="text-xs font-bold px-2 py-1 rounded-full mb-2 inline-block bg-blue-50 text-blue-700">
+															{evt.club}
+														</span>
+														<h5 className="font-bold text-gray-900 truncate">{evt.name}</h5>
+														<div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mt-1">
+															<span>📅 {evt.date ? new Date(evt.date).toLocaleString() : 'N/A'}</span>
+															<span>📍 {evt.location}</span>
+														</div>
+														{evt.description && (
+															<p className="text-xs text-gray-600 mt-2 line-clamp-2">{evt.description}</p>
+														)}
+													</div>
+													<div className="flex gap-2 ml-3 flex-shrink-0">
+														<button
+															type="button"
+															onClick={() => editingEventId === evt.id ? handleCancelEditEvent() : handleStartEditEvent(evt)}
+															className={`p-1.5 rounded border shadow-sm transition-colors ${
+																editingEventId === evt.id
+																	? 'bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200'
+																	: 'bg-white border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300'
+															}`}
+															title={editingEventId === evt.id ? 'Cancel edit' : 'Edit event'}
+														>
+															{editingEventId === evt.id ? <X className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+														</button>
+														<button
+															type="button"
+															onClick={() => handleDeleteEvent(evt.id)}
+															className="p-1.5 text-gray-400 hover:text-red-600 rounded bg-white shadow-sm border border-gray-200 hover:border-red-300 transition-colors"
+															title="Delete event"
+														>
+															<Trash2 className="w-4 h-4" />
+														</button>
+													</div>
+												</div>
+
+												{/* Inline Edit Form */}
+												<AnimatePresence>
+													{editingEventId === evt.id && (
+														<motion.div
+															initial={{ opacity: 0, height: 0 }}
+															animate={{ opacity: 1, height: 'auto' }}
+															exit={{ opacity: 0, height: 0 }}
+															transition={{ duration: 0.2 }}
+														>
+															<form
+																onSubmit={(e) => handleUpdateEvent(e, evt.id)}
+																className="p-4 bg-blue-50 border-t border-blue-100 space-y-3"
+															>
+																<p className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1">
+																	<Pencil className="w-3 h-3" /> Editing Event
+																</p>
+																<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+																	<div className="sm:col-span-2">
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Event Name</label>
+																		<input
+																			required
+																			value={editEventForm.name}
+																			onChange={e => setEditEventForm({ ...editEventForm, name: e.target.value })}
+																			type="text"
+																			className="w-full border border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-lg px-3 py-2 text-sm outline-none bg-white"
+																		/>
+																	</div>
+																	<div>
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Club Name</label>
+																		<select
+																			value={editEventForm.club}
+																			onChange={e => setEditEventForm({ ...editEventForm, club: e.target.value })}
+																			className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm bg-white"
+																		>
+																			<option>Tecktonic</option>
+																			<option>Idea Hub</option>
+																			<option>Law Club</option>
+																			<option>Begoadragot</option>
+																			<option>Career Development</option>
+																		</select>
+																	</div>
+																	<div>
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Date & Time</label>
+																		<input
+																			required
+																			value={editEventForm.date}
+																			onChange={e => setEditEventForm({ ...editEventForm, date: e.target.value })}
+																			type="datetime-local"
+																			className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm bg-white"
+																		/>
+																	</div>
+																	<div className="sm:col-span-2">
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
+																		<input
+																			required
+																			value={editEventForm.location}
+																			onChange={e => setEditEventForm({ ...editEventForm, location: e.target.value })}
+																			type="text"
+																			className="w-full border border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-lg px-3 py-2 text-sm outline-none bg-white"
+																		/>
+																	</div>
+																	<div className="sm:col-span-2">
+																		<label className="block text-xs font-medium text-gray-700 mb-1">Event Description</label>
+																		<textarea
+																			required
+																			rows={2}
+																			value={editEventForm.description}
+																			onChange={e => setEditEventForm({ ...editEventForm, description: e.target.value })}
+																			className="w-full border border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-lg px-3 py-2 text-sm outline-none bg-white resize-none"
+																		/>
+																	</div>
+																</div>
+																<div className="flex gap-2 pt-1">
+																	<button
+																		type="submit"
+																		className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+																	>
+																		<CheckCircle className="w-4 h-4" /> Save Changes
+																	</button>
+																	<button
+																		type="button"
+																		onClick={handleCancelEditEvent}
+																		className="flex items-center gap-2 bg-white hover:bg-gray-100 text-gray-600 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 transition-colors"
+																	>
+																		<X className="w-4 h-4" /> Cancel
+																	</button>
+																</div>
+															</form>
+														</motion.div>
+													)}
+												</AnimatePresence>
+											</div>
+										)) : (
+											<p className="text-gray-500 text-sm">No recent events posted.</p>
+										)}
+									</motion.div>
+								)}
+							</AnimatePresence>
 						</div>
 					</motion.div>
 				)}
@@ -1050,6 +1488,7 @@ export function Dashboard() {
 						Quick Actions
 					</h3>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+						{electionVisible && (
 						<motion.button
 							whileHover={{ scale: 1.02 }}
 							whileTap={{ scale: 0.98 }}
@@ -1068,6 +1507,7 @@ export function Dashboard() {
 								</div>
 							</div>
 						</motion.button>
+						)}
 
 						<motion.button
 							whileHover={{ scale: 1.02 }}
@@ -1107,6 +1547,106 @@ export function Dashboard() {
 							</div>
 						</motion.button>
 					</div>
+				</motion.div>
+			)}
+
+			{/* ── Presentation Controls ─────────────────────────────────────── */}
+			{isElectionToggler && (
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ delay: 0.65 }}
+					className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 shadow-lg border border-slate-700 text-left"
+				>
+					<div className="flex items-center gap-3 mb-5">
+						<div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+							<span className="text-lg">🎛️</span>
+						</div>
+						<div>
+							<h3 className="text-lg font-bold text-white">Presentation Controls</h3>
+							<p className="text-sm text-slate-400">Master switches for feature visibility during evaluations</p>
+						</div>
+					</div>
+
+					<div className="grid grid-cols-1 gap-4 mt-4">
+						{[
+							{
+								key: 'electionVisible',
+								label: '🗳️ Election Portal Status',
+								visible: electionVisible,
+								desc: 'Elections link shows in nav & dashboard'
+							},
+							{
+								key: 'leadershipVisible',
+								label: '🏛️ Union & Leadership Dropdown Status',
+								visible: leadershipVisible,
+								desc: 'Main dropdown folder in header navbar'
+							},
+							{
+								key: 'clubsVisible',
+								label: '♣️ Clubs & Associations Panel Status',
+								visible: clubsVisible,
+								desc: 'Clubs and associations page and menu'
+							},
+							{
+								key: 'servicesVisible',
+								label: '🛠️ Services & Requests Module Status',
+								visible: servicesVisible,
+								desc: 'Services booking & forms dashboard link'
+							},
+							{
+								key: 'complaintsVisible',
+								label: '📢 Complaints & Grievance Portal Status',
+								visible: complaintsVisible,
+								desc: 'Complaints submittal and tracking feed'
+							}
+						].map((item) => (
+							<div key={item.key} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-700/50 rounded-xl p-4 border border-slate-600 transition-all duration-200 hover:bg-slate-700/80">
+								<div className="flex items-center gap-3">
+									<div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+										item.visible ? 'bg-emerald-400 shadow-emerald-400/50 shadow-[0_0_8px_2px]' : 'bg-red-400 shadow-red-400/50 shadow-[0_0_8px_2px]'
+									}`} />
+									<div>
+										<p className="text-white font-semibold text-sm">{item.label}</p>
+										<p className="text-slate-400 text-xs mt-0.5">
+											{item.visible
+												? `Currently visible — ${item.desc}`
+												: `Currently hidden — Removed from all views`}
+										</p>
+									</div>
+								</div>
+
+								<button
+									onClick={() => handleToggleFeature(item.key, item.label)}
+									disabled={togglingKeys[item.key]}
+									className={`relative inline-flex items-center gap-3 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 min-w-[180px] justify-center ${
+										item.visible
+											? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
+											: 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/30'
+									} disabled:opacity-60 disabled:cursor-not-allowed`}
+								>
+									{togglingKeys[item.key] ? (
+										<>
+											<svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+												<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+												<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+											</svg>
+											Updating...
+										</>
+									) : (
+										<>
+											<span className="text-base">{item.visible ? '👁️' : '🙈'}</span>
+											{item.visible ? 'HIDE Option' : 'SHOW Option'}
+										</>
+									)}
+								</button>
+							</div>
+						))}
+					</div>
+
+					<p className="text-xs text-slate-500 mt-4">
+						⚠️ Changes take effect immediately across all active sessions. State is persisted to the database.
+					</p>
 				</motion.div>
 			)}
 

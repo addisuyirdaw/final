@@ -24,6 +24,7 @@ const leadershipRoutes = require("./routes/leadership");
 const staffRoutes = require("./routes/staff");
 const templateRoutes = require("./routes/templates");
 const departmentRoutes = require("./routes/departments");
+const configRoutes = require("./routes/config");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -230,6 +231,7 @@ app.use("/api/leadership", leadershipRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/templates", templateRoutes);
 app.use("/api/departments", departmentRoutes);
+app.use("/api/config", configRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

@@ -50,6 +50,10 @@ const activityReportSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  coordinatorFeedback: {
+    type: String,
+    trim: true
+  },
   submittedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

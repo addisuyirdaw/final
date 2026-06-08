@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, User, LogOut, Bell, MapPin, Mail, CircleUserRound, Building2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
+import { useFeatureVisibility } from "../../contexts/FeatureVisibilityContext";
 import { NotificationBadge } from "./NotificationBadge";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { apiService } from "../../services/api";
@@ -16,6 +17,7 @@ export function Header() {
 	const [isNotifOpen, setIsNotifOpen] = useState(false);
 	const { user, logout } = useAuth();
 	const { notifications, markAsSeen } = useNotifications();
+	const { electionVisible, leadershipVisible, clubsVisible, servicesVisible, complaintsVisible } = useFeatureVisibility();
 	const navigate = useNavigate();
 	const location = useLocation(); // ✅ Get current route
 	const notifRef = useRef(null);
@@ -74,8 +76,8 @@ export function Header() {
 	const navigation = !user
 		? [
 			{ name: "Home", href: "/" },
-			{ name: "Clubs", href: "/clubs" },
-			{ name: "Services", href: "/services" },
+			...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
+			...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 			{ name: "Latest Announcements", href: "/latest" },
 			{ name: "About Us", href: "/about" },
 			{ name: "Contact Us", href: "/contact" },
@@ -122,11 +124,11 @@ export function Header() {
 		...(user
 			? [
 				{ name: "Dashboard", href: "/dashboard" },
-				{ name: "Clubs", href: "/clubs" },
-				{ name: "Elections", href: "/elections" },
-				{ name: "Services", href: "/services" },
+				...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
+				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
+				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
-				{ name: "Complaints", href: "/complaints" },
+				...(complaintsVisible ? [{ name: "Complaints", href: "/complaints" }] : []),
 				{ name: "My Profile", href: "/profile" },
 			]
 			: []),
@@ -234,33 +236,35 @@ export function Header() {
 						))}
 						
 						{/* ── Union & Leadership Dropdown — Hybrid Dynamic ── */}
-						<div className="relative group">
-							<button className="text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-1">
-								Union & Leadership <span className="text-xs">▼</span>
-							</button>
-							<div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-								<div className="py-2 max-h-80 overflow-y-auto">
-									{leadershipPages.map(page => (
-										<Link
-											key={page.href}
-											to={page.href}
-											className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
-										>
-											{page.name}
-										</Link>
-									))}
-									{customDepartments.map(dept => (
-										<Link
-											key={dept._id}
-											to={`/leadership/${dept._id}`}
-											className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
-										>
-											{dept.name}
-										</Link>
-									))}
+						{leadershipVisible && (
+							<div className="relative group">
+								<button className="text-gray-700 hover:text-blue-600 font-medium transition-colors flex items-center gap-1">
+									Union & Leadership <span className="text-xs">▼</span>
+								</button>
+								<div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+									<div className="py-2 max-h-80 overflow-y-auto">
+										{leadershipPages.map(page => (
+											<Link
+												key={page.href}
+												to={page.href}
+												className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
+											>
+												{page.name}
+											</Link>
+										))}
+										{customDepartments.map(dept => (
+											<Link
+												key={dept._id}
+												to={`/leadership/${dept._id}`}
+												className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-medium transition-colors"
+											>
+												{dept.name}
+											</Link>
+										))}
+									</div>
 								</div>
 							</div>
-						</div>
+						)}
 
 						{user &&
 							protectedNavigation.map((item) => (
@@ -384,29 +388,31 @@ export function Header() {
 						))}
 
 						{/* ── Mobile: Union & Leadership — Hybrid Dynamic ── */}
-						<div className="pt-2 pb-1 border-t border-gray-100 mt-2">
-							<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Union & Leadership Directory</p>
-							{leadershipPages.map(page => (
-								<Link
-									key={page.href}
-									to={page.href}
-									onClick={() => setIsMenuOpen(false)}
-									className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium"
-								>
-									{page.name}
-								</Link>
-							))}
-							{customDepartments.map(dept => (
-								<Link
-									key={dept._id}
-									to={`/leadership/${dept._id}`}
-									onClick={() => setIsMenuOpen(false)}
-									className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium"
-								>
-									{dept.name}
-								</Link>
-							))}
-						</div>
+						{leadershipVisible && (
+							<div className="pt-2 pb-1 border-t border-gray-100 mt-2">
+								<p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Union & Leadership Directory</p>
+								{leadershipPages.map(page => (
+									<Link
+										key={page.href}
+										to={page.href}
+										onClick={() => setIsMenuOpen(false)}
+										className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium"
+									>
+										{page.name}
+									</Link>
+								))}
+								{customDepartments.map(dept => (
+									<Link
+										key={dept._id}
+										to={`/leadership/${dept._id}`}
+										onClick={() => setIsMenuOpen(false)}
+										className="block px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md font-medium"
+									>
+										{dept.name}
+									</Link>
+								))}
+							</div>
+						)}
 
 						{user &&
 							protectedNavigation.map((item) => (
