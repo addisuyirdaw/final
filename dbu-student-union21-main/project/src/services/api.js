@@ -685,6 +685,17 @@ class ApiService {
     return null;
   }
 
+  /** Fetch all active Student Union officers sorted by priority (1=President, 2=VP, 3=Secretary…) */
+  async getStudentUnionOfficers() {
+    const res = await this.request('/leadership/group/student_union');
+    if (res?.success && Array.isArray(res.profiles)) {
+      return res.profiles
+        .filter(p => p.isActive !== false)
+        .sort((a, b) => (a.priority || 99) - (b.priority || 99));
+    }
+    return [];
+  }
+
   // ── System Configuration ──────────────────────────────────────────────────
 
   /** Fetch global system config (public — no auth needed) */

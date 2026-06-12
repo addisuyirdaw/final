@@ -128,7 +128,7 @@ export function Clubs() {
   const [checkInTimeLeft, setCheckInTimeLeft] = useState(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [eligibleData, setEligibleData] = useState(null);
-  const [suPresident, setSuPresident] = useState(null);
+  const [suOfficers, setSuOfficers] = useState([]);
   const [certRules, setCertRules] = useState({
     graduationYearRequired: true,
     activeMemberRequired: true,
@@ -329,211 +329,233 @@ export function Clubs() {
     const isSample = !!data.isSample;
     const userSuffix = userId && userId.length >= 18 ? userId.substring(18) : "ADMIN";
 
+    // Single signatory: Student Union President only
+    const president = suOfficers.find(o => o.priority === 1) || suOfficers[0];
+    const presidentName = president?.name || 'Kirkos Ashebir';
+    const presidentTitle = president?.title || 'Student Union President';
+
+    const signatureBlocksHtml = `
+      <div class="signature-block">
+        <div class="sig-name">${presidentName}</div>
+        <div class="signature-line">${presidentName}</div>
+        <div class="signature-title">${presidentTitle}</div>
+      </div>
+    `;
+
+    const certTitle = isSample ? 'Sample Certificate of Merit' : (isRep ? 'Certificate of Leadership' : 'Certificate of Achievement');
+    const certDesc = isRep
+      ? `for outstanding dedication, leadership, and exemplary service as the official Student Representative and leader of the <strong>${data.clubName}</strong>. By successfully leading club activities and coordinating student engagement in the 2026/2027 academic year, this representative has demonstrated commendable commitment to campus co-curricular excellence.`
+      : `for outstanding dedication, active participation, and exemplary leadership in the <strong>${data.clubName}</strong>. By achieving a verified attendance rate of <strong>${data.percentage}%</strong> across all registered sessions in the 2026/2027 academic year, this student has demonstrated commendable commitment to campus co-curricular excellence.`;
+
     printWindow.document.write(`
       <html>
         <head>
-          <title>${isSample ? "SAMPLE - " : ""}${isRep ? "Official Certificate of Leadership" : "Official Certificate of Merit"} - Debre Berhan University</title>
+          <title>${certTitle} - Debre Berhan University</title>
           <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Montserrat:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
           <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
-              margin: 0;
-              padding: 0;
               font-family: 'Montserrat', sans-serif;
-              background-color: #fcfcfc;
+              background: #f4f1eb;
               display: flex;
-              justify-content: center;
+              flex-direction: column;
               align-items: center;
+              justify-content: center;
               min-height: 100vh;
+              gap: 16px;
+              padding: 20px;
+            }
+            .action-bar {
+              display: flex;
+              gap: 12px;
+            }
+            .action-btn {
+              padding: 10px 22px;
+              background: #b8860b;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              font-weight: 700;
+              cursor: pointer;
+              font-family: 'Montserrat', sans-serif;
+              font-size: 13px;
+              letter-spacing: 0.5px;
+              box-shadow: 0 4px 12px rgba(184,134,11,0.3);
+            }
+            .action-btn.secondary {
+              background: #0b2240;
             }
             .cert-container {
               width: 820px;
-              height: 570px;
-              padding: 25px;
-              border: 15px double #b8860b;
+              padding: 28px;
+              border: 14px double #b8860b;
               background: white;
-              box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+              box-shadow: 0 8px 40px rgba(0,0,0,0.12);
               position: relative;
               text-align: center;
-              box-sizing: border-box;
             }
             .inner-border {
-              border: 2px solid #b8860b;
-              height: 100%;
-              width: 100%;
-              padding: 20px;
-              box-sizing: border-box;
+              border: 2px solid #c9a227;
+              padding: 28px 36px;
               position: relative;
             }
+            .corner {
+              position: absolute;
+              width: 28px; height: 28px;
+              border-color: #b8860b;
+              border-style: solid;
+              opacity: 0.7;
+            }
+            .corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
+            .corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; }
+            .corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; }
+            .corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
             .university-title {
               font-family: 'Cinzel', serif;
-              font-size: 24px;
+              font-size: 22px;
               font-weight: 800;
               color: #0b2240;
-              letter-spacing: 2px;
-              margin-bottom: 5px;
+              letter-spacing: 3px;
+              margin-bottom: 4px;
             }
             .subtitle {
-              font-size: 11px;
+              font-size: 10px;
               text-transform: uppercase;
-              letter-spacing: 3px;
+              letter-spacing: 4px;
               color: #b8860b;
               font-weight: 700;
-              margin-bottom: 25px;
+              margin-bottom: 16px;
+            }
+            .divider {
+              width: 80px;
+              height: 2px;
+              background: linear-gradient(90deg, transparent, #b8860b, transparent);
+              margin: 0 auto 16px auto;
             }
             .cert-heading {
               font-family: 'Cinzel', serif;
-              font-size: 34px;
+              font-size: 30px;
               font-weight: 700;
               color: #b8860b;
-              letter-spacing: 1px;
-              margin-bottom: 20px;
+              margin-bottom: 16px;
             }
             .presentation-text {
-              font-size: 14px;
-              color: #555;
-              margin-bottom: 10px;
+              font-size: 13px;
+              color: #888;
               font-style: italic;
+              margin-bottom: 6px;
             }
             .recipient-name {
               font-family: 'Great Vibes', cursive;
-              font-size: 42px;
+              font-size: 46px;
               color: #0b2240;
-              margin: 15px 0;
-              border-bottom: 1.5px solid #eaeaea;
-              display: inline-block;
-              padding-bottom: 2px;
-              min-width: 250px;
+              margin: 6px 0 14px 0;
+            }
+            .desc-line {
+              width: 55%;
+              height: 1px;
+              background: #eee;
+              margin: 0 auto 14px auto;
             }
             .description {
-              font-size: 13px;
-              color: #444;
-              max-width: 600px;
-              margin: 0 auto 30px auto;
-              line-height: 1.6;
+              font-size: 12.5px;
+              color: #555;
+              max-width: 580px;
+              margin: 0 auto 22px auto;
+              line-height: 1.75;
             }
             .signatures {
               display: flex;
-              justify-content: space-between;
+              justify-content: center;
               align-items: flex-end;
-              margin-top: 25px;
-              padding: 0 40px;
+              gap: 44px;
+              margin-top: 10px;
             }
             .signature-block {
-              width: 180px;
               text-align: center;
+              min-width: 140px;
+            }
+            .sig-name {
+              font-family: 'Great Vibes', cursive;
+              font-size: 22px;
+              color: #0b2240;
+              height: 30px;
+              line-height: 32px;
             }
             .signature-line {
-              border-top: 1px solid #b8860b;
-              margin-top: 10px;
+              border-top: 1.5px solid #c9a227;
+              margin-top: 6px;
               padding-top: 5px;
-              font-size: 11px;
+              font-size: 9.5px;
               font-weight: 700;
               color: #333;
               text-transform: uppercase;
-              letter-spacing: 1px;
+              letter-spacing: 1.5px;
             }
             .signature-title {
-              font-size: 9px;
-              color: #777;
-              margin-top: 2px;
+              font-size: 8.5px;
+              color: #999;
+              margin-top: 3px;
+              letter-spacing: 0.5px;
             }
-            .seal-block {
-              text-align: center;
-            }
+            .seal-block { text-align: center; }
             .seal-image {
-              width: 65px;
-              height: 65px;
+              width: 62px;
+              height: 62px;
               border-radius: 50%;
               object-fit: cover;
               border: 2px solid #b8860b;
               padding: 2px;
               background: white;
             }
+            .seal-label {
+              font-size: 7px;
+              font-weight: 800;
+              color: #b8860b;
+              margin-top: 5px;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+            }
             .cert-id {
               position: absolute;
-              bottom: 10px;
-              right: 15px;
-              font-size: 9px;
+              bottom: 8px;
+              right: 12px;
+              font-size: 8px;
               font-family: monospace;
-              color: #aaa;
-            }
-            .print-btn {
-              position: fixed;
-              top: 15px;
-              right: 15px;
-              padding: 10px 18px;
-              background: #b8860b;
-              color: white;
-              border: none;
-              border-radius: 8px;
-              font-weight: bold;
-              cursor: pointer;
-              box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-              font-family: sans-serif;
-              font-size: 13px;
-            }
-            .print-btn:hover {
-              background: #966f0a;
+              color: #ccc;
             }
             @media print {
-              .print-btn {
-                display: none;
-              }
-              body {
-                background: white;
-              }
-              .cert-container {
-                box-shadow: none;
-                border-color: #b8860b !important;
-              }
+              .action-bar { display: none !important; }
+              body { background: white; padding: 0; }
+              .cert-container { box-shadow: none; }
             }
           </style>
         </head>
         <body>
-          <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+          <div class="action-bar">
+            <button class="action-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="action-btn secondary" onclick="window.close()">✕ Close</button>
+          </div>
           <div class="cert-container">
             <div class="inner-border">
+              <div class="corner tl"></div><div class="corner tr"></div>
+              <div class="corner bl"></div><div class="corner br"></div>
               <div class="university-title">DEBRE BERHAN UNIVERSITY</div>
-              <div class="subtitle">Office of Student Affairs & Campus Life</div>
-              
-              <div class="cert-heading">${isSample ? "Sample Certificate of Merit" : (isRep ? "Certificate of Leadership" : "Certificate of Achievement")}</div>
-              
-              <div class="presentation-text">This is officially awarded to</div>
+              <div class="subtitle">Office of Student Affairs &amp; Campus Life</div>
+              <div class="divider"></div>
+              <div class="cert-heading">${certTitle}</div>
+              <div class="presentation-text">This is to certify that</div>
               <div class="recipient-name">${data.studentName}</div>
-              
-              <div class="description">
-                ${isRep ? `
-                  for outstanding dedication, leadership, and exemplary service as the official Student Representative and leader of the 
-                  <strong>${data.clubName}</strong>. By successfully leading club activities and coordinating student engagement in the 2026/2027 academic year, 
-                  this representative has demonstrated commendable commitment to campus co-curricular excellence.
-                ` : `
-                  for outstanding dedication, active participation, and exemplary leadership in the 
-                  <strong>${data.clubName}</strong>. By achieving a verified attendance rate of 
-                  <strong>${data.percentage}%</strong> across all registered sessions in the 2026/2027 academic year, 
-                  this student has demonstrated commendable commitment to campus co-curricular excellence.
-                `}
-              </div>
-              
+              <div class="desc-line"></div>
+              <div class="description">${certDesc}</div>
               <div class="signatures">
-                <div class="signature-block">
-                  <div style="font-family: 'Great Vibes', cursive; font-size: 20px; color: #444; height: 25px;">\${suPresident?.name || "Kirkos Ashebir"}</div>
-                  <div class="signature-line">\${suPresident?.name || "Kirkos Ashebir"}</div>
-                  <div class="signature-title">Student Union President</div>
-                </div>
-                
+                ${signatureBlocksHtml}
                 <div class="seal-block">
                   <img class="seal-image" src="${sealUrl}" alt="DBU Seal" />
-                  <div style="font-size: 8px; font-weight: bold; color: #b8860b; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;">OFFICIAL SEAL</div>
-                </div>
-                
-                <div class="signature-block">
-                  <div style="font-family: 'Great Vibes', cursive; font-size: 20px; color: #444; height: 25px;">Dr. Asmare Malese</div>
-                  <div class="signature-line">Dr. Asmare Malese</div>
-                  <div class="signature-title">Dean of Student Affairs</div>
+                  <div class="seal-label">Official Seal</div>
                 </div>
               </div>
-              
-              <div class="cert-id">Verification ID: DBU-${selectedClubDetails?._id || selectedClubDetails?.id || data.clubId || "REP"}-${userSuffix}</div>
+              <div class="cert-id">Verification ID: DBU-${selectedClubDetails?._id || selectedClubDetails?.id || data.clubId || 'REP'}-${userSuffix}</div>
             </div>
           </div>
         </body>
@@ -674,19 +696,19 @@ export function Clubs() {
     }
   };
 
-  const fetchSuPresident = async () => {
+  const fetchSuOfficers = async () => {
     try {
-      const p = await apiService.getStudentUnionPresident();
-      if (p) setSuPresident(p);
+      const officers = await apiService.getStudentUnionOfficers();
+      if (officers && officers.length > 0) setSuOfficers(officers);
     } catch (err) {
-      console.error("Failed to fetch Student Union President:", err);
+      console.error("Failed to fetch Student Union Officers:", err);
     }
   };
 
   useEffect(() => {
     fetchClubs();
     markAsSeen('clubs');
-    fetchSuPresident();
+    fetchSuOfficers();
 
     const handleClickOutside = () => setActiveDropdownId(null);
     window.addEventListener('click', handleClickOutside);
