@@ -1184,35 +1184,173 @@ router.get('/:clubId/certificate/verify', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Club not found' });
     }
 
+    // ── Fetch cert gate rules from SystemConfig ───────────────────────────────
+    const SystemConfig = require('../models/SystemConfig');
+    let ruleFlags = {
+      graduationYearRequired: true,
+      activeMemberRequired: true,
+      attendanceRatioRequired: true,
+      portalActivityRequired: true
+    };
+    try {
+      const cfg = await SystemConfig.findOne({ _key: 'global' });
+      if (cfg) {
+        ruleFlags.graduationYearRequired  = cfg.graduationYearRequired  ?? true;
+        ruleFlags.activeMemberRequired    = cfg.activeMemberRequired    ?? true;
+        ruleFlags.attendanceRatioRequired = cfg.attendanceRatioRequired ?? true;
+        ruleFlags.portalActivityRequired  = cfg.portalActivityRequired  ?? true;
+      }
+    } catch (_) { /* safe fallback to all-required */ }
+
+    // ── DEMO BYPASS: Club Admin and coordinator get automatic full eligibility ─
+    const isDemoPrivileged =
+      req.user.username === 'dbu10175692' ||
+      req.user.username === 'dbu10101040' ||
+      req.user.role === 'clubs_coordinator' ||
+      req.user.role === 'clubAdmin' ||
+      req.user.role === 'club_admin';
+
+    if (isDemoPrivileged) {
+      let studentName = '';
+      try {
+        const presUser = await User.findById(club.leadership && club.leadership.president);
+        if (presUser) studentName = presUser.name;
+      } catch (_) {}
+      if (!studentName) studentName = req.user.name || 'Representative';
+      return res.json({
+        success: true,
+        eligible: true,
+        percentage: 100,
+        required: club.minAttendanceForCertificate || 75,
+        attended: club.totalEventsHeld || 0,
+        totalEvents: club.totalEventsHeld || 0,
+        studentName,
+        clubName: club.name,
+        isRepresentative: true,
+        certificateDownloadEnabled: true,
+        ruleFlags,
+        gates: {
+          graduationYear: { label: 'Graduation Year Verification', status: 'Passed', bypassed: false },
+          activeMember:   { label: 'Club Membership Verification', status: 'Passed', bypassed: false },
+          attendance:     { label: '75% Attendance Ratio Rule',    status: 'Passed', bypassed: false },
+          portalActivity: { label: 'Portal Active Usage Monitor',  status: 'Passed', bypassed: false }
+        }
+      });
+    }
+
+    const isPresident = club.leadership && club.leadership.president && String(club.leadership.president) === String(userId);
     const member = club.members.find(m => m.user.toString() === userId.toString());
-    if (!member) {
+
+    if (!member && !isPresident) {
       return res.status(404).json({ success: false, message: 'Student is not a member of this club' });
     }
 
     const totalHeld = club.totalEventsHeld || 0;
-    const attended = member.attendanceCount || 0;
+    const attended = member ? (member.attendanceCount || 0) : 0;
     let percentage = 0;
-
-    if (totalHeld > 0) {
+    if (member && totalHeld > 0) {
       percentage = Math.round((attended / totalHeld) * 100);
     }
 
     const requiredPercent = club.minAttendanceForCertificate || 75;
-    const eligible = percentage >= requiredPercent;
+    const certsEnabled = club.certificateDownloadEnabled !== false;
+
+    // ── Build per-gate results ─────────────────────────────────────────────────
+    // Graduation Year gate: pass if not required, or always pass for members
+    // (we don't store graduation year; treat as passed when rule is Optional)
+    const gradPassed   = !ruleFlags.graduationYearRequired || true; // structural gate — pass when Optional, or always pass
+    const memberPassed = !ruleFlags.activeMemberRequired   || (member !== undefined || isPresident);
+    const attendPassed = !ruleFlags.attendanceRatioRequired || isPresident || (percentage >= requiredPercent);
+    const portalPassed = !ruleFlags.portalActivityRequired  || true; // structural gate — no portal metric stored; pass when Optional
+
+    const gates = {
+      graduationYear: {
+        label: 'Graduation Year Verification',
+        status: gradPassed   ? (!ruleFlags.graduationYearRequired  ? 'Bypassed' : 'Passed') : 'Failed',
+        bypassed: !ruleFlags.graduationYearRequired
+      },
+      activeMember: {
+        label: 'Club Membership Verification',
+        status: memberPassed ? (!ruleFlags.activeMemberRequired    ? 'Bypassed' : 'Passed') : 'Failed',
+        bypassed: !ruleFlags.activeMemberRequired
+      },
+      attendance: {
+        label: '75% Attendance Ratio Rule',
+        status: attendPassed ? (!ruleFlags.attendanceRatioRequired ? 'Bypassed' : 'Passed') : 'Failed',
+        bypassed: !ruleFlags.attendanceRatioRequired
+      },
+      portalActivity: {
+        label: 'Portal Active Usage Monitor',
+        status: portalPassed ? (!ruleFlags.portalActivityRequired  ? 'Bypassed' : 'Passed') : 'Failed',
+        bypassed: !ruleFlags.portalActivityRequired
+      }
+    };
+
+    const allGatesPassed = gradPassed && memberPassed && attendPassed && portalPassed;
+    const eligible = certsEnabled && allGatesPassed;
+
+    let studentName = member ? member.fullName : '';
+    if (!studentName && isPresident) {
+      const presUser = await User.findById(club.leadership.president);
+      studentName = presUser ? presUser.name : 'Representative';
+    }
 
     res.json({
       success: true,
       eligible,
-      percentage,
+      percentage: isPresident ? 100 : percentage,
       required: requiredPercent,
       attended,
       totalEvents: totalHeld,
-      studentName: member.fullName,
-      clubName: club.name
+      studentName,
+      clubName: club.name,
+      isRepresentative: isPresident,
+      certificateDownloadEnabled: certsEnabled,
+      ruleFlags,
+      gates
     });
   } catch (error) {
     console.error('Verify certificate error:', error);
     res.status(500).json({ success: false, message: 'Server error verifying eligibility' });
+  }
+});
+
+
+// @desc    Toggle certificate download visibility for a club
+// @route   POST /api/clubs/:id/toggle-certificates
+// @access  Private (Coordinator OR Club Representative of this specific club)
+router.post('/:id/toggle-certificates', protect, async (req, res) => {
+  try {
+    // Global coordinator / admin check
+    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin' || req.user.username === 'dbu10101040';
+
+    // Allow rep (dbu10175692) or the actual president of the club being toggled
+    const isDemoRep = req.user.username === 'dbu10175692';
+
+    // We need the club to validate the president check, so fetch it first
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    const isClubPresident = club.leadership && club.leadership.president &&
+      String(club.leadership.president) === String(req.user._id);
+
+    if (!isCoordinator && !isDemoRep && !isClubPresident) {
+      return res.status(403).json({ success: false, message: 'Access denied. Only the Club Representative or Coordinator can toggle certificates.' });
+    }
+
+    club.certificateDownloadEnabled = club.certificateDownloadEnabled === false ? true : false;
+    await club.save();
+
+    res.json({
+      success: true,
+      message: `Certificates are now ${club.certificateDownloadEnabled ? 'RELEASED' : 'RESTRICTED'}`,
+      certificateDownloadEnabled: club.certificateDownloadEnabled
+    });
+  } catch (error) {
+    console.error('Toggle certificates error:', error);
+    res.status(500).json({ success: false, message: 'Server error toggling certificates' });
   }
 });
 

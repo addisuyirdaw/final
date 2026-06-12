@@ -621,6 +621,12 @@ class ApiService {
     return this.request(`/clubs/${clubId}/certificate/verify${query}`);
   }
 
+  async toggleCertificateDownload(clubId) {
+    return this.request(`/clubs/${clubId}/toggle-certificates`, {
+      method: 'POST'
+    });
+  }
+
   // ── Global Admin Template Repository ──────────────────────────────────────
 
   /** Fetch all uploaded admin templates (accessible to all logged-in users) */
@@ -669,6 +675,16 @@ class ApiService {
     return this.request(`/departments/${id}`, { method: 'DELETE' });
   }
 
+  /** Fetch the current Student Union President (priority=1 in student_union group) */
+  async getStudentUnionPresident() {
+    const res = await this.request('/leadership/group/student_union');
+    if (res?.success && Array.isArray(res.profiles)) {
+      // Sorted by priority asc — priority 1 = President
+      return res.profiles.find(p => p.priority === 1) || res.profiles[0] || null;
+    }
+    return null;
+  }
+
   // ── System Configuration ──────────────────────────────────────────────────
 
   /** Fetch global system config (public — no auth needed) */
@@ -684,6 +700,11 @@ class ApiService {
   /** Toggle any feature visibility (Admin only) */
   async toggleFeatureVisibility(key) {
     return this.request(`/config/toggle/${key}`, { method: 'POST' });
+  }
+
+  /** Toggle a certificate rule (Required ↔ Optional) (Club Admin only) */
+  async toggleCertRule(key) {
+    return this.request(`/config/toggle-cert-rule/${key}`, { method: 'POST' });
   }
 }
 

@@ -194,6 +194,10 @@ const clubSchema = new mongoose.Schema({
   totalEventsHeld: {
     type: Number,
     default: 0
+  },
+  certificateDownloadEnabled: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

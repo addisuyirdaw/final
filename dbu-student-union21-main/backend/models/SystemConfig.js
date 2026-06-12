@@ -31,6 +31,24 @@ const systemConfigSchema = new mongoose.Schema({
   complaintsVisible: {
     type: Boolean,
     default: true
+  },
+  // ── Certificate Gate Rules ────────────────────────────────────────────────
+  // When false (Optional), that gate is auto-Passed for every student.
+  graduationYearRequired: {
+    type: Boolean,
+    default: true
+  },
+  activeMemberRequired: {
+    type: Boolean,
+    default: true
+  },
+  attendanceRatioRequired: {
+    type: Boolean,
+    default: true
+  },
+  portalActivityRequired: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

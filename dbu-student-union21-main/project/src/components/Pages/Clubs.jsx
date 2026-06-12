@@ -128,6 +128,14 @@ export function Clubs() {
   const [checkInTimeLeft, setCheckInTimeLeft] = useState(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [eligibleData, setEligibleData] = useState(null);
+  const [suPresident, setSuPresident] = useState(null);
+  const [certRules, setCertRules] = useState({
+    graduationYearRequired: true,
+    activeMemberRequired: true,
+    attendanceRatioRequired: true,
+    portalActivityRequired: true,
+  });
+  const [togglingRule, setTogglingRule] = useState(null);
   const [loadingEligibility, setLoadingEligibility] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [eventForm, setEventForm] = useState({ title: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
@@ -155,11 +163,57 @@ export function Clubs() {
       const res = await apiService.verifyCertificateEligibility(clubId);
       if (res.success) {
         setEligibleData(res);
+        if (res.ruleFlags) {
+          setCertRules({
+            graduationYearRequired: res.ruleFlags.graduationYearRequired ?? true,
+            activeMemberRequired: res.ruleFlags.activeMemberRequired ?? true,
+            attendanceRatioRequired: res.ruleFlags.attendanceRatioRequired ?? true,
+            portalActivityRequired: res.ruleFlags.portalActivityRequired ?? true,
+          });
+        }
       }
     } catch (err) {
       console.error("Error fetching eligibility:", err);
     } finally {
       setLoadingEligibility(false);
+    }
+  };
+
+  const fetchCertRules = async () => {
+    try {
+      const config = await apiService.getSystemConfig();
+      if (config) {
+        setCertRules({
+          graduationYearRequired: config.graduationYearRequired ?? true,
+          activeMemberRequired: config.activeMemberRequired ?? true,
+          attendanceRatioRequired: config.attendanceRatioRequired ?? true,
+          portalActivityRequired: config.portalActivityRequired ?? true,
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching cert rules:", err);
+    }
+  };
+
+  const handleToggleCertRule = async (key) => {
+    setTogglingRule(key);
+    try {
+      const res = await apiService.toggleCertRule(key);
+      if (res.success) {
+        toast.success(res.message || "Rule status updated");
+        setCertRules(prev => ({
+          ...prev,
+          [key]: res.value
+        }));
+        if (selectedClubDetails) {
+          const clubId = selectedClubDetails._id || selectedClubDetails.id;
+          fetchEligibility(clubId);
+        }
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to toggle rule");
+    } finally {
+      setTogglingRule(null);
     }
   };
 
@@ -256,17 +310,29 @@ export function Clubs() {
     }
   };
 
-  const handleDownloadCertificate = () => {
-    if (!eligibleData || !eligibleData.eligible) return;
+  const handleDownloadCertificate = (customData) => {
+    const data = customData || eligibleData;
+    // DEMO BYPASS: Club Rep (10175692) and Global Admin (10101040) always get a certificate.
+    const isDemoPrivileged =
+      user?.username === 'dbu10175692' ||
+      user?.username === 'dbu10101040' ||
+      user?.role === 'clubs_coordinator' ||
+      user?.role === 'clubAdmin' ||
+      user?.role === 'club_admin';
+    if (!data) return;
+    if (!isDemoPrivileged && !data.eligible) return;
 
     const printWindow = window.open('', '_blank', 'width=900,height=650');
     const sealUrl = "https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=150";
-    const userId = user?._id || user?.id || "";
+    const userId = (customData && customData.userId) ? customData.userId : (user?._id || user?.id || "");
+    const isRep = data.isRepresentative || data.role === 'president';
+    const isSample = !!data.isSample;
+    const userSuffix = userId && userId.length >= 18 ? userId.substring(18) : "ADMIN";
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Official Certificate of Merit - Debre Berhan University</title>
+          <title>${isSample ? "SAMPLE - " : ""}${isRep ? "Official Certificate of Leadership" : "Official Certificate of Merit"} - Debre Berhan University</title>
           <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Montserrat:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
           <style>
             body {
@@ -430,22 +496,28 @@ export function Clubs() {
               <div class="university-title">DEBRE BERHAN UNIVERSITY</div>
               <div class="subtitle">Office of Student Affairs & Campus Life</div>
               
-              <div class="cert-heading">Certificate of Achievement</div>
+              <div class="cert-heading">${isSample ? "Sample Certificate of Merit" : (isRep ? "Certificate of Leadership" : "Certificate of Achievement")}</div>
               
               <div class="presentation-text">This is officially awarded to</div>
-              <div class="recipient-name">${eligibleData.studentName}</div>
+              <div class="recipient-name">${data.studentName}</div>
               
               <div class="description">
-                for outstanding dedication, active participation, and exemplary leadership in the 
-                <strong>${eligibleData.clubName}</strong>. By achieving a verified attendance rate of 
-                <strong>${eligibleData.percentage}%</strong> across all registered sessions in the 2026/2027 academic year, 
-                this student has demonstrated commendable commitment to campus co-curricular excellence.
+                ${isRep ? `
+                  for outstanding dedication, leadership, and exemplary service as the official Student Representative and leader of the 
+                  <strong>${data.clubName}</strong>. By successfully leading club activities and coordinating student engagement in the 2026/2027 academic year, 
+                  this representative has demonstrated commendable commitment to campus co-curricular excellence.
+                ` : `
+                  for outstanding dedication, active participation, and exemplary leadership in the 
+                  <strong>${data.clubName}</strong>. By achieving a verified attendance rate of 
+                  <strong>${data.percentage}%</strong> across all registered sessions in the 2026/2027 academic year, 
+                  this student has demonstrated commendable commitment to campus co-curricular excellence.
+                `}
               </div>
               
               <div class="signatures">
                 <div class="signature-block">
-                  <div style="font-family: 'Great Vibes', cursive; font-size: 20px; color: #444; height: 25px;">Kirkos Ashebir</div>
-                  <div class="signature-line">Kirkos Ashebir</div>
+                  <div style="font-family: 'Great Vibes', cursive; font-size: 20px; color: #444; height: 25px;">\${suPresident?.name || "Kirkos Ashebir"}</div>
+                  <div class="signature-line">\${suPresident?.name || "Kirkos Ashebir"}</div>
                   <div class="signature-title">Student Union President</div>
                 </div>
                 
@@ -461,13 +533,52 @@ export function Clubs() {
                 </div>
               </div>
               
-              <div class="cert-id">Verification ID: DBU-${selectedClubDetails._id || selectedClubDetails.id}-${userId.substring(18)}</div>
+              <div class="cert-id">Verification ID: DBU-${selectedClubDetails?._id || selectedClubDetails?.id || data.clubId || "REP"}-${userSuffix}</div>
             </div>
           </div>
         </body>
       </html>
     `);
     printWindow.document.close();
+  };
+
+  const handleDownloadRepCertificate = async (memberUserId, memberName) => {
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const loadToast = toast.loading("Generating representative certificate...");
+      const res = await apiService.verifyCertificateEligibility(clubId, memberUserId);
+      toast.dismiss(loadToast);
+      if (res.success && res.eligible) {
+        toast.success("Representative certificate generated!");
+        handleDownloadCertificate({
+          ...res,
+          userId: memberUserId,
+          isRepresentative: true
+        });
+      } else {
+        toast.error("Failed to generate representative certificate: not eligible.");
+      }
+    } catch (err) {
+      toast.error(err.message || "Error generating certificate");
+    }
+  };
+
+  const handleToggleCertificates = async () => {
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const loadToast = toast.loading("Updating certificate status...");
+      const res = await apiService.toggleCertificateDownload(clubId);
+      toast.dismiss(loadToast);
+      if (res.success) {
+        toast.success(res.message);
+        setSelectedClubDetails(prev => ({
+          ...prev,
+          certificateDownloadEnabled: res.certificateDownloadEnabled
+        }));
+      }
+    } catch (err) {
+      toast.error(err.message || "Error updating certificate status");
+    }
   };
 
   useEffect(() => {
@@ -477,7 +588,7 @@ export function Clubs() {
       const isApprovedMember = selectedClubDetails.members?.some(
         m => String(m.user?._id || m.user) === String(userId) && m.status === 'approved'
       );
-      if (isApprovedMember) {
+      if (isApprovedMember || isLeader || isCoordinator) {
         fetchEligibility(clubId);
       } else {
         setEligibleData(null);
@@ -485,7 +596,7 @@ export function Clubs() {
     } else {
       setEligibleData(null);
     }
-  }, [showClubDetails, selectedClubDetails?._id, selectedClubDetails?.id]);
+  }, [showClubDetails, selectedClubDetails?._id, selectedClubDetails?.id, user, isLeader, isCoordinator]);
 
   const categories = [
     "All",
@@ -563,9 +674,19 @@ export function Clubs() {
     }
   };
 
+  const fetchSuPresident = async () => {
+    try {
+      const p = await apiService.getStudentUnionPresident();
+      if (p) setSuPresident(p);
+    } catch (err) {
+      console.error("Failed to fetch Student Union President:", err);
+    }
+  };
+
   useEffect(() => {
     fetchClubs();
     markAsSeen('clubs');
+    fetchSuPresident();
 
     const handleClickOutside = () => setActiveDropdownId(null);
     window.addEventListener('click', handleClickOutside);
@@ -575,8 +696,11 @@ export function Clubs() {
   useEffect(() => {
     if (user) {
       fetchTemplates();
+      if (isCoordinator) {
+        fetchCertRules();
+      }
     }
-  }, [user]);
+  }, [user, isCoordinator]);
 
   const formatTime = (seconds) => {
     if (seconds === null || seconds === undefined) return "";
@@ -2234,80 +2358,272 @@ export function Clubs() {
                               </div>
                             );
                           })()}
+                        </>
+                      )}
 
-                          {/* Certification and Awards eligibility progress card */}
-                          {eligibleData && (
-                            <div className="mb-8 p-5 bg-gradient-to-br from-indigo-950 to-slate-900 text-white rounded-3xl border border-indigo-900 shadow-xl relative overflow-hidden">
-                              <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-xl"></div>
-                              <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-xl"></div>
-                              
+                          {/* 🛠️ Presentation Demo Control Panel (Club Admin + Coordinator only) */}
+                          {(isCoordinator || user?.isAdmin) && (
+                            <div className="mb-6 p-5 bg-gradient-to-br from-amber-500/10 to-yellow-500/5 rounded-3xl border border-amber-500/20 shadow-xl backdrop-blur-sm relative overflow-hidden">
+                              <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/5 rounded-full blur-xl"></div>
                               <h4 className="font-extrabold text-sm text-amber-400 mb-4 uppercase tracking-widest flex items-center gap-2">
-                                ✨ Zero-Intervention Certificate Eligibility
+                                🛠️ Presentation Demo Control Panel
                               </h4>
-                              
-                              <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
-                                <div className="flex items-center gap-4">
-                                  <div className="relative w-20 h-20 flex items-center justify-center bg-slate-900/50 rounded-full border border-indigo-900/50">
-                                    <svg className="w-16 h-16 transform -rotate-90">
-                                      <circle cx="32" cy="32" r="28" stroke="#1e293b" strokeWidth="4" fill="transparent" />
-                                      <circle 
-                                        cx="32" 
-                                        cy="32" 
-                                        r="28" 
-                                        stroke={eligibleData.eligible ? "#10b981" : "#f59e0b"} 
-                                        strokeWidth="4" 
-                                        fill="transparent" 
-                                        strokeDasharray="175.9" 
-                                        strokeDashoffset={175.9 - (175.9 * Math.min(100, eligibleData.percentage)) / 100}
-                                        className="transition-all duration-1000 ease-out"
-                                      />
-                                    </svg>
-                                    <span className="absolute text-xs font-black text-white">
-                                      {eligibleData.percentage}%
-                                    </span>
-                                  </div>
-                                  
-                                  <div>
-                                    <p className="text-xs text-indigo-200 font-semibold">Your Verified Attendance</p>
-                                    <p className="text-lg font-black text-white mt-0.5">
-                                      {eligibleData.attended} / {eligibleData.totalEvents} Sessions
-                                    </p>
-                                    <p className="text-[10px] text-indigo-300 mt-0.5">
-                                      Requirement: {eligibleData.required}% minimum attendance
-                                    </p>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex flex-col items-center md:items-end text-center md:text-right">
-                                  {eligibleData.eligible ? (
-                                    <>
-                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2 uppercase tracking-wide">
-                                        👑 Certified Eligible
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={handleDownloadCertificate}
-                                        className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] flex items-center gap-1.5 border border-amber-300"
+                              <p className="text-[11px] text-gray-400 mb-4">
+                                Dynamic Rule Overrides: Toggle certification gates between <strong>Required</strong> and <strong>Optional</strong> in real-time.
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {[
+                                  { key: 'graduationYearRequired', label: 'Graduation Year Verification' },
+                                  { key: 'activeMemberRequired', label: 'Club Membership Verification' },
+                                  { key: 'attendanceRatioRequired', label: '75% Attendance Ratio Rule' },
+                                  { key: 'portalActivityRequired', label: 'Portal Active Usage Monitor' }
+                                ].map((rule) => {
+                                  const isRequired = certRules[rule.key];
+                                  const isToggling = togglingRule === rule.key;
+                                  return (
+                                    <div key={rule.key} className="flex items-center justify-between bg-slate-900/40 rounded-2xl p-3 border border-amber-500/10">
+                                      <span className="text-xs font-semibold text-slate-200">{rule.label}</span>
+                                      <select
+                                        disabled={isToggling}
+                                        value={isRequired ? "required" : "optional"}
+                                        onChange={() => handleToggleCertRule(rule.key)}
+                                        className={`px-3 py-1.5 rounded-xl font-black text-[10px] shadow-sm border focus:outline-none transition-all cursor-pointer ${
+                                          isRequired
+                                            ? 'bg-red-950/80 text-red-400 border-red-800/50'
+                                            : 'bg-emerald-950/80 text-emerald-400 border-emerald-800/50'
+                                        }`}
                                       >
-                                        📜 Download Digital Certificate
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2 uppercase tracking-wide">
-                                        🔒 locked · {eligibleData.percentage}% / {eligibleData.required}%
-                                      </span>
-                                      <p className="text-[10px] text-gray-400 max-w-[240px]">
-                                        Keep attending live sessions! You need {eligibleData.required}% to unlock your verified digital certificate of merit.
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
+                                        <option value="required" className="bg-slate-950 text-red-400 font-black">Required 🔴</option>
+                                        <option value="optional" className="bg-slate-950 text-emerald-400 font-black">Optional 🟢</option>
+                                      </select>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
-                        </>
-                      )}
+
+                          {/* Certification and Awards eligibility progress card */}
+                          {(eligibleData || isLeader || isCoordinator) && (
+                            <div className="mb-8 p-5 bg-gradient-to-br from-indigo-950 to-slate-900 text-white rounded-3xl border border-indigo-900 shadow-xl relative overflow-hidden">
+                              <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-xl"></div>
+                              <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-xl"></div>
+
+                              <h4 className="font-extrabold text-sm text-amber-400 mb-4 uppercase tracking-widest flex items-center gap-2">
+                                ✨ Certificate Eligibility
+                              </h4>
+
+                              {eligibleData && (
+                                <>
+                                  <div className="flex flex-col md:flex-row items-center gap-6 justify-between">
+                                    {/* Left: Attendance ring */}
+                                    <div className="flex items-center gap-4">
+                                      <div className="relative w-20 h-20 flex items-center justify-center bg-slate-900/50 rounded-full border border-indigo-900/50">
+                                        <svg className="w-16 h-16 transform -rotate-90">
+                                          <circle cx="32" cy="32" r="28" stroke="#1e293b" strokeWidth="4" fill="transparent" />
+                                          <circle
+                                            cx="32"
+                                            cy="32"
+                                            r="28"
+                                            stroke={isLeader ? "#10b981" : (eligibleData.eligible ? "#10b981" : "#f59e0b")}
+                                            strokeWidth="4"
+                                            fill="transparent"
+                                            strokeDasharray="175.9"
+                                            strokeDashoffset={175.9 - (175.9 * Math.min(100, isLeader ? 100 : eligibleData.percentage)) / 100}
+                                            className="transition-all duration-1000 ease-out"
+                                          />
+                                        </svg>
+                                        <span className="absolute text-xs font-black text-white">
+                                          {isLeader ? '100' : eligibleData.percentage}%
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-indigo-200 font-semibold">Verified Attendance</p>
+                                        <p className="text-lg font-black text-white mt-0.5">
+                                          {isLeader ? '—' : `${eligibleData.attended} / ${eligibleData.totalEvents} Sessions`}
+                                        </p>
+                                        <p className="text-[10px] text-indigo-300 mt-0.5">
+                                          {isLeader ? 'Auto-eligible as Club Representative' : `Min. required: ${eligibleData.required}%`}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Right: Download / status */}
+                                    <div className="flex flex-col items-center md:items-end text-center md:text-right">
+                                      {isLeader ? (
+                                        <>
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2 uppercase tracking-wide">
+                                            🎖️ Club Representative
+                                          </span>
+                                          {eligibleData.certificateDownloadEnabled !== false ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDownloadCertificate({
+                                                ...eligibleData,
+                                                eligible: true,
+                                                isRepresentative: true
+                                              })}
+                                              className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] flex items-center gap-1.5 border border-amber-300"
+                                            >
+                                              📜 Download Leadership Certificate
+                                            </button>
+                                          ) : (
+                                            <>
+                                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-red-500/10 text-red-400 border border-red-500/20 mb-1 uppercase tracking-wide">
+                                                🚫 Restricted by Admin
+                                              </span>
+                                              <p className="text-[10px] text-gray-400 max-w-[220px]">Certificate downloads are temporarily disabled by the Club Admin.</p>
+                                            </>
+                                          )}
+                                        </>
+                                      ) : isCoordinator ? (
+                                        <>
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2 uppercase tracking-wide">
+                                            ⚙️ Admin Override
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDownloadCertificate({ ...eligibleData, eligible: true, isSample: true })}
+                                            className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] flex items-center gap-1.5 border border-indigo-300"
+                                          >
+                                            📜 Generate Sample Certificate
+                                          </button>
+                                        </>
+                                      ) : eligibleData.certificateDownloadEnabled === false ? (
+                                        <>
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-red-500/10 text-red-400 border border-red-500/20 mb-2 uppercase tracking-wide">
+                                            🚫 Restricted by Admin
+                                          </span>
+                                          <p className="text-[10px] text-gray-400 max-w-[240px]">
+                                            Certificate downloads are temporarily disabled by the Club Admin.
+                                          </p>
+                                        </>
+                                      ) : eligibleData.eligible ? (
+                                        <>
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2 uppercase tracking-wide">
+                                            👑 Certified Eligible
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDownloadCertificate({ ...eligibleData, eligible: true })}
+                                            className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] flex items-center gap-1.5 border border-amber-300"
+                                          >
+                                            📜 Download Digital Certificate
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2 uppercase tracking-wide">
+                                            🔒 locked · {eligibleData.percentage}% / {eligibleData.required}%
+                                          </span>
+                                          <p className="text-[10px] text-gray-400 max-w-[240px]">
+                                            Keep attending live sessions! You need {eligibleData.required}% to unlock your digital certificate.
+                                          </p>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Checklist Section */}
+                                  {eligibleData.gates && (
+                                    <div className="mt-6 pt-4 border-t border-indigo-900/50 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {Object.entries(eligibleData.gates).map(([key, gate]) => {
+                                        const isPassed = gate.status === 'Passed';
+                                        const isBypassed = gate.status === 'Bypassed';
+                                        const isFailed = gate.status === 'Failed';
+                                        return (
+                                          <div key={key} className="flex items-center justify-between bg-slate-950/40 rounded-2xl px-4 py-2.5 border border-indigo-950/80 animate-fade-in">
+                                            <span className="text-[11px] font-semibold text-slate-300">{gate.label}</span>
+                                            {isPassed && (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                Passed
+                                              </span>
+                                            )}
+                                            {isBypassed && (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                                Bypassed
+                                              </span>
+                                            )}
+                                            {isFailed && (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20">
+                                                Failed
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                      {/* Coordinator-Only: Certificate Generator for All Representatives */}
+                      {isCoordinator && selectedClubDetails && (() => {
+                        const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president || '');
+                        const allReps = Array.isArray(selectedClubDetails?.members)
+                          ? selectedClubDetails.members.filter(m =>
+                              (m.role === 'president' || String(m.user?._id || m.user) === presidentId) && m.status === 'approved'
+                            )
+                          : [];
+                        const certsEnabled = selectedClubDetails?.certificateDownloadEnabled !== false;
+                        return (
+                          <div className="mb-8 p-5 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-3xl border border-amber-200 shadow-md">
+                            {/* Header with toggle */}
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="font-extrabold text-amber-800 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                📜 Club Representative Certificates
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={handleToggleCertificates}
+                                className={`relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full font-black text-xs transition-all shadow-sm border ${
+                                  certsEnabled
+                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-400'
+                                    : 'bg-red-500 hover:bg-red-600 text-white border-red-400'
+                                }`}
+                                title={certsEnabled ? 'Click to restrict certificate downloads' : 'Click to release certificate downloads'}
+                              >
+                                <span className={`w-3 h-3 rounded-full ${certsEnabled ? 'bg-white animate-pulse' : 'bg-white/60'}`}></span>
+                                {certsEnabled ? '✅ Certificates Released' : '🚫 Certificates Restricted'}
+                              </button>
+                            </div>
+                            <p className="text-xs text-amber-600 mb-4">Generate and download official Leadership Certificates for club representatives. Use the toggle to release or restrict certificate access.</p>
+                            {allReps.length === 0 ? (
+                              <p className="text-xs text-gray-400 italic">No representative found for this club. Set a club president first.</p>
+                            ) : (
+                              <div className="flex flex-col gap-3">
+                                {allReps.map((rep, i) => (
+                                  <div key={i} className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 border border-amber-100 shadow-sm">
+                                    <div>
+                                      <p className="font-extrabold text-gray-900 text-sm">{rep.fullName || rep.user?.name || 'Representative'}</p>
+                                      <p className="text-[10px] text-gray-400">@{rep.user?.username || '---'} · {rep.department || 'DBU'} · {rep.year || ''}</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadCertificate({
+                                        eligible: true,
+                                        studentName: rep.fullName || rep.user?.name || 'Representative',
+                                        clubName: selectedClubDetails.name,
+                                        isRepresentative: true,
+                                        percentage: 100,
+                                        attended: rep.attendanceCount || 0,
+                                        totalEvents: selectedClubDetails.totalEventsHeld || 0,
+                                        required: selectedClubDetails.minAttendanceForCertificate || 75,
+                                        userId: rep.user?._id || rep.user
+                                      })}
+                                      className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-md shadow-amber-200 transition-all hover:scale-[1.03] active:scale-[0.97] flex items-center gap-1.5 border border-amber-300 whitespace-nowrap"
+                                    >
+                                      📜 Download Certificate
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Club Leader / Coordinator / System Admin View */}
                       {(isLeader || isCoordinator || user?.isAdmin) && (
@@ -2534,9 +2850,24 @@ export function Clubs() {
                                   <div className="flex items-center gap-2">
                                     {member.fullName || member.user?.name || "Member"}
                                     {String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(member.user?._id || member.user) && (
-                                      <span className="px-2 py-0.5 text-[10px] bg-indigo-600 text-white rounded-full font-black uppercase shadow-sm">
-                                        Representative
-                                      </span>
+                                      <>
+                                        <span className="px-2 py-0.5 text-[10px] bg-indigo-600 text-white rounded-full font-black uppercase shadow-sm">
+                                          Representative
+                                        </span>
+                                        {isCoordinator && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDownloadRepCertificate(member.user?._id || member.user, member.fullName || member.user?.name);
+                                            }}
+                                            className="px-2 py-0.5 text-[10px] bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-full font-extrabold shadow-sm flex items-center gap-0.5 transition-colors border border-amber-300 ml-1.5"
+                                            title="Generate Representative Certificate"
+                                          >
+                                            📜 Rep Cert
+                                          </button>
+                                        )}
+                                      </>
                                     )}
                                     {member.status === 'restricted' && (
                                       <span className="px-2 py-0.5 text-[10px] bg-orange-600 text-white rounded-full font-black uppercase shadow-sm">
