@@ -696,6 +696,18 @@ class ApiService {
     return [];
   }
 
+  /** Fetch the Student Service Dean (priority=1 in student_services group) */
+  async getStudentServiceDean() {
+    const res = await this.request('/leadership/group/student_services');
+    if (res?.success && Array.isArray(res.profiles)) {
+      const active = res.profiles.filter(p => p.isActive !== false);
+      return active.find(p => p.priority === 1) || 
+             active.find(p => p.title?.toLowerCase().includes('dean')) ||
+             active[0] || null;
+    }
+    return null;
+  }
+
   // ── System Configuration ──────────────────────────────────────────────────
 
   /** Fetch global system config (public — no auth needed) */

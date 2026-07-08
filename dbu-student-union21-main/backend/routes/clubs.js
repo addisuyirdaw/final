@@ -1217,6 +1217,12 @@ router.get('/:clubId/certificate/verify', protect, async (req, res) => {
         if (presUser) studentName = presUser.name;
       } catch (_) {}
       if (!studentName) studentName = req.user.name || 'Representative';
+      // Grab join date for this privileged user from the member record
+      let joinedAt = null;
+      try {
+        const privMember = club.members.find(m => m.user.toString() === String(req.user._id));
+        joinedAt = privMember?.joinedAt || privMember?.createdAt || club.createdAt || null;
+      } catch (_) {}
       return res.json({
         success: true,
         eligible: true,
@@ -1228,6 +1234,8 @@ router.get('/:clubId/certificate/verify', protect, async (req, res) => {
         clubName: club.name,
         isRepresentative: true,
         certificateDownloadEnabled: true,
+        joinedAt,          // ← start date: when they joined the club
+        printDate: new Date().toISOString(), // ← end date: today (issue date)
         ruleFlags,
         gates: {
           graduationYear: { label: 'Graduation Year Verification', status: 'Passed', bypassed: false },
@@ -1306,6 +1314,8 @@ router.get('/:clubId/certificate/verify', protect, async (req, res) => {
       clubName: club.name,
       isRepresentative: isPresident,
       certificateDownloadEnabled: certsEnabled,
+      joinedAt: member?.joinedAt || member?.createdAt || null,  // ← start date
+      printDate: new Date().toISOString(),                      // ← end date (issue date)
       ruleFlags,
       gates
     });

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus, Download, Upload, BookOpen, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
+import { CertificateTemplate } from "../CertificateTemplate";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
@@ -43,6 +45,7 @@ export function Clubs() {
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewClubForm, setShowNewClubForm] = useState(false);
+  const [activeCertificateData, setActiveCertificateData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingClubId, setEditingClubId] = useState(null);
   const [newClub, setNewClub] = useState({
@@ -129,6 +132,7 @@ export function Clubs() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [eligibleData, setEligibleData] = useState(null);
   const [suOfficers, setSuOfficers] = useState([]);
+  const [deanOfficer, setDeanOfficer] = useState(null);
   const [certRules, setCertRules] = useState({
     graduationYearRequired: true,
     activeMemberRequired: true,
@@ -322,246 +326,92 @@ export function Clubs() {
     if (!data) return;
     if (!isDemoPrivileged && !data.eligible) return;
 
-    const printWindow = window.open('', '_blank', 'width=900,height=650');
-    const sealUrl = "https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=150";
     const userId = (customData && customData.userId) ? customData.userId : (user?._id || user?.id || "");
     const isRep = data.isRepresentative || data.role === 'president';
     const isSample = !!data.isSample;
     const userSuffix = userId && userId.length >= 18 ? userId.substring(18) : "ADMIN";
 
-    // Single signatory: Student Union President only
-    const president = suOfficers.find(o => o.priority === 1) || suOfficers[0];
-    const presidentName = president?.name || 'Kirkos Ashebir';
-    const presidentTitle = president?.title || 'Student Union President';
+    // ── Dynamic Signatories from Live Backend Data ──────────────────────────
+    const presidentOfficer = suOfficers.find(o => o.priority === 1) ||
+                             suOfficers.find(o => o.title?.toLowerCase().includes('president')) ||
+                             suOfficers[0];
+    const presidentName    = presidentOfficer?.name  || 'Kirkos Ashebir';
+    const presidentTitleAm = 'የተማሪዎች ሕብረት ፕሬዝዳንት';
+    const presidentTitleEn = presidentOfficer?.title || 'Student Union President';
+    // Use the official signature image from api.dbu.edu (not the profile photo)
+    const presidentSigUrl  = 'https://api.dbu.edu/assets/signatures/union_pres.png';
 
-    const signatureBlocksHtml = `
-      <div class="signature-block">
-        <div class="sig-name">${presidentName}</div>
-        <div class="signature-line">${presidentName}</div>
-        <div class="signature-title">${presidentTitle}</div>
-      </div>
-    `;
+    const dean      = deanOfficer;
+    const deanName  = dean?.name  || 'Giziew Fetene Birhanu';
+    const deanNameAm = 'ግዛው ፈጠነ ብርሃኑ';
+    const deanTitleAm = 'የተማሪዎች አገልግሎት ዲን';
+    const deanTitleEn = dean?.title || 'Student Service Dean';
+    // Use the official signature image from api.dbu.edu (not the profile photo)
+    const deanSigUrl  = 'https://api.dbu.edu/assets/signatures/student_dean.png';
 
-    const certTitle = isSample ? 'Sample Certificate of Merit' : (isRep ? 'Certificate of Leadership' : 'Certificate of Achievement');
-    const certDesc = isRep
-      ? `for outstanding dedication, leadership, and exemplary service as the official Student Representative and leader of the <strong>${data.clubName}</strong>. By successfully leading club activities and coordinating student engagement in the 2026/2027 academic year, this representative has demonstrated commendable commitment to campus co-curricular excellence.`
-      : `for outstanding dedication, active participation, and exemplary leadership in the <strong>${data.clubName}</strong>. By achieving a verified attendance rate of <strong>${data.percentage}%</strong> across all registered sessions in the 2026/2027 academic year, this student has demonstrated commendable commitment to campus co-curricular excellence.`;
+    // ── Dynamic Dates (start = club join date, end = certificate issue date) ─
+    // Ethiopian calendar converter
+    const toEthiopian = (jsDate) => {
+      const d = new Date(jsDate);
+      // Offset between Gregorian and Ethiopian epoch
+      const etYear  = d.getFullYear() - (d.getMonth() >= 8 ? 7 : 8);
+      // Approximate Ethiopian month (simplified; good enough for certificates)
+      const etMonth = ((d.getMonth() + 9) % 12) + 1;
+      const etDay   = d.getDate();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(etDay)}/${pad(etMonth)}/${etYear}`;
+    };
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${certTitle} - Debre Berhan University</title>
-          <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Montserrat:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
-          <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body {
-              font-family: 'Montserrat', sans-serif;
-              background: #f4f1eb;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              gap: 16px;
-              padding: 20px;
-            }
-            .action-bar {
-              display: flex;
-              gap: 12px;
-            }
-            .action-btn {
-              padding: 10px 22px;
-              background: #b8860b;
-              color: white;
-              border: none;
-              border-radius: 8px;
-              font-weight: 700;
-              cursor: pointer;
-              font-family: 'Montserrat', sans-serif;
-              font-size: 13px;
-              letter-spacing: 0.5px;
-              box-shadow: 0 4px 12px rgba(184,134,11,0.3);
-            }
-            .action-btn.secondary {
-              background: #0b2240;
-            }
-            .cert-container {
-              width: 820px;
-              padding: 28px;
-              border: 14px double #b8860b;
-              background: white;
-              box-shadow: 0 8px 40px rgba(0,0,0,0.12);
-              position: relative;
-              text-align: center;
-            }
-            .inner-border {
-              border: 2px solid #c9a227;
-              padding: 28px 36px;
-              position: relative;
-            }
-            .corner {
-              position: absolute;
-              width: 28px; height: 28px;
-              border-color: #b8860b;
-              border-style: solid;
-              opacity: 0.7;
-            }
-            .corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
-            .corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; }
-            .corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; }
-            .corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
-            .university-title {
-              font-family: 'Cinzel', serif;
-              font-size: 22px;
-              font-weight: 800;
-              color: #0b2240;
-              letter-spacing: 3px;
-              margin-bottom: 4px;
-            }
-            .subtitle {
-              font-size: 10px;
-              text-transform: uppercase;
-              letter-spacing: 4px;
-              color: #b8860b;
-              font-weight: 700;
-              margin-bottom: 16px;
-            }
-            .divider {
-              width: 80px;
-              height: 2px;
-              background: linear-gradient(90deg, transparent, #b8860b, transparent);
-              margin: 0 auto 16px auto;
-            }
-            .cert-heading {
-              font-family: 'Cinzel', serif;
-              font-size: 30px;
-              font-weight: 700;
-              color: #b8860b;
-              margin-bottom: 16px;
-            }
-            .presentation-text {
-              font-size: 13px;
-              color: #888;
-              font-style: italic;
-              margin-bottom: 6px;
-            }
-            .recipient-name {
-              font-family: 'Great Vibes', cursive;
-              font-size: 46px;
-              color: #0b2240;
-              margin: 6px 0 14px 0;
-            }
-            .desc-line {
-              width: 55%;
-              height: 1px;
-              background: #eee;
-              margin: 0 auto 14px auto;
-            }
-            .description {
-              font-size: 12.5px;
-              color: #555;
-              max-width: 580px;
-              margin: 0 auto 22px auto;
-              line-height: 1.75;
-            }
-            .signatures {
-              display: flex;
-              justify-content: center;
-              align-items: flex-end;
-              gap: 44px;
-              margin-top: 10px;
-            }
-            .signature-block {
-              text-align: center;
-              min-width: 140px;
-            }
-            .sig-name {
-              font-family: 'Great Vibes', cursive;
-              font-size: 22px;
-              color: #0b2240;
-              height: 30px;
-              line-height: 32px;
-            }
-            .signature-line {
-              border-top: 1.5px solid #c9a227;
-              margin-top: 6px;
-              padding-top: 5px;
-              font-size: 9.5px;
-              font-weight: 700;
-              color: #333;
-              text-transform: uppercase;
-              letter-spacing: 1.5px;
-            }
-            .signature-title {
-              font-size: 8.5px;
-              color: #999;
-              margin-top: 3px;
-              letter-spacing: 0.5px;
-            }
-            .seal-block { text-align: center; }
-            .seal-image {
-              width: 62px;
-              height: 62px;
-              border-radius: 50%;
-              object-fit: cover;
-              border: 2px solid #b8860b;
-              padding: 2px;
-              background: white;
-            }
-            .seal-label {
-              font-size: 7px;
-              font-weight: 800;
-              color: #b8860b;
-              margin-top: 5px;
-              text-transform: uppercase;
-              letter-spacing: 2px;
-            }
-            .cert-id {
-              position: absolute;
-              bottom: 8px;
-              right: 12px;
-              font-size: 8px;
-              font-family: monospace;
-              color: #ccc;
-            }
-            @media print {
-              .action-bar { display: none !important; }
-              body { background: white; padding: 0; }
-              .cert-container { box-shadow: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="action-bar">
-            <button class="action-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
-            <button class="action-btn secondary" onclick="window.close()">✕ Close</button>
-          </div>
-          <div class="cert-container">
-            <div class="inner-border">
-              <div class="corner tl"></div><div class="corner tr"></div>
-              <div class="corner bl"></div><div class="corner br"></div>
-              <div class="university-title">DEBRE BERHAN UNIVERSITY</div>
-              <div class="subtitle">Office of Student Affairs &amp; Campus Life</div>
-              <div class="divider"></div>
-              <div class="cert-heading">${certTitle}</div>
-              <div class="presentation-text">This is to certify that</div>
-              <div class="recipient-name">${data.studentName}</div>
-              <div class="desc-line"></div>
-              <div class="description">${certDesc}</div>
-              <div class="signatures">
-                ${signatureBlocksHtml}
-                <div class="seal-block">
-                  <img class="seal-image" src="${sealUrl}" alt="DBU Seal" />
-                  <div class="seal-label">Official Seal</div>
-                </div>
-              </div>
-              <div class="cert-id">Verification ID: DBU-${selectedClubDetails?._id || selectedClubDetails?.id || data.clubId || 'REP'}-${userSuffix}</div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    const startJs  = data.joinedAt  ? new Date(data.joinedAt)  : new Date();
+    const endJs    = data.printDate ? new Date(data.printDate) : new Date();
+    const fmtGC = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+
+    // ── Role labels ────────────────────────────────────────────────────────
+    const studentRoleEn = isSample ? 'Active Member' : (isRep ? 'Club Representative' : 'Active Member');
+    const studentRoleAm = isSample ? 'ንቁ አባል'         : (isRep ? 'የክለብ ተወካይ'          : 'ንቁ አባል');
+
+    // ── Build the universal JSON schema for CertificateTemplate ───────────
+    const certPayload = {
+      certificate_id:    `DBU-${selectedClubDetails?._id || data.clubId || 'REP'}-${userSuffix}`,
+      recipient_name_en: data.studentName || data.name || user?.name || '_______________',
+      recipient_name_am: data.studentNameAm || data.nameAm || user?.nameAm || data.studentName || user?.name || '_______________',
+
+      // Dynamic Club Variables — works for any of the 12 clubs
+      club_name_en: data.clubName || selectedClubDetails?.name || 'Student Union Club',
+      club_name_am: data.clubNameAm || selectedClubDetails?.nameAm || `${data.clubName || 'Student Union'} ክለብ`,
+
+      // Dynamic Role Variables — populated per member
+      student_role_en: studentRoleEn,
+      student_role_am: studentRoleAm,
+
+      start_date_gc: `${fmtGC(startJs)} G.C`,
+      end_date_gc:   `${fmtGC(endJs)} G.C`,
+      start_date_ec: `${toEthiopian(startJs)} ዓ.ም`,
+      end_date_ec:   `${toEthiopian(endJs)} ዓ.ም`,
+
+      university_logo_url: 'https://api.dbu.edu/assets/logo.png',
+
+      roles: {
+        left_slot: {
+          title_en:        presidentTitleEn,
+          title_am:        presidentTitleAm,
+          current_name_en: presidentName,
+          current_name_am: presidentName,
+          signature_url:   presidentSigUrl,
+        },
+        right_slot: {
+          title_en:        deanTitleEn,
+          title_am:        deanTitleAm,
+          current_name_en: deanName,
+          current_name_am: deanNameAm,
+          signature_url:   deanSigUrl,
+        },
+        official_seal_url: null, // Set to your actual stamp URL when available
+      }
+    };
+
+    // Show the CertificateTemplate in a full-screen portal overlay
+    setActiveCertificateData(certPayload);
   };
 
   const handleDownloadRepCertificate = async (memberUserId, memberName) => {
@@ -698,8 +548,12 @@ export function Clubs() {
 
   const fetchSuOfficers = async () => {
     try {
-      const officers = await apiService.getStudentUnionOfficers();
+      const [officers, dean] = await Promise.all([
+        apiService.getStudentUnionOfficers(),
+        apiService.getStudentServiceDean()
+      ]);
       if (officers && officers.length > 0) setSuOfficers(officers);
+      if (dean) setDeanOfficer(dean);
     } catch (err) {
       console.error("Failed to fetch Student Union Officers:", err);
     }
@@ -4216,6 +4070,25 @@ export function Clubs() {
             </div>
           )}
         </section>
+      )}
+
+      {/* ── CertificateTemplate Full-Screen Portal Overlay ──────────────────
+           Rendered into document.body to escape stacking context issues.
+           Triggered by setActiveCertificateData; dismissed by onDispose.   */}
+      {activeCertificateData && createPortal(
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            overflowY: 'auto',
+            backgroundColor: 'rgba(0,0,0,0.92)',
+          }}
+        >
+          <CertificateTemplate
+            data={activeCertificateData}
+            onDispose={() => setActiveCertificateData(null)}
+          />
+        </div>,
+        document.body
       )}
     </div>
   );
