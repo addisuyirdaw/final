@@ -103,7 +103,7 @@ const protect = async (req, res, next) => {
 
 const adminOnly = (req, res, next) => {
 	const privilegedRoles = ["admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs", "system_admin"];
-	const executiveNames = ['Gizew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
+	const executiveNames = ['Giziew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
 	const isExecutive = req.user && req.user.name && executiveNames.some(name => req.user.name.includes(name));
 	if (req.user && (req.user.isAdmin || privilegedRoles.includes(req.user.role) || isExecutive)) {
 		next();

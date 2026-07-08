@@ -72,10 +72,10 @@ export const Home = () => {
 	// Static fallback leader profiles
 	const leaderProfiles = {
 		gizew: {
-			name: "Gizew Fetene",
+			name: "Giziew Fetene",
 			title: "Dean of Student Affairs",
 			image: "/image.png/gizeww.jpg",
-			fallback: "https://ui-avatars.com/api/?name=Gizew+Fetene&background=EBF5FF&color=1E3A8A&size=400",
+			fallback: "https://ui-avatars.com/api/?name=Giziew+Fetene&background=EBF5FF&color=1E3A8A&size=400",
 			bio: [
 				{ label: "Background", text: "DBU graduate and long-serving student affairs leader with a strong focus on student wellbeing, inclusion, and campus service quality." },
 				{ label: "Function", text: "Oversees student welfare, guidance coordination, club development, complaint response systems, and branch-level service performance across the university." },
@@ -345,7 +345,7 @@ export const Home = () => {
 						/>
 
 						{/* Admin delete button — only on dynamic (uploaded) slides */}
-						{slide.isDynamic && (user?.isAdmin || ['Gizew','Sintayew','Sintayehu','Genete','Kalkidan'].some(n => user?.name?.includes(n))) && (
+						{slide.isDynamic && (user?.isAdmin || ['Giziew','Sintayew','Sintayehu','Genete','Kalkidan'].some(n => user?.name?.includes(n))) && (
 							<button
 								onClick={() => deleteCarouselSlide(slide.dbId)}
 								title="Remove this slide"

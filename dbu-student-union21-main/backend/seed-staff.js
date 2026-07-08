@@ -17,7 +17,7 @@ const staffMembers = [
   },
   // Student Services
   {
-    name: "Ato Gizew Fetene",
+    name: "Ato Giziew Fetene",
     title: "Dean of Student Affairs",
     pageGroup: "student_services",
     department: "Office of the Dean",

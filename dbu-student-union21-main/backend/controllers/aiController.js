@@ -48,7 +48,7 @@ ${clubContext}
 ${staffContext}
             - Key Union Student Leaders:
 ${leadershipContext}
-            - Key Union Leaders: Student Union President is Kirkos Ashebir. Dean of Student Affairs is Ato Gizew Fetene.
+            - Key Union Leaders: Student Union President is Kirkos Ashebir. Dean of Student Affairs is Ato Giziew Fetene.
             
             RULES:
             1. Use your conversational, human-like generative abilities to answer the student organically.
@@ -120,8 +120,8 @@ function buildFallbackAnswer(message, clubs, staff, leadership, totalClubs) {
     // 3. Who is the leader / president / staff generally
     if (q.includes('who is the leader') || q.includes('who is the president') || q.includes('leadership team') || q.includes('contact leader') || q.includes('who is in charge')) {
         const unionPres = leadership.find(l => l.role?.toLowerCase().includes('president'))?.name || 'Kirkos Ashebir';
-        const dean = staff.find(s => s.title?.toLowerCase().includes('dean'))?.name || 'Ato Gizew Fetene';
-        return `DBU Student Affairs leadership includes: Kirkos Ashebir (Student Union President) and Ato Gizew Fetene (Dean of Student Affairs). The Student Union and Student Affairs operate as one integrated office. Visit the Leadership Gallery page for full details and photos.`;
+        const dean = staff.find(s => s.title?.toLowerCase().includes('dean'))?.name || 'Ato Giziew Fetene';
+        return `DBU Student Affairs leadership includes: Kirkos Ashebir (Student Union President) and Ato Giziew Fetene (Dean of Student Affairs). The Student Union and Student Affairs operate as one integrated office. Visit the Leadership Gallery page for full details and photos.`;
     }
 
     // 4. Specific club details

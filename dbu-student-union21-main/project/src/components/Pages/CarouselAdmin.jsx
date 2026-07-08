@@ -43,7 +43,7 @@ export const CarouselAdmin = () => {
     }
   };
 
-  const executiveNames = ['Gizew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
+  const executiveNames = ['Giziew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
   const isExecutive = user && user.name && executiveNames.some(n => user.name.includes(n));
 
   useEffect(() => {
