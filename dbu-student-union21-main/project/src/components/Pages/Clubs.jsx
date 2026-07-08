@@ -342,8 +342,8 @@ export function Clubs() {
     const presidentSigUrl  = 'https://api.dbu.edu/assets/signatures/union_pres.png';
 
     const dean      = deanOfficer;
-    const deanName  = dean?.name  || 'Gizew Fetene';
-    const deanNameAm = 'ጊዜው ፈጠነ';
+    const deanName  = dean?.name  || 'Giziew Fetene';
+    const deanNameAm = 'ጊዘው ፈጠነ';
     const deanTitleAm = 'የተማሪዎች አገልግሎት ዲን';
     const deanTitleEn = dean?.title || 'Student Service Dean';
     // Use the official signature image from api.dbu.edu (not the profile photo)
@@ -370,15 +370,93 @@ export function Clubs() {
     const studentRoleEn = isSample ? 'Active Member' : (isRep ? 'Club Representative' : 'Active Member');
     const studentRoleAm = isSample ? 'ንቁ አባል'         : (isRep ? 'የክለብ ተወካይ'          : 'ንቁ አባል');
 
+    // ── Translate any English club name to its canonical Amharic equivalent ──
+    const getClubAmharicName = (enName) => {
+      if (!enName) return 'የተማሪዎች ሕብረት ክለብ';
+      const key = enName.toLowerCase().trim();
+      const clubMap = {
+        // Charity / Bego Adragot
+        'charity club':          'የበጎ አድራጎት ክለብ',
+        'charity':               'የበጎ አድራጎት ክለብ',
+        'bego adragot':          'የበጎ አድራጎት ክለብ',
+        'bego adragot club':     'የበጎ አድራጎት ክለብ',
+        'begoo adragot':         'የበጎ አድራጎት ክለብ',
+        'volunteer club':        'የበጎ አድራጎት ክለብ',
+        // Law
+        'law club':              'የሕግ ክለብ',
+        'law':                   'የሕግ ክለብ',
+        // Career
+        'career club':           'የሙያ ዕድገት ክለብ',
+        'career':                'የሙያ ዕድገት ክለብ',
+        'career development club': 'የሙያ ዕድገት ክለብ',
+        // Debate
+        'debate club':           'የክርክር ክለብ',
+        'debate':                'የክርክር ክለብ',
+        // Drama
+        'drama club':            'የድራማ ክለብ',
+        'drama':                 'የድራማ ክለብ',
+        'theater club':          'የቴአትር ክለብ',
+        // Science
+        'science club':          'የሳይንስ ክለብ',
+        'science':               'የሳይንስ ክለብ',
+        // Technology
+        'technology club':       'የቴክኖሎጂ ክለብ',
+        'tech club':             'የቴክኖሎጂ ክለብ',
+        'it club':               'የቴክኖሎጂ ክለብ',
+        // Mechanical
+        'mechanical club':       'የሜካኒካ ክለብ',
+        'mechanical':            'የሜካኒካ ክለብ',
+        // Sports
+        'sports club':           'የስፖርት ክለብ',
+        'sport club':            'የስፖርት ክለብ',
+        'sports':                'የስፖርት ክለብ',
+        // Art
+        'art club':              'የጥበብ ክለብ',
+        'arts club':             'የጥበብ ክለብ',
+        'art':                   'የጥበብ ክለብ',
+        // Booking / Library
+        'booking club':          'የቡኪንግ ክለብ',
+        'booking':               'የቡኪንግ ክለብ',
+        // Idea / Innovation
+        'idea club':             'የሃሳብ ልውውጥ ክለብ',
+        'idea':                  'የሃሳብ ልውውጥ ክለብ',
+        'innovation club':       'የፈጠራ ሃሳብ ክለብ',
+        // Truth
+        'truth club':            'የእውነት ክለብ',
+        'truth':                 'የእውነት ክለብ',
+        // Environmental
+        'environmental club':    'የአካባቢ ጥበቃ ክለብ',
+        'environment club':      'የአካባቢ ጥበቃ ክለብ',
+        // Entrepreneurship
+        'entrepreneurship club': 'የስራ ፈጠራ ክለብ',
+        // Journalism / Media
+        'journalism club':       'የጋዜጠኝነት ክለብ',
+        'media club':            'የሚዲያ ክለብ',
+        // Student Union
+        'student union':         'የተማሪዎች ሕብረት',
+        'student union club':    'የተማሪዎች ሕብረት ክለብ',
+      };
+      if (clubMap[key]) return clubMap[key];
+      // Partial-match fallback — checks if stored name contains any known key
+      for (const [k, v] of Object.entries(clubMap)) {
+        if (key.includes(k)) return v;
+      }
+      // Generic fallback: just append "ክለብ" if not already Amharic-suffixed
+      return key.endsWith('ክለብ') ? enName : `${enName} ክለብ`;
+    };
+
     // ── Build the universal JSON schema for CertificateTemplate ───────────
+    const clubNameEn  = data.clubName || selectedClubDetails?.name || 'Student Union Club';
+    const clubNameAm  = data.clubNameAm || selectedClubDetails?.nameAm || getClubAmharicName(clubNameEn);
+
     const certPayload = {
       certificate_id:    `DBU-${selectedClubDetails?._id || data.clubId || 'REP'}-${userSuffix}`,
       recipient_name_en: data.studentName || data.name || user?.name || '_______________',
       recipient_name_am: data.studentNameAm || data.nameAm || user?.nameAm || data.studentName || user?.name || '_______________',
 
-      // Dynamic Club Variables — works for any of the 12 clubs
-      club_name_en: data.clubName || selectedClubDetails?.name || 'Student Union Club',
-      club_name_am: data.clubNameAm || selectedClubDetails?.nameAm || `${data.clubName || 'Student Union'} ክለብ`,
+      // Dynamic Club Variables — proper bilingual names for all 12+ clubs
+      club_name_en: clubNameEn,
+      club_name_am: clubNameAm,
 
       // Dynamic Role Variables — populated per member
       student_role_en: studentRoleEn,

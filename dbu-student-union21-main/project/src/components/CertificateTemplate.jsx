@@ -51,8 +51,8 @@ export function CertificateTemplate({ data = {}, onDispose }) {
       right_slot: {
         title_en: data.roles?.right_slot?.title_en || "Student Service Dean",
         title_am: data.roles?.right_slot?.title_am || "የተማሪዎች አገልግሎት ዲን",
-        current_name_en: data.roles?.right_slot?.current_name_en || "Gizew Fetene",
-        current_name_am: data.roles?.right_slot?.current_name_am || "ጊዜው ፈጠነ",
+        current_name_en: data.roles?.right_slot?.current_name_en || "Giziew Fetene",
+        current_name_am: data.roles?.right_slot?.current_name_am || "ጊዘው ፈጠነ",
         signature_url: data.roles?.right_slot?.signature_url || "https://api.dbu.edu/assets/signatures/student_dean.png"
       },
       official_seal_url: data.roles?.official_seal_url || "https://api.yourdomain.com/storage/assets/official_purple_stamp.png"
@@ -220,8 +220,8 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                 <div className="text-[#1a3a6b] font-bold text-lg border-b border-gray-400 pb-0.5 mb-3 inline-block max-w-max pr-6 font-nyala text-left" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
                   {certData.recipient_name_am}
                 </div>
-                <p className="text-[#111111] text-[13px] leading-[1.75] font-nyala" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
-                  በደብረብርሃን ዩኒቨርሲቲ ከተማሪዎች ሕብረት ስር ከ <span className="font-semibold underline decoration-[#c9952a]">{certData.start_date_ec}</span> እስከ <span className="font-semibold underline decoration-[#c9952a]">{certData.end_date_ec}</span> በ <span className="font-semibold underline decoration-[#c9952a]">{certData.club_name_am}</span> ውስጥ <span className="font-semibold underline decoration-[#c9952a]">{certData.student_role_am}</span> በመሆን ኃላፊነትዎን በአግባቡ በመወጣት በዩኒቨርሲቲው ውስጥ የመማር ማስተማር ሂደቱ ሰላማዊ እንዲሆን ላደረጉት ከፍተኛ አስተዋፅኦ ይህ የምስክር ወረቀት ከታላቅ ምስጋና ጋር ተበርክቶላቸዋል።
+                <p className="text-[#111111] text-[13px] leading-[1.85] font-nyala" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
+                  ይህ ምስክር ወረቀት የሚሰጠው ከ <span className="font-semibold underline decoration-[#c9952a]">{certData.start_date_ec}</span> እስከ <span className="font-semibold underline decoration-[#c9952a]">{certData.end_date_ec}</span> ድረስ በደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ሕብረት ሥር ባለው <span className="font-semibold underline decoration-[#c9952a]">{certData.club_name_am}</span> ውስጥ <span className="font-semibold underline decoration-[#c9952a]">{certData.student_role_am}</span> ሆነው ያለ ዕረፍት ላበረከቱት ትጉህ አስተዋጽኦ፣ ለወሰዱት ኃላፊነትና በዩኒቨርሲቲው የትምህርትና ስልጠና ሂደት ሠላማዊ ዕድገት ላደረጉለት ወሳኝ ሚና ይህ የምስክር ወረቀት ከፍተኛ ምስጋና ታክሎበት ይበርከታል።
                 </p>
               </div>
 
@@ -234,8 +234,8 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                 <div className="text-[#1a3a6b] font-semibold italic text-lg border-b border-gray-400 pb-0.5 mb-3 inline-block max-w-max pr-6 font-garamond text-left" style={{ fontFamily: "'EB Garamond', serif" }}>
                   {certData.recipient_name_en}
                 </div>
-                <p className="text-[#111111] text-[13px] leading-[1.65] font-garamond" style={{ fontFamily: "'EB Garamond', serif" }}>
-                  This certificate awarded to recognize your contribution from <span className="font-semibold underline decoration-[#c9952a]">{certData.start_date_gc}</span> to <span className="font-semibold underline decoration-[#c9952a]">{certData.end_date_gc}</span> in student union as <span className="font-semibold underline decoration-[#c9952a]">{certData.student_role_en}</span> in <span className="font-semibold underline decoration-[#c9952a]">{certData.club_name_en}</span> in Debre Birhan University. We would like to Great appreciation your active participation and commitment in shouldering the responsibility and carrying out other duties enabled the university to run the teaching learning process peacefully.
+                <p className="text-[#111111] text-[13px] leading-[1.85] font-garamond" style={{ fontFamily: "'EB Garamond', serif" }}>
+                  This certificate is hereby awarded to recognize the outstanding contribution rendered from <span className="font-semibold underline decoration-[#c9952a]">{certData.start_date_gc}</span> to <span className="font-semibold underline decoration-[#c9952a]">{certData.end_date_gc}</span> as <span className="font-semibold underline decoration-[#c9952a]">{certData.student_role_en}</span> of the <span className="font-semibold underline decoration-[#c9952a]">{certData.club_name_en}</span>, under the Debre Berhan University Student Union. This recognition is bestowed in appreciation of exemplary dedication, diligent service, and significant contribution to fostering a peaceful and productive teaching-learning environment within the University.
                 </p>
               </div>
             </div>
@@ -340,8 +340,8 @@ export function CertificateTemplate({ data = {}, onDispose }) {
             {/* Bottom Metadata & Verification Line */}
             <div className="text-center text-[7.5px] font-sans tracking-[0.1em] font-semibold text-gray-400 mt-5 border-t border-gray-200/50 pt-2 flex items-center justify-between px-2 uppercase">
               <span>VERIFICATION ID: {certData.certificate_id}</span>
-              <span>ISSUED: {dateString}</span>
-              <span>DEBRE BERHAN UNIVERSITY &bull; DEPT. OF STUDENT AFFAIRS</span>
+              <span>DATE OF ISSUE: {dateString}</span>
+              <span>DEBRE BERHAN UNIVERSITY &bull; OFFICE OF STUDENT AFFAIRS</span>
             </div>
 
           </div>
