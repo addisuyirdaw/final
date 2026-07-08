@@ -1281,11 +1281,11 @@ export function Dashboard() {
 									<div>
 										<label className="block text-sm font-medium text-gray-700 mb-1">Club Name</label>
 										<select value={eventForm.club} onChange={e => setEventForm({...eventForm, club: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2">
-											<option>Tecktonic</option>
-											<option>Idea Hub</option>
-											<option>Law Club</option>
 											<option>Begoadragot</option>
 											<option>Career Development</option>
+											<option>Idea Hub</option>
+											<option>Law Club</option>
+											<option>Tecktonic</option>
 										</select>
 									</div>
 									<div>
@@ -1408,11 +1408,11 @@ export function Dashboard() {
 																			onChange={e => setEditEventForm({ ...editEventForm, club: e.target.value })}
 																			className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm bg-white"
 																		>
-																			<option>Tecktonic</option>
-																			<option>Idea Hub</option>
-																			<option>Law Club</option>
 																			<option>Begoadragot</option>
 																			<option>Career Development</option>
+																			<option>Idea Hub</option>
+																			<option>Law Club</option>
+																			<option>Tecktonic</option>
 																		</select>
 																	</div>
 																	<div>

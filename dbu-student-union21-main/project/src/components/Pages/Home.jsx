@@ -635,17 +635,17 @@ export const Home = () => {
 						<div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-4 w-full md:w-auto">
 							<select className="border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
 								<option value="all">All Clubs</option>
-								<option value="tecktonic">Tecktonic</option>
 								<option value="begoadragot">Begoadragot</option>
-								<option value="hohe-tesfa">Hohe Tesfa</option>
-								<option value="law-club">Law Club</option>
-								<option value="career-dev">Career Development</option>
-								<option value="idea-hub">Idea Hub</option>
-								<option value="truth-culture">Truth Culture</option>
 								<option value="booking">Booking Club</option>
+								<option value="career-dev">Career Development</option>
 								<option value="civil-eng">Civil Engineering</option>
-								<option value="mech-club">Mechanical Club</option>
 								<option value="food-eng">Food Engineering</option>
+								<option value="hohe-tesfa">Hohe Tesfa</option>
+								<option value="idea-hub">Idea Hub</option>
+								<option value="law-club">Law Club</option>
+								<option value="mech-club">Mechanical Club</option>
+								<option value="tecktonic">Tecktonic</option>
+								<option value="truth-culture">Truth Culture</option>
 							</select>
 							{user && user.role === 'club_leader' && (
 								<button className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors whitespace-nowrap shadow-sm">

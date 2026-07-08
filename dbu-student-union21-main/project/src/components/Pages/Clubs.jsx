@@ -837,7 +837,13 @@ export function Clubs() {
         clubsData = response.clubs;
       }
 
-      setClubs(clubsData);
+      // Sort clubs alphabetically by name
+      const sortedClubs = [...clubsData].sort((a, b) => {
+        const nameA = (a.name || "").toLowerCase();
+        const nameB = (b.name || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      setClubs(sortedClubs);
     } catch (error) {
       console.error("Failed to fetch clubs:", error);
       toast.error("Failed to load clubs");

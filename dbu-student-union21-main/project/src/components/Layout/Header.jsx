@@ -43,17 +43,17 @@ export function Header() {
 	}, [fetchDepts]);
 
 	const clubsData = [
-		{ id: "tecktonic", name: "Tecktonic", desc: "The hub for digital transformation. Focuses on software engineering, AI research, and competitive coding.", activities: "Hackathons, Tech-Talks, and Hardware Prototyping." },
 		{ id: "begoadragot", name: "Begoadragot", desc: "The heart of campus volunteerism. Dedicated to blood drives, supporting low-income students, and local community service.", activities: "Charity Auctions and Humanitarian Campaigns." },
-		{ id: "hohe-tesfa", name: "Hohe Tesfa", desc: "Focused on \"Alpha Hope.\" Provides peer-to-peer mentorship for freshmen and mental health awareness.", activities: "Guidance Workshops and \"Hope\" Seminars." },
-		{ id: "law-club", name: "Law Club", desc: "The center for advocacy. Promotes legal literacy and student rights.", activities: "Mock Trials, Legal Debates, and Charter Education." },
-		{ id: "career-dev", name: "Career Development", desc: "The bridge to the future. Specializes in professional branding and workplace readiness.", activities: "CV Building, Mock Interviews, and Job Fairs." },
-		{ id: "idea-hub", name: "Idea Hub", desc: "An innovation incubator. Helps students turn creative thoughts into viable business models.", activities: "Pitch Competitions and Entrepreneurship Bootcamps." },
-		{ id: "truth-culture", name: "Truth Culture", desc: "Preserving integrity and heritage. Focuses on ethical leadership and celebrating Ethiopia's diverse cultural history.", activities: "Cultural Festivals and Ethics Forums." },
 		{ id: "booking", name: "Booking Club", desc: "An academic resource network. Facilitates the exchange of rare textbooks, research journals, and peer-to-peer tutoring.", activities: "Book Swaps and Study Groups." },
+		{ id: "career-dev", name: "Career Development", desc: "The bridge to the future. Specializes in professional branding and workplace readiness.", activities: "CV Building, Mock Interviews, and Job Fairs." },
 		{ id: "civil-eng", name: "Civil Engineering", desc: "Professional building and design. Focuses on structural integrity and modern urban planning.", activities: "Site Visits, CAD Design Competitions, and Bridge Building." },
+		{ id: "food-eng", name: "Food Engineering", desc: "Science for the future. Researches food safety, processing technology, and nutritional security.", activities: "Lab Experiments and Food Safety Seminars." },
+		{ id: "hohe-tesfa", name: "Hohe Tesfa", desc: "Focused on \"Alpha Hope.\" Provides peer-to-peer mentorship for freshmen and mental health awareness.", activities: "Guidance Workshops and \"Hope\" Seminars." },
+		{ id: "idea-hub", name: "Idea Hub", desc: "An innovation incubator. Helps students turn creative thoughts into viable business models.", activities: "Pitch Competitions and Entrepreneurship Bootcamps." },
+		{ id: "law-club", name: "Law Club", desc: "The center for advocacy. Promotes legal literacy and student rights.", activities: "Mock Trials, Legal Debates, and Charter Education." },
 		{ id: "mech-club", name: "Mechanical Club", desc: "Technical and industrial innovation. Specializes in automotive design, robotics, and machine maintenance.", activities: "Robot Wars and Workshop Training." },
-		{ id: "food-eng", name: "Food Engineering", desc: "Science for the future. Researches food safety, processing technology, and nutritional security.", activities: "Lab Experiments and Food Safety Seminars." }
+		{ id: "tecktonic", name: "Tecktonic", desc: "The hub for digital transformation. Focuses on software engineering, AI research, and competitive coding.", activities: "Hackathons, Tech-Talks, and Hardware Prototyping." },
+		{ id: "truth-culture", name: "Truth Culture", desc: "Preserving integrity and heritage. Focuses on ethical leadership and celebrating Ethiopia's diverse cultural history.", activities: "Cultural Festivals and Ethics Forums." }
 	];
 
 	const totalNotifications = Object.values(notifications).reduce((a, b) => a + b, 0);
