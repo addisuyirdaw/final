@@ -342,8 +342,8 @@ export function Clubs() {
     const presidentSigUrl  = 'https://api.dbu.edu/assets/signatures/union_pres.png';
 
     const dean      = deanOfficer;
-    const deanName  = dean?.name  || 'Giziew Fetene Birhanu';
-    const deanNameAm = 'ግዛው ፈጠነ ብርሃኑ';
+    const deanName  = dean?.name  || 'Gizew Fetene';
+    const deanNameAm = 'ጊዜው ፈጠነ';
     const deanTitleAm = 'የተማሪዎች አገልግሎት ዲን';
     const deanTitleEn = dean?.title || 'Student Service Dean';
     // Use the official signature image from api.dbu.edu (not the profile photo)
@@ -362,7 +362,7 @@ export function Clubs() {
       return `${pad(etDay)}/${pad(etMonth)}/${etYear}`;
     };
 
-    const startJs  = data.joinedAt  ? new Date(data.joinedAt)  : new Date();
+    const startJs  = data.joinedAt  ? new Date(data.joinedAt)  : (selectedClubDetails?.createdAt ? new Date(selectedClubDetails.createdAt) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     const endJs    = data.printDate ? new Date(data.printDate) : new Date();
     const fmtGC = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 
@@ -2487,7 +2487,9 @@ export function Clubs() {
                                         attended: rep.attendanceCount || 0,
                                         totalEvents: selectedClubDetails.totalEventsHeld || 0,
                                         required: selectedClubDetails.minAttendanceForCertificate || 75,
-                                        userId: rep.user?._id || rep.user
+                                        userId: rep.user?._id || rep.user,
+                                        joinedAt: rep.joinedAt || selectedClubDetails?.createdAt || null,
+                                        printDate: new Date().toISOString()
                                       })}
                                       className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-900 px-4 py-2 rounded-xl font-black text-xs shadow-md shadow-amber-200 transition-all hover:scale-[1.03] active:scale-[0.97] flex items-center gap-1.5 border border-amber-300 whitespace-nowrap"
                                     >

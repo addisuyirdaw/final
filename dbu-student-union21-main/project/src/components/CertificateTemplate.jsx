@@ -51,8 +51,8 @@ export function CertificateTemplate({ data = {}, onDispose }) {
       right_slot: {
         title_en: data.roles?.right_slot?.title_en || "Student Service Dean",
         title_am: data.roles?.right_slot?.title_am || "የተማሪዎች አገልግሎት ዲን",
-        current_name_en: data.roles?.right_slot?.current_name_en || "Giziew Fetene Birhanu",
-        current_name_am: data.roles?.right_slot?.current_name_am || "ግዛው ፈጠነ ብርሃኑ",
+        current_name_en: data.roles?.right_slot?.current_name_en || "Gizew Fetene",
+        current_name_am: data.roles?.right_slot?.current_name_am || "ጊዜው ፈጠነ",
         signature_url: data.roles?.right_slot?.signature_url || "https://api.dbu.edu/assets/signatures/student_dean.png"
       },
       official_seal_url: data.roles?.official_seal_url || "https://api.yourdomain.com/storage/assets/official_purple_stamp.png"
@@ -176,35 +176,13 @@ export function CertificateTemplate({ data = {}, onDispose }) {
 
             {/* Header: Official Logos framing the bilingual Titles */}
             <div className="flex items-center justify-between gap-4">
-              {/* Left Logo Slot - Rectangular to preserve full logo proportions */}
-              <div className="w-[125px] h-[78px] rounded-lg border-[2px] border-[#c9952a] bg-[#46c1df] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
-                {!logoError && certData.university_logo_url ? (
-                  <img
-                    src={certData.university_logo_url}
-                    alt="DBU Logo Left"
-                    className="w-full h-full object-contain"
-                    onError={() => setLogoError(true)}
-                  />
-                ) : (
-                  <svg width="120" height="75" viewBox="0 0 120 75" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="100%" height="100%" fill="#46c1df"/>
-                    <rect x="2" y="2" width="116" height="71" rx="4" stroke="#c9952a" strokeWidth="1" fill="none"/>
-                    <text x="60" y="14" fill="white" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">ደብረ ብርሃን ዩኒቨርሲቲ</text>
-                    <line x1="10" y1="18" x2="110" y2="18" stroke="white" strokeWidth="0.5"/>
-                    <circle cx="36" cy="38" r="13" fill="#fffef9" stroke="#c9952a" strokeWidth="0.8"/>
-                    <circle cx="36" cy="38" r="10" fill="#d4e890"/>
-                    <rect x="49" y="35" width="26" height="6" fill="#d4e890" stroke="#c9952a" strokeWidth="0.5"/>
-                    <rect x="82" y="32" width="16" height="10" fill="#2d7030"/>
-                    <rect x="82" y="35" width="16" height="3" fill="#f4c430"/>
-                    <rect x="82" y="38" width="16" height="4" fill="#c60c30"/>
-                    <circle cx="90" cy="37" r="2" fill="#002f6c"/>
-                    <text x="54" y="53" fill="white" fontSize="7" fontWeight="bold" fontFamily="sans-serif">D</text>
-                    <text x="65" y="53" fill="white" fontSize="7" fontWeight="bold" fontFamily="sans-serif">B</text>
-                    <text x="76" y="53" fill="white" fontSize="7" fontWeight="bold" fontFamily="sans-serif">U</text>
-                    <line x1="10" y1="58" x2="110" y2="58" stroke="white" strokeWidth="0.5"/>
-                    <text x="60" y="67" fill="white" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">DEBRE BERHAN UNIVERSITY</text>
-                  </svg>
-                )}
+              {/* Left Logo Slot - Exact widescreen logo image */}
+              <div className="w-[160px] h-[110px] flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img
+                  src="/images/image_2a2700.png"
+                  alt="DBU Logo Left"
+                  className="w-full h-full object-contain"
+                />
               </div>
 
               {/* Center Bilingual University Header */}
@@ -217,35 +195,13 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                 </h2>
               </div>
 
-              {/* Right Logo Slot - Rectangular to preserve full logo proportions */}
-              <div className="w-[125px] h-[78px] rounded-lg border-[2px] border-[#c9952a] bg-[#46c1df] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
-                {!logoError && certData.university_logo_url ? (
-                  <img
-                    src={certData.university_logo_url}
-                    alt="DBU Logo Right"
-                    className="w-full h-full object-contain"
-                    onError={() => setLogoError(true)}
-                  />
-                ) : (
-                  <svg width="120" height="75" viewBox="0 0 120 75" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="100%" height="100%" fill="#46c1df"/>
-                    <rect x="2" y="2" width="116" height="71" rx="4" stroke="#c9952a" strokeWidth="1" fill="none"/>
-                    <text x="60" y="14" fill="white" fontSize="7" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">ደብረ ብርሃን ዩኒቨርሲቲ</text>
-                    <line x1="10" y1="18" x2="110" y2="18" stroke="white" strokeWidth="0.5"/>
-                    <circle cx="36" cy="38" r="13" fill="#fffef9" stroke="#c9952a" strokeWidth="0.8"/>
-                    <circle cx="36" cy="38" r="10" fill="#d4e890"/>
-                    <rect x="49" y="35" width="26" height="6" fill="#d4e890" stroke="#c9952a" strokeWidth="0.5"/>
-                    <rect x="82" y="32" width="16" height="10" fill="#2d7030"/>
-                    <rect x="82" y="35" width="16" height="3" fill="#f4c430"/>
-                    <rect x="82" y="38" width="16" height="4" fill="#c60c30"/>
-                    <circle cx="90" cy="37" r="2" fill="#002f6c"/>
-                    <text x="54" y="53" fill="white" fontSize="7" fontWeight="bold" fontFamily="sans-serif">D</text>
-                    <text x="65" y="53" fill="white" fontSize="7" fontWeight="bold" fontFamily="sans-serif">B</text>
-                    <text x="76" y="53" fill="white" fontSize="7" fontWeight="bold" fontFamily="sans-serif">U</text>
-                    <line x1="10" y1="58" x2="110" y2="58" stroke="white" strokeWidth="0.5"/>
-                    <text x="60" y="67" fill="white" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">DEBRE BERHAN UNIVERSITY</text>
-                  </svg>
-                )}
+              {/* Right Logo Slot - Exact widescreen logo image */}
+              <div className="w-[160px] h-[110px] flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img
+                  src="/images/image_2a2700.png"
+                  alt="DBU Logo Right"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
 
@@ -290,7 +246,7 @@ export function CertificateTemplate({ data = {}, onDispose }) {
               {/* Left Column (Student Union President Signature Slot) */}
               <div className="w-[32%] relative h-full flex flex-col justify-end">
                 {/* Signature Ink: Absolutely anchored at the bottom-12 position inside this column */}
-                <div className="absolute bottom-[45px] left-0 right-0 h-14 flex items-center justify-center pointer-events-none select-none z-20">
+                <div className="absolute bottom-12 left-0 right-0 h-14 flex items-center justify-center pointer-events-none select-none z-20">
                   {!leftSigError && certData.roles?.left_slot?.signature_url ? (
                     <img
                       src={certData.roles.left_slot.signature_url}
@@ -308,7 +264,7 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                   )}
                 </div>
                 {/* Baseline divider and text labels */}
-                <div className="w-full border-t border-gray-400 pt-1 text-center bg-[#fffef9]/90">
+                <div className="w-full border-t border-dotted border-gray-400 pt-1 text-center bg-[#fffef9]/90">
                   <span className="block font-bold text-xs text-slate-800" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
                     {cleanNameAm(certData.roles.left_slot.current_name_am)}
                   </span>
@@ -327,7 +283,7 @@ export function CertificateTemplate({ data = {}, onDispose }) {
               {/* Right Column (Student Service Dean Signature Slot) */}
               <div className="w-[32%] relative h-full flex flex-col justify-end">
                 {/* Signature Ink: Absolutely anchored bottom-12 inside this column */}
-                <div className="absolute bottom-[45px] left-0 right-0 h-14 flex items-center justify-center pointer-events-none select-none z-20">
+                <div className="absolute bottom-12 left-0 right-0 h-14 flex items-center justify-center pointer-events-none select-none z-20">
                   {!rightSigError && certData.roles?.right_slot?.signature_url ? (
                     <img
                       src={certData.roles.right_slot.signature_url}
@@ -345,7 +301,7 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                   )}
                 </div>
                 {/* Baseline divider and text labels */}
-                <div className="w-full border-t border-gray-400 pt-1 text-center bg-[#fffef9]/90">
+                <div className="w-full border-t border-dotted border-gray-400 pt-1 text-center bg-[#fffef9]/90">
                   <span className="block font-bold text-xs text-slate-800" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
                     {cleanNameAm(certData.roles.right_slot.current_name_am)}
                   </span>
@@ -359,7 +315,7 @@ export function CertificateTemplate({ data = {}, onDispose }) {
               </div>
 
               {/* Central Seal: Absolutely positioned overlapping the left corner of the Dean's zone */}
-              <div className="absolute right-[28%] bottom-[35px] w-[88px] h-[88px] pointer-events-none select-none z-30">
+              <div className="absolute right-[26%] bottom-[42px] w-[88px] h-[88px] pointer-events-none select-none z-30">
                 {!sealError && certData.roles?.official_seal_url ? (
                   <img
                     src={certData.roles.official_seal_url}
