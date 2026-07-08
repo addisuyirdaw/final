@@ -370,18 +370,19 @@ export function Clubs() {
     const studentRoleEn = isSample ? 'Active Member' : (isRep ? 'Club Representative' : 'Active Member');
     const studentRoleAm = isSample ? 'ንቁ አባል'         : (isRep ? 'የክለብ ተወካይ'          : 'ንቁ አባል');
 
-    // ── Translate any English club name to its canonical Amharic equivalent ──
+    // ── Translate any English or transliterated club name to its canonical Amharic equivalent ──
     const getClubAmharicName = (enName) => {
       if (!enName) return 'የተማሪዎች ሕብረት ክለብ';
       const key = enName.toLowerCase().trim();
       const clubMap = {
         // Charity / Bego Adragot
-        'charity club':          'የበጎ አድራጎት ክለብ',
-        'charity':               'የበጎ አድራጎት ክለብ',
-        'bego adragot':          'የበጎ አድራጎት ክለብ',
-        'bego adragot club':     'የበጎ አድራጎት ክለብ',
-        'begoo adragot':         'የበጎ አድራጎት ክለብ',
-        'volunteer club':        'የበጎ አድራጎት ክለብ',
+        'charity club':          'በጎ አድራጎት ክለብ',
+        'charity':               'በጎ አድራጎት ክለብ',
+        'bego adragot':          'በጎ አድራጎት ክለብ',
+        'bego adragot club':     'በጎ አድራጎት ክለብ',
+        'begoo adragot':         'በጎ አድራጎት ክለብ',
+        'begoadragot':           'በጎ አድራጎት ክለብ',
+        'volunteer club':        'በጎ አድራጎት ክለብ',
         // Law
         'law club':              'የሕግ ክለብ',
         'law':                   'የሕግ ክለብ',
@@ -445,9 +446,89 @@ export function Clubs() {
       return key.endsWith('ክለብ') ? enName : `${enName} ክለብ`;
     };
 
+    // ── Translate any English or transliterated club name to its canonical English equivalent ──
+    const getClubEnglishName = (name) => {
+      if (!name) return 'Student Union Club';
+      const key = name.toLowerCase().trim();
+      const clubMap = {
+        // Charity / Bego Adragot
+        'charity club':          'Charity Club',
+        'charity':               'Charity Club',
+        'bego adragot':          'Charity Club',
+        'bego adragot club':     'Charity Club',
+        'begoo adragot':         'Charity Club',
+        'begoadragot':           'Charity Club',
+        'volunteer club':        'Charity Club',
+        // Law
+        'law club':              'Law Club',
+        'law':                   'Law Club',
+        'law association':       'Law Association Club',
+        'law association club':  'Law Association Club',
+        // Career
+        'career club':           'Career Club',
+        'career':                'Career Club',
+        'career development club': 'Career Development Club',
+        // Debate
+        'debate club':           'Debate Club',
+        'debate':                'Debate Club',
+        // Drama
+        'drama club':            'Drama Club',
+        'drama':                 'Drama Club',
+        'theater club':          'Theater Club',
+        // Science
+        'science club':          'Science Club',
+        'science':               'Science Club',
+        // Technology
+        'technology club':       'Technology Club',
+        'tech club':             'Technology Club',
+        'it club':               'Technology Club',
+        // Mechanical
+        'mechanical club':       'Mechanical Club',
+        'mechanical':            'Mechanical Club',
+        // Sports
+        'sports club':           'Sports Club',
+        'sport club':            'Sports Club',
+        'sports':                'Sports Club',
+        // Art
+        'art club':              'Art Club',
+        'arts club':             'Art Club',
+        'art':                   'Art Club',
+        // Booking / Library
+        'booking club':          'Booking Club',
+        'booking':               'Booking Club',
+        // Idea / Innovation
+        'idea club':             'Idea Club',
+        'idea':                  'Idea Club',
+        'idea hub':              'Idea Hub',
+        'innovation club':       'Innovation Club',
+        // Truth
+        'truth club':            'Truth Club',
+        'truth':                 'Truth Club',
+        'truth culture club':    'Truth Culture Club',
+        // Environmental
+        'environmental club':    'Environmental Club',
+        'environment club':      'Environmental Club',
+        // Entrepreneurship
+        'entrepreneurship club': 'Entrepreneurship Club',
+        // Journalism / Media
+        'journalism club':       'Journalism Club',
+        'media club':            'Media Club',
+        // Student Union
+        'student union':         'Student Union',
+        'student union club':    'Student Union Club',
+      };
+      if (clubMap[key]) return clubMap[key];
+      // Partial-match fallback — checks if stored name contains any known key
+      for (const [k, v] of Object.entries(clubMap)) {
+        if (key.includes(k)) return v;
+      }
+      return name;
+    };
+
     // ── Build the universal JSON schema for CertificateTemplate ───────────
-    const clubNameEn  = data.clubName || selectedClubDetails?.name || 'Student Union Club';
-    const clubNameAm  = data.clubNameAm || selectedClubDetails?.nameAm || getClubAmharicName(clubNameEn);
+    const rawClubName = data.clubName || selectedClubDetails?.name || 'Student Union Club';
+    const clubNameEn  = getClubEnglishName(rawClubName);
+    const clubNameAm  = data.clubNameAm || selectedClubDetails?.nameAm || getClubAmharicName(rawClubName);
 
     const certPayload = {
       certificate_id:    `DBU-${selectedClubDetails?._id || data.clubId || 'REP'}-${userSuffix}`,

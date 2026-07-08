@@ -32,7 +32,7 @@ export function CertificateTemplate({ data = {}, onDispose }) {
     recipient_name_en: data.recipient_name_en || "Tsion Abayneh",
     recipient_name_am: data.recipient_name_am || "ጽዮን አባይነህ",
     club_name_en: data.club_name_en || "Charity Club",
-    club_name_am: data.club_name_am || "የበጎ አድራጎት ክለብ",
+    club_name_am: data.club_name_am || "በጎ አድራጎት ክለብ",
     student_role_en: data.student_role_en || "Club Representative",
     student_role_am: data.student_role_am || "የክለብ ተወካይ",
     start_date_gc: data.start_date_gc || "27/04/2026",
