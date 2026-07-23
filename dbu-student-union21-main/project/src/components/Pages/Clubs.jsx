@@ -8,6 +8,7 @@ import { CertificateTemplate } from "../CertificateTemplate";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
+import { getPublicVerificationUrl } from "../../utils/verification";
 import bookingLogo from "../../assets/club-logos/booking.png";
 import careerLogo from "../../assets/club-logos/career.png";
 import truthLogo from "../../assets/club-logos/truth.png";
@@ -314,7 +315,7 @@ export function Clubs() {
     }
   };
 
-  const handleDownloadCertificate = (customData) => {
+  const handleDownloadCertificate = async (customData) => {
     const data = customData || eligibleData;
     // DEMO BYPASS: Club Rep (10175692) and Global Admin (10101040) always get a certificate.
     const isDemoPrivileged =
@@ -530,8 +531,63 @@ export function Clubs() {
     const clubNameEn  = getClubEnglishName(rawClubName);
     const clubNameAm  = data.clubNameAm || selectedClubDetails?.nameAm || getClubAmharicName(rawClubName);
 
+    const startDateGC = `${fmtGC(startJs)} G.C`;
+    const endDateGC   = `${fmtGC(endJs)} G.C`;
+    const startDateEC = `${toEthiopian(startJs)} ዓ.ም`;
+    const endDateEC   = `${toEthiopian(endJs)} ዓ.ም`;
+
+    // ── Persist to database (idempotent — returns existing if already issued) ──
+    // For sample/preview certificates we skip the DB call
+    let certNumber   = `DBU-${selectedClubDetails?._id || data.clubId || 'REP'}-${userSuffix}`;
+    let verifyCode   = '';
+    let verifyUrl    = '';
+
+    if (!isSample) {
+      const issueToast = toast.loading('Registering certificate in official database...');
+      try {
+        const issueRes = await apiService.issueCertificate({
+          studentId:         userId,
+          studentName:       data.studentName || data.name || user?.name || '',
+          studentUsername:   user?.username || '',
+          studentDepartment: user?.department || '',
+          studentYear:       user?.year || '',
+          profileImage:      user?.profileImage || '',
+          clubId:            selectedClubDetails?._id || data.clubId || '',
+          clubName:          clubNameEn,
+          clubNameAm,
+          role:              studentRoleEn,
+          roleAm:            studentRoleAm,
+          joinedAt:          startJs.toISOString(),
+          startDateGC,
+          endDateGC,
+          startDateEC,
+          endDateEC,
+        });
+        toast.dismiss(issueToast);
+
+        if (issueRes?.success && issueRes?.certificate) {
+          certNumber = issueRes.certificate.certificateNumber;
+          verifyCode = issueRes.certificate.verificationCode;
+          verifyUrl  = getPublicVerificationUrl(certNumber);
+          if (issueRes.isExisting) {
+            toast.success('Certificate retrieved from official registry.');
+          } else {
+            toast.success('Certificate registered in official DBU database.');
+          }
+        } else {
+          toast.error('Could not register certificate. Generating preview only.');
+        }
+      } catch (issueErr) {
+        toast.dismiss(issueToast);
+        toast.error('Could not reach the certificate registry. Generating preview only.');
+        console.error('Certificate issue error:', issueErr);
+      }
+    }
+
     const certPayload = {
-      certificate_id:    `DBU-${selectedClubDetails?._id || data.clubId || 'REP'}-${userSuffix}`,
+      certificate_id:    certNumber,
+      verification_code: verifyCode,
+      verification_url:  verifyUrl,
       recipient_name_en: data.studentName || data.name || user?.name || '_______________',
       recipient_name_am: data.studentNameAm || data.nameAm || user?.nameAm || data.studentName || user?.name || '_______________',
 
@@ -543,10 +599,10 @@ export function Clubs() {
       student_role_en: studentRoleEn,
       student_role_am: studentRoleAm,
 
-      start_date_gc: `${fmtGC(startJs)} G.C`,
-      end_date_gc:   `${fmtGC(endJs)} G.C`,
-      start_date_ec: `${toEthiopian(startJs)} ዓ.ም`,
-      end_date_ec:   `${toEthiopian(endJs)} ዓ.ም`,
+      start_date_gc: startDateGC,
+      end_date_gc:   endDateGC,
+      start_date_ec: startDateEC,
+      end_date_ec:   endDateEC,
 
       university_logo_url: 'https://api.dbu.edu/assets/logo.png',
 

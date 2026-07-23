@@ -20,7 +20,8 @@ import {
   FolderPlus,
   Trash2,
   Building2,
-  Plus
+  Plus,
+  Award
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -458,6 +459,13 @@ export function AdminDashboard() {
       icon: Users,
       color: 'bg-teal-500',
       action: () => navigate('/admin/team')
+    },
+    {
+      title: 'Certificate Registry',
+      description: 'Verify, audit & revoke student digital certificates',
+      icon: Award,
+      color: 'bg-amber-500',
+      action: () => navigate('/admin/certificates')
     },
   ];
 

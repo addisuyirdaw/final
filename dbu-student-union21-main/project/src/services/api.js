@@ -4,7 +4,7 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD
-    ? 'https://dbu-student-union-api.onrender.com/api'
+    ? 'https://dbu-student-portal-2.onrender.com/api'
     : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:5000/api`);
 
 class ApiService {
@@ -725,10 +725,65 @@ class ApiService {
     return this.request(`/config/toggle/${key}`, { method: 'POST' });
   }
 
+
   /** Toggle a certificate rule (Required ↔ Optional) (Club Admin only) */
   async toggleCertRule(key) {
     return this.request(`/config/toggle-cert-rule/${key}`, { method: 'POST' });
   }
+
+  // ── Certificate Verification System ───────────────────────────────────────
+
+  /**
+   * Issue a new certificate (or return existing one for same student+club+role).
+   * Requires authentication — the backend uses the logged-in user as issuedBy.
+   */
+  async issueCertificate(payload) {
+    return this.request('/certificates/issue', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /**
+   * Public verification — no auth headers sent.
+   * Called from the /verify page; safe for public use.
+   */
+  async verifyCertificatePublic(certNumber) {
+    const url = `${this.baseURL}/certificates/verify/${encodeURIComponent(certNumber)}`;
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  /** Admin: list all certificates with optional filters */
+  async getCertificates({ search = '', status = '', page = 1, limit = 30 } = {}) {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    params.set('page', page);
+    params.set('limit', limit);
+    return this.request(`/certificates?${params.toString()}`);
+  }
+
+  /** Admin: revoke a certificate */
+  async revokeCertificate(certificateNumber, reason = '') {
+    return this.request('/certificates/revoke', {
+      method: 'POST',
+      body: JSON.stringify({ certificateNumber, reason }),
+    });
+  }
+
+  /** Admin: reactivate a revoked certificate */
+  async reactivateCertificate(certificateNumber) {
+    return this.request('/certificates/reactivate', {
+      method: 'POST',
+      body: JSON.stringify({ certificateNumber }),
+    });
+  }
+
+  /** Get all certificates for a specific student (own or admin) */
+  async getStudentCertificates(studentId) {
+    return this.request(`/certificates/student/${studentId}`);
+  }
 }
 
-export const apiService = new ApiService();
+export const apiService = new ApiService();

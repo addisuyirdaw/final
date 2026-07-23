@@ -34,6 +34,8 @@ import { Dormitory } from "./components/Pages/Dormitory";
 import { LeadershipDepartment } from "./components/Pages/LeadershipDepartment";
 import { Profile } from "./components/Pages/Profile";
 import { UserManagement } from "./components/Admin/UserManagement";
+import { VerifyPage } from "./components/Pages/VerifyPage";
+import { CertificatesAdmin } from "./components/Admin/CertificatesAdmin";
 import "./index.css";
 
 function AppContent() {
@@ -57,6 +59,8 @@ function AppContent() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          <Route path="/verify" element={<VerifyPage />} />
+          <Route path="/verify/:certNumber" element={<VerifyPage />} />
           <Route
             path="/contact"
             element={user?.isRestricted ? <Navigate to="/restricted" replace /> : (user ? <Navigate to="/dashboard" replace /> : <Contact />)}
@@ -187,6 +191,16 @@ function AppContent() {
               <ProtectedRoute>
                 <AdminRoute>
                   <UserManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/certificates"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <CertificatesAdmin />
                 </AdminRoute>
               </ProtectedRoute>
             }
