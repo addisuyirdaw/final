@@ -359,11 +359,11 @@ export function CertificateTemplate({ data = {}, onDispose }) {
               </div>
 
               {/* Bottom Right QR Code Positioned in standard official corner */}
-              <div className="absolute bottom-[38px] right-[14px] z-30 flex flex-col items-center p-1 bg-white border border-gray-300 rounded shadow-sm">
+              <div className="absolute bottom-[30px] right-[10px] z-30 flex flex-col items-center p-1.5 bg-white border border-gray-300 rounded shadow-sm">
                 <QRCode
                   value={certData.verification_url}
-                  size={52}
-                  level="M"
+                  size={80}
+                  level="H"
                 />
                 <span className="text-[5.5px] font-sans font-bold text-gray-600 mt-0.5 tracking-tighter">SCAN TO VERIFY</span>
               </div>

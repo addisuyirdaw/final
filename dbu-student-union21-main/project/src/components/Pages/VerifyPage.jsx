@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Search, ShieldCheck, Award, Calendar, User, Building, CheckCircle2, XCircle, AlertTriangle, RefreshCw, WifiOff } from "lucide-react";
+import { Search, ShieldCheck, Award, Calendar, User, Building, CheckCircle2, XCircle, AlertTriangle, RefreshCw, WifiOff, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { apiService } from "../../services/api";
 
@@ -13,6 +13,14 @@ export function VerifyPage() {
   const [result, setResult] = useState(null);
   const [searched, setSearched] = useState(false);
   const [serverError, setServerError] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef(null);
+
+  // Ping the backend as soon as the page loads to wake up Render's free-tier server
+  // so it's warm by the time the user submits the certificate number.
+  useEffect(() => {
+    apiService.request("/certificates/verify/ping", { method: "GET" }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (routeCertNumber) {
@@ -21,6 +29,17 @@ export function VerifyPage() {
       handleVerify(routeCertNumber);
     }
   }, [routeCertNumber]);
+
+  // Start/stop elapsed timer whenever loading changes
+  useEffect(() => {
+    if (loading) {
+      setElapsed(0);
+      timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [loading]);
 
   const handleVerify = async (queryNumber) => {
     const target = (queryNumber || inputNumber).trim();
@@ -115,10 +134,30 @@ export function VerifyPage() {
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-slate-800/50 rounded-2xl p-12 text-center border border-slate-700">
-            <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-slate-300 font-medium">Querying DBU Central Verification Registry...</p>
-            <p className="text-xs text-slate-500 mt-1">Verifying SHA-256 cryptographic hash signature...</p>
+          <div className="bg-slate-800/50 rounded-2xl p-10 text-center border border-slate-700 space-y-4">
+            <div className="w-14 h-14 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div>
+              <p className="text-slate-200 font-semibold text-base">
+                {elapsed < 5 ? "Querying DBU Central Verification Registry..." : "Server is warming up, please wait..."}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                {elapsed < 5
+                  ? "Verifying SHA-256 cryptographic hash signature..."
+                  : "The verification server was sleeping. This takes up to 30 seconds on the first scan."}
+              </p>
+            </div>
+            {/* Elapsed timer */}
+            <div className="flex items-center justify-center gap-1.5 text-amber-400 text-sm font-mono">
+              <Clock className="w-4 h-4" />
+              <span>{elapsed}s</span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-amber-500 rounded-full transition-all duration-1000"
+                style={{ width: `${Math.min((elapsed / 35) * 100, 95)}%` }}
+              />
+            </div>
           </div>
         )}
 
