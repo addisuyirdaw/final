@@ -47,13 +47,118 @@ export function CertificateTemplate({ data = {}, onDispose }) {
   console.log("verifyUrl:", verifyUrl);
   console.log("=================================");
 
+  // Name transliteration dictionary & fallback helper to ensure Amharic side ALWAYS displays Amharic Fidel
+  const nameDictionary = {
+    kefyalew: 'ከፍያለው',
+    birhan: 'ብርሃን',
+    berhan: 'ብርሃን',
+    tsion: 'ጽዮን',
+    abayneh: 'አባይነህ',
+    kirkos: 'ኪርኮስ',
+    ashebir: 'አሸብር',
+    giziew: 'ጊዘው',
+    gizew: 'ጊዘው',
+    fetene: 'ፈጠነ',
+    getabalew: 'ገታባለው',
+    amtataw: 'አምጣጣው',
+    addisu: 'አዲሱ',
+    yirdaw: 'ይርዳው',
+    abebe: 'አበበ',
+    bikila: 'ቢቂላ',
+    kebede: 'ከበደ',
+    tadesse: 'ታደሰ',
+    tadese: 'ታደሰ',
+    mulugeta: 'ሙሉጌታ',
+    alemu: 'አለሙ',
+    tesfaye: 'ተስፋዬ',
+    haile: 'ኃይሌ',
+    getachew: 'ጌታቸው',
+    solomon: 'ሰለሞን',
+    dawit: 'ዳዊት',
+    dawi: 'ዳዊት',
+    yared: 'ያሬድ',
+    elias: 'ኤልያስ',
+    daniel: 'ዳንኤል',
+    samuel: 'ሳሙኤል',
+    mikiyas: 'ሚክያስ',
+    miki: 'ሚክያስ',
+    tewodros: 'ቴዎድሮስ',
+    yohannes: 'ዮሐንስ',
+    nigusu: 'ንግሡ',
+    niguse: 'ንግሡ',
+    binyam: 'ቢንያም',
+    henok: 'ሄኖክ',
+    bethlehem: 'ቤተልሔም',
+    betelhem: 'ቤተልሔም',
+    selam: 'ሰላም',
+    mahlet: 'ማህሌት',
+    hiwot: 'ሕይወት',
+    helen: 'ሔለን',
+    marta: 'ማርታ',
+    rahel: 'ራሔል',
+    tigist: 'ትዕግስት',
+    eden: 'ኤደን',
+    kaleb: 'ካሌብ',
+    kirubel: 'ኪሩቤል',
+    surafel: 'ሱራፌል',
+    nahom: 'ናሆም',
+    nathnael: 'ናትናኤል',
+    natnael: 'ናትናኤል',
+    ermias: 'ኤርሚያስ',
+    worku: 'ወርቁ',
+    bekele: 'በቀለ',
+    assefa: 'አሰፋ',
+    desta: 'ደስታ',
+    girma: 'ግርማ',
+    lema: 'ለማ',
+    lemma: 'ለማ',
+    mekonnen: 'መኮንን',
+    mekonen: 'መኮንን',
+    mengistu: 'መንግስቱ',
+    tekle: 'ተክሌ',
+    zewdu: 'ዘውዱ',
+    workneh: 'ወርቅነህ',
+    tsegaye: 'ፀጋዬ',
+    ayalew: 'አያሌው',
+    belay: 'በላይ',
+    demissie: 'ደሚሴ',
+    fikru: 'ፍቅሩ',
+    gebre: 'ገብሬ',
+    kassahun: 'ካሳሁን',
+    melaku: 'መላኩ',
+    negash: 'ነጋሽ',
+    shiferaw: 'ሽፈራው',
+    tilahun: 'ቲላሁን',
+    yonas: 'ዮናስ',
+    zeleke: 'ዘለቀ'
+  };
+
+  const toAmharicName = (nameStr) => {
+    if (!nameStr || typeof nameStr !== 'string') return '';
+    if (/[\u1200-\u137F]/.test(nameStr) && !/[a-zA-Z]/.test(nameStr)) {
+      return nameStr;
+    }
+    const words = nameStr.trim().split(/\s+/);
+    const converted = words.map(w => {
+      const clean = w.toLowerCase().replace(/[^a-z]/g, '');
+      return nameDictionary[clean] || w;
+    });
+    return converted.join(' ');
+  };
+
+  const recipientEn = data.recipient_name_en || "Kefyalew Birhan";
+  let recipientAm = data.recipient_name_am;
+  if (!recipientAm || /[a-zA-Z]/.test(recipientAm)) {
+    recipientAm = toAmharicName(recipientAm || recipientEn);
+  }
+
   // Merge default values mapping to the requested schema
   const certData = {
     certificate_id: certificateNumber,
     verification_code: verifyCode,
     verification_url: verifyUrl,
-    recipient_name_en: data.recipient_name_en || "Tsion Abayneh",
-    recipient_name_am: data.recipient_name_am || "ጽዮን አባይነህ",
+    recipient_name_en: recipientEn,
+    recipient_name_am: recipientAm,
     club_name_en: data.club_name_en || "Charity Club",
     club_name_am: data.club_name_am || "በጎ አድራጎት ክለብ",
     student_role_en: data.student_role_en || "Club Representative",

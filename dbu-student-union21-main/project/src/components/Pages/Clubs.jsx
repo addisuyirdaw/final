@@ -584,12 +584,18 @@ export function Clubs() {
       }
     }
 
+    const recipientEnName = data.studentName || data.name || user?.name || '_______________';
+    let recipientAmName = data.studentNameAm || data.nameAm || user?.nameAm;
+    if (!recipientAmName || /[a-zA-Z]/.test(recipientAmName)) {
+      recipientAmName = recipientEnName;
+    }
+
     const certPayload = {
       certificate_id:    certNumber,
       verification_code: verifyCode,
       verification_url:  verifyUrl,
-      recipient_name_en: data.studentName || data.name || user?.name || '_______________',
-      recipient_name_am: data.studentNameAm || data.nameAm || user?.nameAm || data.studentName || user?.name || '_______________',
+      recipient_name_en: recipientEnName,
+      recipient_name_am: recipientAmName,
 
       // Dynamic Club Variables — proper bilingual names for all 12+ clubs
       club_name_en: clubNameEn,
