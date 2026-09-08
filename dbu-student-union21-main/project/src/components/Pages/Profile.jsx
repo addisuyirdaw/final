@@ -3,6 +3,20 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import { motion } from "framer-motion";
+
+// Resolve a backend-relative path like /uploads/profiles/x.jpg
+// to a full URL so the <img> loads from the backend, not the frontend dev server.
+const BACKEND_ORIGIN =
+  import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace('/api', '')
+    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:5000`;
+
+function resolveImageUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  // Relative path like /uploads/profiles/...
+  return `${BACKEND_ORIGIN}${url}`;
+}
 import {
   User,
   Mail,
@@ -131,6 +145,7 @@ export function Profile() {
       const res = await apiService.updateProfile(payload);
       if (res.success) {
         toast.success("Profile updated successfully!");
+        const newProfileImage = res.user.profileImage || "";
         // Sync context state
         updateUserSession({
           name: res.user.name,
@@ -139,8 +154,10 @@ export function Profile() {
           year: res.user.year,
           phoneNumber: res.user.phoneNumber,
           address: res.user.address,
-          profileImage: res.user.profileImage
+          profileImage: newProfileImage
         });
+        // ✅ FIX: update formData so the <img> shows the new photo after preview is cleared
+        setFormData(prev => ({ ...prev, profileImage: newProfileImage }));
         // Clear staged file after successful upload
         setAvatarFile(null);
         setAvatarPreview("");
@@ -224,7 +241,7 @@ export function Profile() {
               />
 
               <img
-                src={avatarPreview || formData.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=0284c7&color=fff&size=128`}
+                src={avatarPreview || resolveImageUrl(formData.profileImage) || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=0284c7&color=fff&size=128`}
                 alt={formData.name}
                 className="w-20 h-20 rounded-full object-cover border-4 border-sky-100 bg-white transition-opacity group-hover:opacity-70"
                 onError={(e) => {
