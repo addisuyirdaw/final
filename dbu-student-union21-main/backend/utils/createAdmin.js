@@ -5,7 +5,6 @@ const bcrypt = require("bcryptjs");
 
 const createDefaultAdmin = async () => {
   try {
-    // Create additional admin users with different roles
     const additionalAdmins = [
       {
         name: "System Administrator",
@@ -50,47 +49,35 @@ const createDefaultAdmin = async () => {
     ];
 
     for (const adminData of additionalAdmins) {
-      const existingAdmin = await User.findOne({
-        username: adminData.username,
-      });
+      const existingAdmin = await User.findOne({ username: adminData.username });
 
       if (!existingAdmin) {
-        // Hash password before creating
+        // Brand-new record — set the default password
         const hashedPassword = await bcrypt.hash(adminData.password, 12);
-        
-        const admin = await User.create({
-          ...adminData,
-          password: hashedPassword
-        });
+        await User.create({ ...adminData, password: hashedPassword });
         console.log(`✅ Admin created: ${adminData.username}`);
       } else {
-        console.log(`ℹ️ Admin already exists: ${adminData.username}`);
-        
-        // Hash password if we're updating it
-        const hashedPassword = await bcrypt.hash(adminData.password, 12);
-        
-        // UPDATE EXISTING ADMIN to ensure proper privileges
+        // Existing record — update privilege/profile fields ONLY.
+        // ⚠️  Password is intentionally excluded so user-set passwords
+        //     survive server restarts (password field has select:false so
+        //     checking existingAdmin.password is always undefined — never
+        //     use that pattern for password guards).
         await User.findOneAndUpdate(
           { username: adminData.username },
-          { 
+          {
             isAdmin: true,
             role: adminData.role,
             isActive: true,
-            isLocked: false,
-            loginAttempts: 0,
-            lockUntil: undefined,
-            password: hashedPassword, // Update password
-            name: adminData.name, // Ensure name is correct
-            email: adminData.email, // Ensure email is correct
+            name: adminData.name,
+            email: adminData.email,
             department: adminData.department,
-            year: adminData.year
+            year: adminData.year,
           }
         );
-        console.log(`✅ Admin privileges updated for: ${adminData.username}`);
+        console.log(`✅ Admin verified: ${adminData.username} (password preserved)`);
       }
     }
 
-    // Create sample students for testing
     const sampleStudents = [
       {
         name: "John Doe",
@@ -115,37 +102,19 @@ const createDefaultAdmin = async () => {
     ];
 
     for (const studentData of sampleStudents) {
-      const existingStudent = await User.findOne({
-        username: studentData.username,
-      });
+      const existingStudent = await User.findOne({ username: studentData.username });
 
       if (!existingStudent) {
-        // Hash password before creating
         const hashedPassword = await bcrypt.hash(studentData.password, 12);
-        
-        const student = await User.create({
-          ...studentData,
-          password: hashedPassword
-        });
+        await User.create({ ...studentData, password: hashedPassword });
         console.log(`✅ Sample student created: ${studentData.username}`);
       } else {
-        console.log(`ℹ️ Student already exists: ${studentData.username}`);
-        
-        // Update existing student to ensure proper setup
-        const hashedPassword = await bcrypt.hash(studentData.password, 12);
+        // ⚠️  Password intentionally excluded — same reason as admins above
         await User.findOneAndUpdate(
           { username: studentData.username },
-          { 
-            password: hashedPassword,
-            isActive: true,
-            isLocked: false,
-            loginAttempts: 0,
-            lockUntil: undefined,
-            role: 'student',
-            isAdmin: false
-          }
+          { isActive: true, role: "student", isAdmin: false }
         );
-        console.log(`✅ Student credentials updated for: ${studentData.username}`);
+        console.log(`✅ Student verified: ${studentData.username} (password preserved)`);
       }
     }
   } catch (error) {
