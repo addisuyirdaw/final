@@ -144,6 +144,43 @@ class ApiService {
     });
   }
 
+  // ── Cross-Campus Student Club Network ────────────────────────────────────────
+
+  async getUniversities() {
+    return this.request('/cross-campus/universities');
+  }
+
+  async getCrossCampusClubs(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/cross-campus/clubs${qs ? `?${qs}` : ''}`);
+  }
+
+  async getJointEvents(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/cross-campus/events${qs ? `?${qs}` : ''}`);
+  }
+
+  async proposeJointEvent(eventData) {
+    return this.request('/cross-campus/events', {
+      method: 'POST',
+      body: JSON.stringify(eventData),
+    });
+  }
+
+  async registerForJointEvent(eventId) {
+    return this.request(`/cross-campus/events/${eventId}/register`, {
+      method: 'POST',
+      body: JSON.stringify({ universityCode: 'DBU' }),
+    });
+  }
+
+  async cancelJointEventRegistration(eventId) {
+    return this.request(`/cross-campus/events/${eventId}/register`, {
+      method: 'DELETE',
+    });
+  }
+
+
   // Complaints endpoints
   async getComplaints(params = {}) {
     const queryString = new URLSearchParams(params).toString();

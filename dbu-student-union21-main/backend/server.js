@@ -28,10 +28,12 @@ const configRoutes = require("./routes/config");
 const certificateRoutes = require("./routes/certificates");
 const backupRoutes = require("./routes/backup");
 const { initBackupCron } = require("./services/backupService");
+const crossCampusRoutes = require("./routes/crossCampus");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
 const { createDefaultAdmin } = require("./utils/createAdmin");
+const { seedUniversities } = require("./utils/seedUniversities");
 
 const app = express();
 
@@ -237,6 +239,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/admin/backup", backupRoutes);
+app.use("/api/cross-campus", crossCampusRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -283,6 +286,14 @@ const connectDB = async (retries = 5, delay = 5000) => {
     } catch (adminError) {
       console.warn("⚠️ Admin creation warning:", adminError.message);
     }
+
+    // Seed university & cross-campus club reference data (idempotent)
+    try {
+      await seedUniversities();
+    } catch (seedError) {
+      console.warn("⚠️ University seed warning:", seedError.message);
+    }
+
   } catch (error) {
     console.error(`❌ Database connection error (${retries} retries left):`, error.message);
 

@@ -77,6 +77,7 @@ export function Header() {
 		? [
 			{ name: "Home", href: "/" },
 			...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
+			{ name: "Cross-Campus", href: "/cross-campus" },
 			...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 			{ name: "Latest Announcements", href: "/latest" },
 			{ name: "About Us", href: "/about" },
@@ -125,6 +126,7 @@ export function Header() {
 			? [
 				{ name: "Dashboard", href: "/dashboard" },
 				...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
+				{ name: "Cross-Campus", href: "/cross-campus" },
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
