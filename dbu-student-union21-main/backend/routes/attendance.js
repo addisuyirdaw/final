@@ -141,18 +141,37 @@ router.post('/scan', protect, async (req, res) => {
     let targetToken = sessionToken;
     let targetCode = code?.trim().toUpperCase();
 
-    // Parse JSON QR payload if scanner passed raw string
+    // Parse JSON QR payload, URL, or raw string
     if (qrPayload) {
-      try {
-        const parsed = typeof qrPayload === 'string' ? JSON.parse(qrPayload) : qrPayload;
-        if (parsed.token) targetToken = parsed.token;
-        if (parsed.code) targetCode = parsed.code.toUpperCase();
-      } catch (_) {
-        // Raw string might just be the token or code directly
-        if (qrPayload.length > 20) {
-          targetToken = qrPayload.trim();
-        } else {
-          targetCode = qrPayload.trim().toUpperCase();
+      // 1. Check if qrPayload is a URL (e.g. https://.../attendance?token=...&code=...)
+      if (typeof qrPayload === 'string' && (qrPayload.includes('token=') || qrPayload.includes('code='))) {
+        try {
+          const parsedUrl = new URL(qrPayload.startsWith('http') ? qrPayload : `http://localhost${qrPayload.startsWith('/') ? '' : '/'}${qrPayload}`);
+          const urlToken = parsedUrl.searchParams.get('token');
+          const urlCode = parsedUrl.searchParams.get('code');
+          if (urlToken) targetToken = urlToken;
+          if (urlCode) targetCode = urlCode.toUpperCase();
+        } catch (_) {
+          // Regex fallback if URL parsing fails
+          const matchToken = qrPayload.match(/token=([a-zA-Z0-9-]+)/);
+          const matchCode = qrPayload.match(/code=([a-zA-Z0-9]+)/);
+          if (matchToken && matchToken[1]) targetToken = matchToken[1];
+          if (matchCode && matchCode[1]) targetCode = matchCode[1].toUpperCase();
+        }
+      }
+
+      if (!targetToken && !targetCode) {
+        try {
+          const parsed = typeof qrPayload === 'string' ? JSON.parse(qrPayload) : qrPayload;
+          if (parsed.token) targetToken = parsed.token;
+          if (parsed.code) targetCode = parsed.code.toUpperCase();
+        } catch (_) {
+          // Raw string might just be the token or code directly
+          if (qrPayload.length > 20) {
+            targetToken = qrPayload.trim();
+          } else {
+            targetCode = qrPayload.trim().toUpperCase();
+          }
         }
       }
     }

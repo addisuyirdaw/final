@@ -326,17 +326,37 @@ export function QRCodeManager({ defaultClubId = null, defaultEventTitle = '' }) 
                 </div>
 
                 {/* The QR Code Card */}
-                <div className="p-5 bg-white rounded-2xl shadow-xl border-4 border-sky-100 mb-5 relative group">
-                  <QRCode
-                    value={session.qrPayload || session.sessionToken}
-                    size={240}
-                    level="H"
-                    style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                  />
-                  <div className="mt-3 text-[11px] font-semibold text-gray-400">
-                    Scan with DBU Student Portal Camera
-                  </div>
-                </div>
+                {(() => {
+                  const scanUrl = `${window.location.origin}/attendance?token=${encodeURIComponent(session.sessionToken)}&code=${encodeURIComponent(session.shortCode)}`;
+                  return (
+                    <div className="p-5 bg-white rounded-2xl shadow-xl border-4 border-sky-100 mb-5 relative group flex flex-col items-center">
+                      <QRCode
+                        value={scanUrl}
+                        size={250}
+                        level="H"
+                        style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                      />
+                      <div className="mt-3 text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        Scan with any Phone Camera or DBU Scanner
+                      </div>
+
+                      {/* Direct Scan Link Copy Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(scanUrl);
+                          toast.success('Direct Check-In URL copied!');
+                        }}
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-lg transition-colors border border-sky-200"
+                        title={scanUrl}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        Copy Direct Check-In Link
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* 6-Character Manual Fallback Code */}
                 <div className="w-full max-w-sm bg-white p-4 rounded-xl border border-sky-200 shadow-sm flex items-center justify-between gap-4 mb-4">

@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
   Camera,
   QrCode,
@@ -16,21 +17,26 @@ import {
   FileText,
   AlertCircle,
   VideoOff,
+  ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function AttendanceScanner() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('code'); // 'code' | 'camera'
-  const [manualCode, setManualCode] = useState('');
+  const [searchParams] = useSearchParams();
+  const urlToken = searchParams.get('token');
+  const urlCode = searchParams.get('code');
+
+  const [activeTab, setActiveTab] = useState(urlCode || urlToken ? 'code' : 'camera');
+  const [manualCode, setManualCode] = useState(urlCode ? urlCode.toUpperCase() : '');
   const [submitting, setSubmitting] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState(null);
 
-  // Camera state
-  const videoRef = useRef(null);
+  // Mobile Camera state
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
-  const [scanning, setScanning] = useState(false);
+  const html5QrCodeRef = useRef(null);
+  const autoCheckedRef = useRef(false);
 
   // Student recent attendance history
   const [recentAttendance, setRecentAttendance] = useState([]);
@@ -56,75 +62,110 @@ export function AttendanceScanner() {
     fetchHistory();
   }, []);
 
-  // Camera stream handler
-  const startCamera = async () => {
-    setCameraError('');
+  // Fix: Auto-checkin if opened via phone camera scanning action URL (?token=...&code=...)
+  useEffect(() => {
+    if ((urlToken || urlCode) && user && !autoCheckedRef.current) {
+      autoCheckedRef.current = true;
+      if (urlCode) setManualCode(urlCode.toUpperCase());
+
+      const autoVerify = async () => {
+        try {
+          setSubmitting(true);
+          const res = await apiService.scanAttendance({
+            sessionToken: urlToken || undefined,
+            code: urlCode ? urlCode.toUpperCase() : undefined,
+          });
+
+          if (res.success) {
+            setLastCheckIn(res);
+            toast.success(res.message || 'Attendance verified from scan URL!');
+            fetchHistory();
+          } else {
+            toast.error(res.message || 'Auto check-in failed');
+          }
+        } catch (err) {
+          console.error('URL auto check-in error:', err);
+          toast.error(err.message || 'Failed to verify attendance');
+        } finally {
+          setSubmitting(false);
+        }
+      };
+
+      autoVerify();
+    }
+  }, [urlToken, urlCode, user]);
+
+  // Mobile Camera Scanner via Html5Qrcode
+  const stopScanner = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCameraActive(true);
-        setScanning(true);
-        detectQRFromStream();
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
       }
     } catch (err) {
-      console.error('Camera access error:', err);
-      setCameraError(
-        'Camera permission was denied or camera is unavailable. Please use the 6-character code option.'
-      );
+      console.warn('Error stopping scanner:', err);
+    } finally {
       setCameraActive(false);
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
+  const startScanner = async () => {
+    setCameraError('');
     setCameraActive(false);
-    setScanning(false);
-  };
 
-  // Switch tab cleanup
-  useEffect(() => {
-    if (activeTab !== 'camera') {
-      stopCamera();
-    } else {
-      startCamera();
-    }
-    return () => stopCamera();
-  }, [activeTab]);
+    // Give DOM time to mount reader element
+    setTimeout(async () => {
+      const readerElement = document.getElementById('dbu-qr-reader');
+      if (!readerElement) return;
 
-  // Native BarcodeDetector if supported in browser
-  const detectQRFromStream = async () => {
-    if (!('BarcodeDetector' in window)) {
-      return;
-    }
-
-    try {
-      const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      const scanInterval = setInterval(async () => {
-        if (!videoRef.current || !cameraActive) {
-          clearInterval(scanInterval);
-          return;
+      try {
+        if (!html5QrCodeRef.current) {
+          html5QrCodeRef.current = new Html5Qrcode('dbu-qr-reader');
         }
 
-        try {
-          const barcodes = await barcodeDetector.detect(videoRef.current);
-          if (barcodes.length > 0) {
-            const rawValue = barcodes[0].rawValue;
-            clearInterval(scanInterval);
-            stopCamera();
-            handleProcessScan(rawValue);
-          }
-        } catch (_) {}
-      }, 500);
-    } catch (_) {}
+        const qrCodeSuccessCallback = async (decodedText) => {
+          // Pause camera and process
+          if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+          await stopScanner();
+          handleProcessScan(decodedText);
+        };
+
+        const config = {
+          fps: 15,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        };
+
+        await html5QrCodeRef.current.start(
+          { facingMode: 'environment' },
+          config,
+          qrCodeSuccessCallback,
+          () => {} // silent scan frame error
+        );
+
+        setCameraActive(true);
+      } catch (err) {
+        console.error('Html5Qrcode start error:', err);
+        setCameraError(
+          'Camera access was denied or not supported on this device. Please use the 6-character check-in code instead.'
+        );
+        setCameraActive(false);
+      }
+    }, 150);
   };
+
+  // Manage scanner lifecycle on tab switch and component unmount
+  useEffect(() => {
+    if (activeTab === 'camera') {
+      startScanner();
+    } else {
+      stopScanner();
+    }
+
+    return () => {
+      stopScanner();
+    };
+  }, [activeTab]);
 
   const handleProcessScan = async (qrPayload) => {
     try {
@@ -132,7 +173,7 @@ export function AttendanceScanner() {
       const res = await apiService.scanAttendance({ qrPayload });
       if (res.success) {
         setLastCheckIn(res);
-        toast.success(res.message || 'Attendance recorded!');
+        toast.success(res.message || 'Attendance confirmed!');
         fetchHistory();
       } else {
         toast.error(res.message || 'Scan verification failed');
@@ -155,7 +196,10 @@ export function AttendanceScanner() {
 
     try {
       setSubmitting(true);
-      const res = await apiService.scanAttendance({ code: cleanCode });
+      const res = await apiService.scanAttendance({
+        sessionToken: urlToken || undefined,
+        code: cleanCode,
+      });
       if (res.success) {
         setLastCheckIn(res);
         setManualCode('');
@@ -216,17 +260,6 @@ export function AttendanceScanner() {
           {/* Tabs */}
           <div className="flex border-b border-gray-200 mb-6">
             <button
-              onClick={() => setActiveTab('code')}
-              className={`flex-1 pb-3 text-sm font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
-                activeTab === 'code'
-                  ? 'border-sky-600 text-sky-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <KeyRound className="w-4 h-4" />
-              Enter Check-In Code
-            </button>
-            <button
               onClick={() => setActiveTab('camera')}
               className={`flex-1 pb-3 text-sm font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
                 activeTab === 'camera'
@@ -237,30 +270,102 @@ export function AttendanceScanner() {
               <Camera className="w-4 h-4" />
               Scan QR with Camera
             </button>
+            <button
+              onClick={() => setActiveTab('code')}
+              className={`flex-1 pb-3 text-sm font-semibold flex items-center justify-center gap-2 border-b-2 transition-all ${
+                activeTab === 'code'
+                  ? 'border-sky-600 text-sky-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <KeyRound className="w-4 h-4" />
+              Enter Check-In Code
+            </button>
           </div>
+
+          {/* URL Detected Auto-Checkin Banner */}
+          {urlCode && !lastCheckIn && (
+            <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-xl text-sky-900 text-sm flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                <span>
+                  QR Scan Link detected: Code <strong>{urlCode.toUpperCase()}</strong>
+                </span>
+              </div>
+              {submitting && <RefreshCw className="w-4 h-4 text-sky-600 animate-spin" />}
+            </div>
+          )}
 
           {/* Success Banner if just checked in */}
           {lastCheckIn && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 flex items-start gap-3">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1 text-sm">
-                <p className="font-bold">{lastCheckIn.message || 'Check-in Verified!'}</p>
+                <p className="font-bold text-base">{lastCheckIn.message || 'Check-in Verified!'}</p>
                 <p className="text-xs text-emerald-700 mt-1">
                   Credit: +{lastCheckIn.hoursEarned || 1} hr added to your co-curricular record.
                 </p>
-                <div className="mt-3">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <Link
                     to="/transcript"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 underline hover:text-emerald-900"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors"
                   >
-                    Check updated co-curricular transcript <ArrowRight className="w-3.5 h-3.5" />
+                    View Updated Transcript <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
+                  <button
+                    onClick={() => setLastCheckIn(null)}
+                    className="text-xs text-emerald-800 underline hover:text-emerald-900 font-semibold"
+                  >
+                    Check In Another Session
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab 1: Manual Code */}
+          {/* Tab 1: Camera Scanner */}
+          {activeTab === 'camera' && (
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="relative w-full max-w-sm aspect-square bg-gray-900 rounded-2xl overflow-hidden shadow-inner flex flex-col items-center justify-center">
+                {/* Html5Qrcode target element */}
+                <div id="dbu-qr-reader" className="w-full h-full object-cover"></div>
+
+                {!cameraActive && !cameraError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-gray-300 p-6 text-center">
+                    <RefreshCw className="w-8 h-8 text-sky-400 animate-spin mb-3" />
+                    <p className="text-sm font-semibold">Starting camera...</p>
+                    <p className="text-xs text-gray-400 mt-1">Please allow camera permissions if prompted.</p>
+                  </div>
+                )}
+              </div>
+
+              {cameraError && (
+                <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex flex-col gap-2 w-full max-w-sm">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    Camera Access Note
+                  </div>
+                  <p>{cameraError}</p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('code')}
+                    className="mt-1 text-left font-bold text-red-800 underline text-xs"
+                  >
+                    Switch to 6-Digit Code Entry &rarr;
+                  </button>
+                </div>
+              )}
+
+              <div className="text-center text-xs text-gray-500 max-w-xs space-y-1">
+                <p>Align the QR code inside the frame to scan automatically.</p>
+                <p className="text-gray-400 text-[11px]">
+                  Or open your smartphone's Camera app to scan directly from the web!
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Manual Code */}
           {activeTab === 'code' && (
             <form onSubmit={handleManualSubmit} className="space-y-6">
               <div>
@@ -301,42 +406,6 @@ export function AttendanceScanner() {
                 )}
               </button>
             </form>
-          )}
-
-          {/* Tab 2: Camera Scanner */}
-          {activeTab === 'camera' && (
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="relative w-full max-w-sm aspect-square bg-black rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
-                {cameraActive ? (
-                  <>
-                    <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                    {/* QR Finder Reticle */}
-                    <div className="absolute inset-8 border-2 border-dashed border-sky-400 rounded-xl pointer-events-none animate-pulse">
-                      <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-sky-400"></div>
-                      <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-sky-400"></div>
-                      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-sky-400"></div>
-                      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-sky-400"></div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center p-6 text-gray-400">
-                    <VideoOff className="w-12 h-12 mx-auto mb-2 text-gray-500" />
-                    <p className="text-sm">Camera inactive</p>
-                  </div>
-                )}
-              </div>
-
-              {cameraError && (
-                <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {cameraError}
-                </div>
-              )}
-
-              <p className="text-xs text-gray-500 text-center">
-                Point your camera at the attendance QR code displayed on the screen.
-              </p>
-            </div>
           )}
         </div>
 
