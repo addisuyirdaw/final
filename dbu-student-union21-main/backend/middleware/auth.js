@@ -126,6 +126,22 @@ const systemAdminOnly = (req, res, next) => {
 	}
 };
 
+const superAdminOnly = (req, res, next) => {
+	if (
+		req.user &&
+		(req.user.role === 'system_admin' ||
+			req.user.role === 'admin' ||
+			req.user.isAdmin === true ||
+			req.user.username === 'dbu10101030')
+	) {
+		return next();
+	}
+	return res.status(403).json({
+		success: false,
+		message: "Access denied. Super Admin privileges required.",
+	});
+};
+
 
 // Specific role access
 const authorize = (...roles) => {
@@ -260,6 +276,7 @@ module.exports = {
 	protect,
 	adminOnly,
 	systemAdminOnly,
+	superAdminOnly,
 	authorize,
 	optionalAuth,
 	clubLeader

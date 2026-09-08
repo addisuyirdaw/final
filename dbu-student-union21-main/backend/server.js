@@ -26,6 +26,8 @@ const templateRoutes = require("./routes/templates");
 const departmentRoutes = require("./routes/departments");
 const configRoutes = require("./routes/config");
 const certificateRoutes = require("./routes/certificates");
+const backupRoutes = require("./routes/backup");
+const { initBackupCron } = require("./services/backupService");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -234,6 +236,7 @@ app.use("/api/templates", templateRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/certificates", certificateRoutes);
+app.use("/api/admin/backup", backupRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -299,6 +302,13 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
+
+    // Initialize scheduled database backup cron job
+    try {
+      initBackupCron();
+    } catch (cronErr) {
+      console.warn("⚠️ Backup cron initialization warning:", cronErr.message);
+    }
 
     const server = app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);

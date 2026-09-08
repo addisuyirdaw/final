@@ -445,6 +445,63 @@ router.get('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @desc    Update current user password
+// @route   PUT /api/users/update-password
+// @access  Private
+router.put('/update-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide current and new password'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters'
+      });
+    }
+
+    const userId = req.user.id || req.user._id;
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password using bcrypt.hash(newPassword, 10)
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    console.error('Update password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error updating password'
+    });
+  }
+});
+
 // @desc    Update user
 // @route   PUT /api/users/:id
 // @access  Private/Admin
@@ -630,8 +687,9 @@ router.post('/:id/reset-password', protect, adminOnly, async (req, res) => {
       });
     }
 
-    // Reset password
-    user.password = newPassword;
+    // Reset password with bcrypt hash
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
     return res.json({

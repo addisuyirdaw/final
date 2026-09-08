@@ -482,7 +482,14 @@ router.put("/change-password", protect, async (req, res) => {
 			});
 		}
 
-		const user = await User.findById(req.user.id).select("+password");
+		const userId = req.user.id || req.user._id;
+		const user = await User.findById(userId).select("+password");
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
 
 		// Check current password
 		const isMatch = await bcrypt.compare(currentPassword, user.password);
@@ -493,8 +500,9 @@ router.put("/change-password", protect, async (req, res) => {
 			});
 		}
 
-		// Update password
-		user.password = newPassword;
+		// Hash new password using bcrypt.hash(newPassword, 10) before saving
+		const salt = await bcrypt.genSalt(10);
+		user.password = await bcrypt.hash(newPassword, salt);
 		await user.save();
 
 		return res.json({
