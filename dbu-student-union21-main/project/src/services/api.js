@@ -180,6 +180,45 @@ class ApiService {
     });
   }
 
+  // ── Co-Curricular Transcript & QR Attendance ───────────────────────────────────
+
+  async generateAttendanceQR(sessionData) {
+    return this.request('/attendance/generate-qr', {
+      method: 'POST',
+      body: JSON.stringify(sessionData),
+    });
+  }
+
+  async scanAttendance(scanData) {
+    return this.request('/attendance/scan', {
+      method: 'POST',
+      body: JSON.stringify(scanData),
+    });
+  }
+
+  async getMyAttendance() {
+    return this.request('/attendance/my-attendance');
+  }
+
+  async getAttendanceRoster(sessionToken) {
+    return this.request(`/attendance/roster/${sessionToken}`);
+  }
+
+  async getStudentTranscript(studentId) {
+    return this.request(`/students/${studentId}/transcript`);
+  }
+
+  async getMyTranscript() {
+    return this.request('/transcripts/me');
+  }
+
+  async recordTranscriptActivity(activityData) {
+    return this.request('/transcripts/record', {
+      method: 'POST',
+      body: JSON.stringify(activityData),
+    });
+  }
+
 
   // Complaints endpoints
   async getComplaints(params = {}) {

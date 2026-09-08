@@ -127,6 +127,8 @@ export function Header() {
 				{ name: "Dashboard", href: "/dashboard" },
 				...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
 				{ name: "Cross-Campus", href: "/cross-campus" },
+				{ name: "Attendance", href: "/attendance" },
+				{ name: "Transcript", href: "/transcript" },
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },

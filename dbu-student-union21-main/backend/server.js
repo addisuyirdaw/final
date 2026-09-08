@@ -29,6 +29,8 @@ const certificateRoutes = require("./routes/certificates");
 const backupRoutes = require("./routes/backup");
 const { initBackupCron } = require("./services/backupService");
 const crossCampusRoutes = require("./routes/crossCampus");
+const attendanceRoutes = require("./routes/attendance");
+const transcriptRoutes = require("./routes/transcripts");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -240,6 +242,9 @@ app.use("/api/config", configRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/admin/backup", backupRoutes);
 app.use("/api/cross-campus", crossCampusRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/transcripts", transcriptRoutes);
+app.use("/api/students", transcriptRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {

@@ -34,6 +34,8 @@ import { Dormitory } from "./components/Pages/Dormitory";
 import { LeadershipDepartment } from "./components/Pages/LeadershipDepartment";
 import { Profile } from "./components/Pages/Profile";
 import { CrossCampusNetwork } from "./components/Pages/CrossCampusNetwork";
+import { AttendanceHub } from "./components/Pages/AttendanceHub";
+import { CoCurricularTranscriptView } from "./components/Attendance/CoCurricularTranscriptView";
 import { UserManagement } from "./components/Admin/UserManagement";
 import { VerifyPage } from "./components/Pages/VerifyPage";
 import { CertificatesAdmin } from "./components/Admin/CertificatesAdmin";
@@ -209,6 +211,9 @@ function AppContent() {
           <Route path="/executives" element={<Executives />} />
           <Route path="/student-union" element={<Union />} />
           <Route path="/cross-campus" element={<CrossCampusNetwork />} />
+          <Route path="/attendance" element={<AttendanceHub />} />
+          <Route path="/transcript" element={<CoCurricularTranscriptView />} />
+          <Route path="/transcript/:studentId" element={<CoCurricularTranscriptView />} />
           <Route path="/student-services" element={<ServicesDirectory />} />
           <Route path="/dormitory-management" element={<Dormitory />} />
           <Route path="/leadership/:departmentId" element={<LeadershipDepartment />} />
