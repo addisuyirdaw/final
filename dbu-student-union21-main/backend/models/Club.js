@@ -198,6 +198,10 @@ const clubSchema = new mongoose.Schema({
   certificateDownloadEnabled: {
     type: Boolean,
     default: true
+  },
+  requireApproval: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

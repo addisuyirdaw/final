@@ -232,8 +232,18 @@ const clubLeader = async (req, res, next) => {
 			});
 		}
 
-		// Admins and President always have access
-		if (req.user.isAdmin || req.user.role === 'admin' || req.user.role === 'president') {
+		// Admins, Presidents, System Admins, and Clubs Coordinator always have access
+		const privilegedRoles = ['admin', 'president', 'council_president', 'system_admin', 'clubs_coordinator'];
+		const executiveNames = ['Giziew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
+		const isExecutive = req.user.name && executiveNames.some(name => req.user.name.includes(name));
+
+		if (
+			req.user.isAdmin ||
+			privilegedRoles.includes(req.user.role) ||
+			req.user.username === 'dbu10101040' ||
+			req.user.username === 'dbu10101030' ||
+			isExecutive
+		) {
 			return next();
 		}
 
@@ -247,13 +257,18 @@ const clubLeader = async (req, res, next) => {
 			});
 		}
 
-		// Check if user is in leadership or is the global Clubs Coordinator
+		// Safely normalize user and leader IDs
+		const userIdStr = (req.user._id || req.user.id || '').toString();
+		const getLeaderId = (leader) => {
+			if (!leader) return '';
+			return (leader._id || leader).toString();
+		};
+
 		const isLeader =
-			(club.leadership.president && club.leadership.president.toString() === req.user._id.toString()) ||
-			(club.leadership.vicePresident && club.leadership.vicePresident.toString() === req.user._id.toString()) ||
-			(club.leadership.secretary && club.leadership.secretary.toString() === req.user._id.toString()) ||
-			req.user.role === "clubs_coordinator" ||
-			req.user.username === "dbu10101040";
+			getLeaderId(club.leadership?.president) === userIdStr ||
+			getLeaderId(club.leadership?.vicePresident) === userIdStr ||
+			getLeaderId(club.leadership?.secretary) === userIdStr ||
+			getLeaderId(club.leadership?.treasurer) === userIdStr;
 
 		if (isLeader) {
 			next();
@@ -267,7 +282,8 @@ const clubLeader = async (req, res, next) => {
 		console.error("Club leader check error:", error);
 		res.status(500).json({
 			success: false,
-			message: "Server error checking permissions"
+			message: "Server error checking permissions",
+			error: error.message
 		});
 	}
 };

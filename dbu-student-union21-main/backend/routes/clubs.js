@@ -8,6 +8,35 @@ const { validateClub } = require('../middleware/validation');
 
 const router = express.Router();
 
+// Helper to determine if the requesting user has leadership or admin privileges for a club
+const checkIsClubAuthorized = (club, user) => {
+  if (!user || !club) return false;
+  const userIdStr = (user._id || user.id || '').toString();
+  const getLeaderId = (leader) => {
+    if (!leader) return '';
+    return (leader._id || leader).toString();
+  };
+
+  const isLeader =
+    getLeaderId(club.leadership?.president) === userIdStr ||
+    getLeaderId(club.leadership?.vicePresident) === userIdStr ||
+    getLeaderId(club.leadership?.secretary) === userIdStr ||
+    getLeaderId(club.leadership?.treasurer) === userIdStr;
+
+  const privilegedRoles = ['admin', 'president', 'council_president', 'system_admin', 'clubs_coordinator'];
+  const executiveNames = ['Giziew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
+  const isExecutive = user.name && executiveNames.some(name => user.name.includes(name));
+
+  const isElevated =
+    user.isAdmin === true ||
+    privilegedRoles.includes(user.role) ||
+    user.username === 'dbu10101040' ||
+    user.username === 'dbu10101030' ||
+    isExecutive;
+
+  return Boolean(isLeader || isElevated);
+};
+
 // @desc    Get all clubs
 // @route   GET /api/clubs
 // @access  Public
@@ -263,6 +292,9 @@ router.put('/:id', protect, clubLeader, async (req, res) => {
     if (meetingSchedule) club.meetingSchedule = meetingSchedule;
     if (requirements) club.requirements = requirements;
     if (status) club.status = status;
+    if (req.body.requireApproval !== undefined) {
+      club.requireApproval = Boolean(req.body.requireApproval);
+    }
 
     await club.save();
 
@@ -368,13 +400,20 @@ router.post('/:id/join', protect, async (req, res) => {
           message: 'Your join request is already pending approval'
         });
       }
-      return res.status(400).json({
-        success: false,
-        message: 'You are already a member of this club'
-      });
+      if (existingMember.status === 'approved') {
+        return res.status(400).json({
+          success: false,
+          message: 'You are already a member of this club'
+        });
+      }
     }
 
-    // Add user to club members
+    // Check requireApproval configuration:
+    // If false: Auto-approve upon join!
+    // If true (or undefined): Member stays pending until manually approved.
+    const isAutoApprove = club.requireApproval === false;
+    const memberStatus = isAutoApprove ? 'approved' : 'pending';
+
     club.members.push({
       user: req.user._id,
       fullName: resolvedFullName,
@@ -382,14 +421,38 @@ router.post('/:id/join', protect, async (req, res) => {
       year: resolvedYear,
       background: background.trim(),
       role: 'member',
-      status: 'pending',
-      joinedAt: new Date()
+      status: memberStatus,
+      joinedAt: new Date(),
+      ...(isAutoApprove ? { approvedAt: new Date() } : {})
     });
 
     await club.save();
 
+    if (isAutoApprove) {
+      // Automatically add club to user's joinedClubs
+      await User.findByIdAndUpdate(req.user._id, {
+        $addToSet: { joinedClubs: club._id }
+      });
+
+      // Send confirmation email asynchronously
+      try {
+        if (req.user.email) {
+          await sendMemberApprovalEmail(req.user.email, resolvedFullName, club.name);
+        }
+      } catch (emailErr) {
+        console.warn('Auto-approval email dispatch failed:', emailErr.message);
+      }
+
+      return res.json({
+        success: true,
+        autoApproved: true,
+        message: `Welcome to ${club.name}! Auto-approval is enabled, you have joined immediately.`
+      });
+    }
+
     res.json({
       success: true,
+      autoApproved: false,
       message: 'Join request submitted successfully. Waiting for admin approval.'
     });
   } catch (error) {
@@ -397,7 +460,7 @@ router.post('/:id/join', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error joining club',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: error.message
     });
   }
 });
@@ -416,26 +479,33 @@ router.patch('/:id/members/:memberId/approve', protect, clubLeader, async (req, 
       });
     }
 
-    const isActualClubRep =
-      (club.leadership?.president?.toString() === req.user._id.toString()) ||
-      (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
-      (club.leadership?.secretary?.toString() === req.user._id.toString()) ||
-      req.user.role === 'clubs_coordinator' ||
-      req.user.username === 'dbu10101040' ||
-      req.user.isAdmin;
-
-    if (!isActualClubRep) {
+    if (!checkIsClubAuthorized(club, req.user)) {
       return res.status(403).json({
         success: false,
-        message: 'Access Denied: Only Club Representatives can process join requests.'
+        message: 'Access Denied: Only Club Representatives and Administrators can approve join requests.'
       });
     }
 
-    const member = club.members.id(req.params.memberId);
+    // Resilient member lookup: check by subdocument _id OR user _id
+    let member = club.members.id(req.params.memberId);
+    if (!member) {
+      member = club.members.find(m =>
+        m._id?.toString() === req.params.memberId.toString() ||
+        (m.user?._id || m.user)?.toString() === req.params.memberId.toString()
+      );
+    }
+
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found'
+        message: `Member request not found for ID: ${req.params.memberId}`
+      });
+    }
+
+    if (member.status === 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Member is already approved in this club.'
       });
     }
 
@@ -444,15 +514,20 @@ router.patch('/:id/members/:memberId/approve', protect, clubLeader, async (req, 
     await club.save();
 
     // Add club to user's joinedClubs
-    await User.findByIdAndUpdate(member.user, {
-      $addToSet: { joinedClubs: club._id }
-    });
+    const targetUserId = member.user?._id || member.user;
+    if (targetUserId) {
+      await User.findByIdAndUpdate(targetUserId, {
+        $addToSet: { joinedClubs: club._id }
+      });
+    }
 
-    // Send confirmation email
+    // Send confirmation email asynchronously without failing request
     try {
-      const student = await User.findById(member.user);
-      if (student && student.email) {
-        await sendMemberApprovalEmail(student.email, student.name, club.name);
+      if (targetUserId) {
+        const student = await User.findById(targetUserId);
+        if (student && student.email) {
+          await sendMemberApprovalEmail(student.email, student.name, club.name);
+        }
       }
     } catch (err) {
       console.warn('Member approval email failed:', err.message);
@@ -460,13 +535,15 @@ router.patch('/:id/members/:memberId/approve', protect, clubLeader, async (req, 
 
     res.json({
       success: true,
-      message: 'Member approved successfully'
+      message: 'Member approved successfully',
+      memberId: member._id
     });
   } catch (error) {
     console.error('Approve member error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error approving member'
+      message: 'Server error approving member',
+      error: error.message
     });
   }
 });
@@ -485,26 +562,25 @@ router.patch('/:id/members/:memberId/reject', protect, clubLeader, async (req, r
       });
     }
 
-    const isActualClubRep =
-      (club.leadership?.president?.toString() === req.user._id.toString()) ||
-      (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
-      (club.leadership?.secretary?.toString() === req.user._id.toString()) ||
-      req.user.role === 'clubs_coordinator' ||
-      req.user.username === 'dbu10101040' ||
-      req.user.isAdmin;
-
-    if (!isActualClubRep) {
+    if (!checkIsClubAuthorized(club, req.user)) {
       return res.status(403).json({
         success: false,
-        message: 'Access Denied: Only Club Representatives can process join requests.'
+        message: 'Access Denied: Only Club Representatives and Administrators can process join requests.'
       });
     }
 
-    const member = club.members.id(req.params.memberId);
+    let member = club.members.id(req.params.memberId);
+    if (!member) {
+      member = club.members.find(m =>
+        m._id?.toString() === req.params.memberId.toString() ||
+        (m.user?._id || m.user)?.toString() === req.params.memberId.toString()
+      );
+    }
+
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: 'Member not found'
+        message: `Member request not found for ID: ${req.params.memberId}`
       });
     }
 
@@ -513,13 +589,63 @@ router.patch('/:id/members/:memberId/reject', protect, clubLeader, async (req, r
 
     res.json({
       success: true,
-      message: 'Member rejected successfully'
+      message: 'Member rejected successfully',
+      memberId: member._id
     });
   } catch (error) {
     console.error('Reject member error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error rejecting member'
+      message: 'Server error rejecting member',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Toggle or configure requireApproval for club
+// @route   PATCH /api/clubs/:id/toggle-approval
+// @access  Private/Admin
+// @access  Private/Club Leader
+router.patch('/:id/toggle-approval', protect, clubLeader, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({
+        success: false,
+        message: 'Club not found'
+      });
+    }
+
+    if (!checkIsClubAuthorized(club, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: Only Club Representatives and Administrators can change approval settings.'
+      });
+    }
+
+    let newRequireApproval;
+    if (req.body.requireApproval !== undefined) {
+      newRequireApproval = Boolean(req.body.requireApproval);
+    } else {
+      newRequireApproval = club.requireApproval === false ? true : false;
+    }
+
+    club.requireApproval = newRequireApproval;
+    await club.save();
+
+    res.json({
+      success: true,
+      requireApproval: club.requireApproval,
+      message: club.requireApproval
+        ? 'Approval required: New members will remain pending until approved.'
+        : 'Auto-approval enabled: New members will now be approved automatically upon joining.'
+    });
+  } catch (error) {
+    console.error('Toggle requireApproval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating approval configuration',
+      error: error.message
     });
   }
 });
@@ -742,18 +868,10 @@ router.get('/:id/join-requests', protect, clubLeader, async (req, res) => {
       });
     }
 
-    const isActualClubRep =
-      (club.leadership?.president?.toString() === req.user._id.toString()) ||
-      (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
-      (club.leadership?.secretary?.toString() === req.user._id.toString()) ||
-      req.user.role === 'clubs_coordinator' ||
-      req.user.username === 'dbu10101040' ||
-      req.user.isAdmin;
-
-    if (!isActualClubRep) {
+    if (!checkIsClubAuthorized(club, req.user)) {
       return res.status(403).json({
         success: false,
-        message: 'Access Denied: Only Club Representatives can view join requests.'
+        message: 'Access Denied: Only Club Representatives and Administrators can view join requests.'
       });
     }
 

@@ -61,6 +61,7 @@ export function Clubs() {
     officeLocation: "",
     meetingSchedule: "",
     requirements: "",
+    requireApproval: true,
   });
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedClub, setSelectedClub] = useState(null);
@@ -1187,6 +1188,35 @@ export function Clubs() {
     }
   };
 
+  const handleToggleApproval = async (clubId, currentRequireApproval) => {
+    try {
+      const targetState = currentRequireApproval === false ? true : false;
+      const res = await apiService.toggleClubApproval(clubId, targetState);
+      toast.success(res.message || "Approval setting updated");
+      
+      // Update clubs list
+      setClubs(prev => prev.map(c => {
+        if ((c._id || c.id) === clubId) {
+          return { ...c, requireApproval: res.requireApproval };
+        }
+        return c;
+      }));
+
+      // Update selectedClub
+      if (selectedClub && (selectedClub._id === clubId || selectedClub.id === clubId)) {
+        setSelectedClub(prev => ({ ...prev, requireApproval: res.requireApproval }));
+      }
+
+      // Update selectedClubDetails if open
+      if (selectedClubDetails && (selectedClubDetails._id === clubId || selectedClubDetails.id === clubId)) {
+        setSelectedClubDetails(prev => ({ ...prev, requireApproval: res.requireApproval }));
+      }
+    } catch (error) {
+      console.error("Failed to toggle approval requirement:", error);
+      toast.error(error.message || "Failed to update approval requirement");
+    }
+  };
+
   const handleApproveRequest = async (clubId, memberId) => {
     try {
       await apiService.approveClubMember(clubId, memberId);
@@ -1201,7 +1231,7 @@ export function Clubs() {
       }
     } catch (error) {
       console.error("Failed to approve member:", error);
-      toast.error("Failed to approve member");
+      toast.error(error.message || "Failed to approve member");
     }
   };
 
@@ -1218,7 +1248,7 @@ export function Clubs() {
       }
     } catch (error) {
       console.error("Failed to reject member:", error);
-      toast.error("Failed to reject member");
+      toast.error(error.message || "Failed to reject member");
     }
   };
 
@@ -1298,6 +1328,7 @@ export function Clubs() {
       officeLocation: club.officeLocation || "",
       meetingSchedule: club.meetingSchedule || "",
       requirements: club.requirements || "",
+      requireApproval: club.requireApproval !== false,
     });
     setEditingClubId(club._id || club.id);
     setIsEditing(true);
@@ -1331,6 +1362,7 @@ export function Clubs() {
         officeLocation: newClub.officeLocation.trim(),
         meetingSchedule: newClub.meetingSchedule.trim(),
         requirements: newClub.requirements.trim(),
+        requireApproval: newClub.requireApproval !== false,
       };
 
       if (isEditing) {
@@ -1358,6 +1390,7 @@ export function Clubs() {
         officeLocation: "",
         meetingSchedule: "",
         requirements: "",
+        requireApproval: true,
       });
       setIsEditing(false);
       setEditingClubId(null);
@@ -1815,6 +1848,21 @@ export function Clubs() {
                   </div>
                 </div>
 
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newClub.requireApproval !== false}
+                      onChange={(e) => setNewClub({ ...newClub, requireApproval: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="text-sm font-semibold text-gray-900">Require Leader Approval for Joining</span>
+                      <p className="text-xs text-gray-500">When unchecked, new applicants will automatically be approved as full club members immediately upon joining.</p>
+                    </div>
+                  </label>
+                </div>
+
                 <div className="flex gap-4">
                   <button
                     type="submit"
@@ -1920,10 +1968,15 @@ export function Clubs() {
                         alt={club.name}
                         className="w-full h-32 object-cover bg-gray-100"
                       />
-                      <div className="absolute top-2.5 left-2.5">
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                         <span className="bg-blue-600/95 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-wide shadow-xs">
                           {club.category}
                         </span>
+                        {club.requireApproval === false && (
+                          <span className="bg-emerald-600/95 backdrop-blur-xs text-white text-[10px] px-1.5 py-0.5 rounded-md font-bold tracking-wide shadow-xs flex items-center gap-0.5" title="Auto-approval enabled: Join instantly without waiting">
+                            ⚡ Instant Join
+                          </span>
+                        )}
                       </div>
                       {user?.isAdmin && !isAcademicAdmin && (
                         <div className="absolute top-2 right-2 flex space-x-1.5">
@@ -2345,6 +2398,24 @@ export function Clubs() {
                       <p><span className="font-medium">Founded:</span> {selectedClubDetails?.founded || "---"}</p>
                       <p><span className="font-medium">Total Members:</span> {Array.isArray(selectedClubDetails?.members) ? selectedClubDetails.members.filter(m => m?.status === 'approved' || m?.status === 'restricted').length : 0}</p>
                       <p><span className="font-medium">Status:</span> {selectedClubDetails?.status || "---"}</p>
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <span className="font-medium">Join Approval:</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-md font-bold ${
+                          selectedClubDetails?.requireApproval === false
+                            ? 'bg-green-100 text-green-800 border border-green-200'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}>
+                          {selectedClubDetails?.requireApproval === false ? '⚡ Auto-Approved' : '🛡️ Requires Approval'}
+                        </span>
+                        {(user?.isAdmin || isCoordinator || (String(selectedClubDetails?._id || selectedClubDetails?.id) && String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id))) && (
+                          <button
+                            onClick={() => handleToggleApproval(selectedClubDetails?._id || selectedClubDetails?.id, selectedClubDetails?.requireApproval)}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline ml-1"
+                          >
+                            [Switch Mode]
+                          </button>
+                        )}
+                      </div>
                       {selectedClubDetails?.website && (
                         <p>
                           <span className="font-medium">Website:</span>
@@ -3242,6 +3313,39 @@ export function Clubs() {
                     className="text-gray-400 hover:text-gray-600">
                     ✕
                   </button>
+                </div>
+
+                {/* Auto-Approval Toggle Control */}
+                <div className="mb-6 p-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 to-purple-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900 text-sm">Join Approval Policy:</span>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold tracking-wide ${
+                        selectedClub?.requireApproval === false
+                          ? 'bg-green-100 text-green-800 border border-green-200'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                      }`}>
+                        {selectedClub?.requireApproval === false ? '⚡ Auto-Approval Enabled' : '🛡️ Manual Review Required'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedClub?.requireApproval === false
+                        ? 'New applicants are approved automatically when they submit a join request.'
+                        : 'New applicants remain pending until a club representative or administrator approves them.'}
+                    </p>
+                  </div>
+                  {(user?.isAdmin || isCoordinator || (String(selectedClub?._id || selectedClub?.id) && String(selectedClub?.leadership?.president?._id || selectedClub?.leadership?.president) === String(user?._id || user?.id))) && (
+                    <button
+                      onClick={() => handleToggleApproval(selectedClub?._id || selectedClub?.id, selectedClub?.requireApproval)}
+                      className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 whitespace-nowrap ${
+                        selectedClub?.requireApproval === false
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      }`}
+                    >
+                      {selectedClub?.requireApproval === false ? 'Switch to Manual Review' : '⚡ Enable Auto-Approval'}
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-4">

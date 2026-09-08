@@ -1,0 +1,30 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Club {
+  id                          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name                        String    @unique
+  description                 String
+  category                    String
+  founded                     String
+  image                       String?
+  status                      String    @default("pending_approval")
+  contactEmail                String?
+  officeLocation              String?
+  contactPhone                String?
+  website                     String?
+  meetingSchedule             String?
+  requirements                String?
+  minAttendanceForCertificate Int       @default(75)
+  totalEventsHeld             Int       @default(0)
+  certificateDownloadEnabled  Boolean   @default(true)
+  requireApproval             Boolean   @default(true) // If true, new members stay PENDING. If false, auto-approve upon join.
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+}

@@ -253,6 +253,13 @@ class ApiService {
     return this.request(`/clubs/${id}/join-requests`);
   }
 
+  async toggleClubApproval(id, requireApproval) {
+    return this.request(`/clubs/${id}/toggle-approval`, {
+      method: 'PATCH',
+      body: JSON.stringify(requireApproval !== undefined ? { requireApproval } : {})
+    });
+  }
+
   async approveClubMember(clubId, memberId) {
     return this.request(`/clubs/${clubId}/members/${memberId}/approve`, {
       method: 'PATCH'
