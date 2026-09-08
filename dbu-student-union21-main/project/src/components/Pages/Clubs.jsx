@@ -1881,28 +1881,24 @@ export function Clubs() {
 
         {/* Clubs Grid */}
         {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div key={n} className="bg-white rounded-xl overflow-hidden shadow-sm animate-pulse">
-                <div className="w-full h-48 bg-gray-200"></div>
-                <div className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 mb-14">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <div key={n} className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm animate-pulse">
+                <div className="w-full h-32 bg-gray-200"></div>
+                <div className="p-3.5 space-y-2.5">
                   <div className="flex justify-between">
-                    <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-                    <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-1/4"></div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-gray-100 rounded w-full"></div>
-                    <div className="h-4 bg-gray-100 rounded w-5/6"></div>
-                  </div>
-                  <div className="pt-4 space-y-3">
-                    <div className="h-10 bg-gray-200 rounded w-full"></div>
-                  </div>
+                  <div className="h-3 bg-gray-100 rounded w-full"></div>
+                  <div className="h-3 bg-gray-100 rounded w-3/4"></div>
+                  <div className="h-7 bg-gray-200 rounded w-full mt-2"></div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 mb-14">
             {(filteredClubs || []).length > 0 ? (
               (filteredClubs || []).map((club, index) => {
                 const userId = user?._id || user?.id;
@@ -1913,155 +1909,138 @@ export function Clubs() {
                 return (
                   <motion.div
                   key={club._id || club.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+                  transition={{ delay: Math.min(index * 0.04, 0.4) }}
+                  className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
 
-                  <div className="relative">
-                    <img
-                      src={getClubImage(club)}
-                      alt={club.name}
-                      className="w-full h-48 object-cover bg-gray-200"
-                    />
-                    <div className="absolute top-4 left-4">
-                      <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-medium">
-                        {club.category}
-                      </span>
-                    </div>
-                    {user?.isAdmin && !isAcademicAdmin && (
-                      <div className="absolute top-4 right-4 flex space-x-2">
-                        <button
-                          onClick={() => handleEditClub(club)}
-                          className="bg-amber-500 text-white px-3 py-1 rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium shadow-sm"
-                          title="Edit Club">
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClub(club._id || club.id)}
-                          className="bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm"
-                          title="Delete Club">
-                          Delete
-                        </button>
+                    <div className="relative">
+                      <img
+                        src={getClubImage(club)}
+                        alt={club.name}
+                        className="w-full h-32 object-cover bg-gray-100"
+                      />
+                      <div className="absolute top-2.5 left-2.5">
+                        <span className="bg-blue-600/95 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-wide shadow-xs">
+                          {club.category}
+                        </span>
                       </div>
-                    )}
-
-                    {/* Club Rep / Member Actions */}
-                    {user && (
-                      ((String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId)) ||
-                        (Array.isArray(club?.members) && club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'))) && (
-                        <div className="absolute top-4 left-4 flex space-x-2 z-10">
+                      {user?.isAdmin && !isAcademicAdmin && (
+                        <div className="absolute top-2 right-2 flex space-x-1.5">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedClub(club); setShowReportModal(true); }}
-                            className="bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition-colors shadow-lg"
-                            title="Submit Report/Document">
-                            <FileText className="w-4 h-4" />
+                            onClick={() => handleEditClub(club)}
+                            className="bg-amber-500/90 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-[11px] font-medium shadow-xs transition"
+                            title="Edit Club">
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClub(club._id || club.id)}
+                            className="bg-red-600/90 hover:bg-red-700 text-white px-2 py-0.5 rounded text-[11px] font-medium shadow-xs transition"
+                            title="Delete Club">
+                            Delete
                           </button>
                         </div>
-                      )
-                    )}
-                  </div>
+                      )}
 
-                  <div className="p-6 relative">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xl font-semibold text-gray-900">
-                        {club.name}
-                      </h3>
-                      <span className="text-gray-500 text-sm">
-                        Est. {club.founded}
-                      </span>
+                      {/* Club Rep / Member Actions */}
+                      {user && (
+                        ((String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId)) ||
+                          (Array.isArray(club?.members) && club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'))) && (
+                          <div className="absolute top-2 left-2 flex space-x-1.5 z-10">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedClub(club); setShowReportModal(true); }}
+                              className="bg-purple-600 text-white p-1.5 rounded-md hover:bg-purple-700 transition shadow-xs"
+                              title="Submit Report/Document">
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
 
-                    <p className="text-gray-600 mb-4 text-sm leading-relaxed">
-                      {club.description}
-                    </p>
+                    <div className="p-3.5 relative">
+                      <div className="flex items-start justify-between gap-1 mb-1">
+                        <h3 className="text-sm font-bold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-600 transition-colors" title={club.name}>
+                          {club.name}
+                        </h3>
+                        <span className="text-gray-400 text-[10px] whitespace-nowrap mt-0.5">
+                          Est. {club.founded}
+                        </span>
+                      </div>
 
-                    {/* Contact Info */}
-                    {(club.contactEmail || club.contactPhone || club.officeLocation || club.website) && (
-                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Contact Information</h4>
-                        <div className="space-y-1">
+                      <p className="text-gray-500 mb-2.5 text-xs leading-relaxed line-clamp-2 min-h-[32px]">
+                        {club.description}
+                      </p>
+
+                      {/* Contact Info (Compact) */}
+                      {(club.contactEmail || club.contactPhone || club.officeLocation || club.website) && (
+                        <div className="mb-2 p-2 bg-gray-50 rounded-lg text-[11px] space-y-0.5">
                           {club.officeLocation && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              <span>{club.officeLocation}</span>
+                            <div className="flex items-center text-gray-600 truncate">
+                              <MapPin className="w-3 h-3 mr-1 shrink-0 text-gray-400" />
+                              <span className="truncate">{club.officeLocation}</span>
                             </div>
                           )}
                           {club.contactEmail && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Mail className="w-4 h-4 mr-2" />
-                              <span>{club.contactEmail}</span>
-                            </div>
-                          )}
-                          {club.contactPhone && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Phone className="w-4 h-4 mr-2" />
-                              <span>{club.contactPhone}</span>
+                            <div className="flex items-center text-gray-600 truncate">
+                              <Mail className="w-3 h-3 mr-1 shrink-0 text-gray-400" />
+                              <span className="truncate">{club.contactEmail}</span>
                             </div>
                           )}
                           {club.website && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Globe className="w-4 h-4 mr-2" />
-                              <a href={club.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                Visit Website
+                            <div className="flex items-center text-gray-600 truncate">
+                              <Globe className="w-3 h-3 mr-1 shrink-0 text-gray-400" />
+                              <a href={club.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
+                                Website
                               </a>
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Meeting Schedule */}
-                    {club.meetingSchedule && (
-                      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                        <h4 className="font-medium text-blue-900 mb-1">Meeting Schedule</h4>
-                        <p className="text-sm text-blue-800">{club.meetingSchedule}</p>
+                      {/* Stats */}
+                      <div className="flex items-center justify-between text-[11px] text-gray-400 mb-2.5 pb-2 border-b border-gray-100">
+                        <div className="flex items-center">
+                          <Users className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                          <span>{Array.isArray(club.members) ? club.members.filter(m => m.status === 'approved' || m.status === 'restricted').length : (club.members || 0)} members</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                          <span>{club.events || 0} events</span>
+                        </div>
                       </div>
-                    )}
 
-                    {/* Stats */}
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 mr-1" />
-                        <span>{Array.isArray(club.members) ? club.members.filter(m => m.status === 'approved' || m.status === 'restricted').length : (club.members || 0)} members</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        <span>{club.events || 0} events</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 mt-4">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            if ((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) {
-                              handleViewMembers(club);
-                            } else {
-                              if (activeMember) {
-                                toast.success("You are already an active member of this club!");
-                                return;
+                      <div className="flex flex-col gap-1.5">
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            onClick={() => {
+                              if ((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) {
+                                handleViewMembers(club);
+                              } else {
+                                if (activeMember) {
+                                  toast.success("You are already an active member of this club!");
+                                  return;
+                                }
+                                const isPending = (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
+                                  club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
+                                if (isPending) {
+                                  toast.error("Your join request is already pending approval.");
+                                  return;
+                                }
+                                handleJoinClub(club);
                               }
-                              const isPending = (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
-                                club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
-                              if (isPending) {
-                                toast.error("Your join request is already pending approval.");
-                                        return;
-                              }
-                              handleJoinClub(club);
-                            }
-                          }}
-                          className={`py-2 rounded-xl font-bold transition-all transform hover:scale-[1.02] shadow-md border-b-4 active:border-b-0 active:translate-y-1 ${((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
-                            ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-700 hover:from-green-600 hover:to-emerald-700"
-                            : activeMember
-                              ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-700 cursor-default"
-                              : ((club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
-                                ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-700 cursor-default"
-                                : "bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-blue-800 hover:from-blue-700 hover:to-indigo-800"
-                          }`}
-                        >
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Users className="w-4 h-4" />
-                            <span className="text-xs">
+                            }}
+                            className={`py-1.5 px-2 rounded-lg font-bold transition shadow-xs flex items-center justify-center gap-1 text-xs ${((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
+                              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                              : activeMember
+                                ? "bg-emerald-500 text-white cursor-default"
+                                : ((club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
+                                  ? "bg-amber-500 text-white cursor-default"
+                                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                            }`}
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span className="truncate">
                               {((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
                                 ? "Manage"
                                  : (() => {
@@ -2083,78 +2062,78 @@ export function Clubs() {
                                    return "Join";
                                  })()}
                             </span>
-                          </div>
-                        </button>
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            navigate(`/clubs/${club._id || club.id}`);
-                          }}
-                          className="py-2 rounded-xl font-bold bg-white text-blue-600 border-2 border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-all flex items-center justify-center gap-1.5 shadow-sm text-xs"
-                        >
-                          Read More →
-                        </button>
+                          <button
+                            onClick={() => {
+                              navigate(`/clubs/${club._id || club.id}`);
+                            }}
+                            className="py-1.5 px-2 rounded-lg font-semibold bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 hover:border-blue-300 transition flex items-center justify-center gap-1 text-xs shadow-xs"
+                          >
+                            <span>Read More</span>
+                            <span>→</span>
+                          </button>
+                        </div>
+
+                        {(!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) ||
+                         (!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030') ||
+                         (!loginMatch && isLeader)) && (
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) && (
+                              <button
+                                onClick={() => fetchClubReports(club._id || club.id)}
+                                className="py-1 px-2 rounded-lg font-medium bg-white text-gray-700 border border-gray-200 hover:border-blue-200 hover:text-blue-600 transition flex items-center justify-center gap-1 text-[11px]">
+                                <FileText className="w-3 h-3 text-gray-500" />
+                                <span className="truncate">Reports</span>
+                              </button>
+                            )}
+                            {!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030' && (
+                              <button
+                                onClick={() => {
+                                  setSelectedClub(club);
+                                  setShowAskModal(true);
+                                }}
+                                className="py-1 px-2 rounded-lg font-medium bg-white text-indigo-700 border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 transition flex items-center justify-center gap-1 text-[11px]">
+                                <Mail className="w-3 h-3 text-indigo-500" />
+                                <span className="truncate">Ask Rep</span>
+                              </button>
+                            )}
+                            {!loginMatch && isLeader && (
+                              <button
+                                onClick={() => {
+                                  setSelectedClub(club);
+                                  setReportFormData({
+                                    title: "",
+                                    description: "",
+                                    date: new Date().toISOString().split('T')[0],
+                                    documentUrl: "",
+                                    file: null,
+                                    reportType: "ACTIVITY"
+                                  });
+                                  setShowReportModal(true);
+                                }}
+                                className="py-1 px-2 rounded-lg font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition flex items-center justify-center gap-1 text-[11px]">
+                                <FileText className="w-3 h-3 text-purple-500" />
+                                <span className="truncate">Report</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
 
-                      {(!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) ||
-                       (!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030') ||
-                       (!loginMatch && isLeader)) && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) && (
-                            <button
-                              onClick={() => fetchClubReports(club._id || club.id)}
-                              className="py-2 rounded-xl font-bold bg-white text-gray-700 border-2 border-gray-100 hover:border-blue-200 hover:text-blue-600 transition-all flex items-center justify-center gap-1 shadow-sm text-xs">
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>Reports</span>
-                            </button>
-                          )}
-                          {!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030' && (
-                            <button
-                              onClick={() => {
-                                setSelectedClub(club);
-                                setShowAskModal(true);
-                              }}
-                              className="py-2 rounded-xl font-bold bg-white text-indigo-700 border-2 border-indigo-100 hover:border-indigo-300 hover:text-indigo-800 transition-all flex items-center justify-center gap-1 shadow-sm text-xs">
-                              <Mail className="w-3.5 h-3.5" />
-                              <span>Ask Rep</span>
-                            </button>
-                          )}
-                          {!loginMatch && isLeader && (
-                            <button
-                              onClick={() => {
-                                setSelectedClub(club);
-                                setReportFormData({
-                                  title: "",
-                                  description: "",
-                                  date: new Date().toISOString().split('T')[0],
-                                  documentUrl: "",
-                                  file: null,
-                                  reportType: "ACTIVITY"
-                                });
-                                setShowReportModal(true);
-                              }}
-                              className="py-2 rounded-xl font-bold bg-purple-50 text-purple-700 border-2 border-purple-100 hover:border-purple-300 hover:bg-purple-100 transition-all flex items-center justify-center gap-1 shadow-sm text-xs">
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>Submit Report</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Expandable Member Transparency Panel ── */}
-                    {(activeMember || (user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) && (
-                      <div className="mt-3 border-t border-gray-100 pt-3">
-                        <button
-                          onClick={async (e) => { e.stopPropagation(); await toggleMemberPanel(club._id || club.id); }}
-                          className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors py-1 px-1 rounded-lg hover:bg-blue-50"
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <Users className="w-3.5 h-3.5" />
-                            {expandedClubId === (club._id || club.id) ? 'Hide Members' : 'View All Members'}
-                          </span>
-                          <span className="text-gray-400">{expandedClubId === (club._id || club.id) ? '▲' : '▼'}</span>
-                        </button>
+                      {/* ── Expandable Member Transparency Panel ── */}
+                      {(activeMember || (user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator) && (
+                        <div className="mt-2.5 border-t border-gray-100 pt-2">
+                          <button
+                            onClick={async (e) => { e.stopPropagation(); await toggleMemberPanel(club._id || club.id); }}
+                            className="w-full flex items-center justify-between text-[11px] font-semibold text-gray-500 hover:text-blue-600 transition-colors py-0.5 px-1 rounded hover:bg-blue-50"
+                          >
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3 h-3 text-gray-400" />
+                              <span>{expandedClubId === (club._id || club.id) ? 'Hide Members' : 'View All Members'}</span>
+                            </span>
+                            <span className="text-gray-400 text-[10px]">{expandedClubId === (club._id || club.id) ? '▲' : '▼'}</span>
+                          </button>
 
                         {expandedClubId === (club._id || club.id) && (() => {
                           const detail = expandedClubData[club._id || club.id];
