@@ -170,7 +170,59 @@ export function AttendanceScanner() {
   const handleProcessScan = async (qrPayload) => {
     try {
       setSubmitting(true);
-      const res = await apiService.scanAttendance({ qrPayload });
+      const str = String(qrPayload || '').trim();
+
+      let tokenToPass = null;
+      let codeToPass = null;
+      let titleToPass = null;
+      let clubToPass = null;
+      let hoursToPass = null;
+
+      // Extract from URL query params
+      if (str.includes('token=') || str.includes('code=') || str.includes('?') || str.startsWith('http')) {
+        try {
+          const parsed = new URL(
+            str.startsWith('http') ? str : `http://localhost${str.startsWith('/') ? '' : '/'}${str}`
+          );
+          tokenToPass = parsed.searchParams.get('token');
+          codeToPass = parsed.searchParams.get('code');
+          titleToPass = parsed.searchParams.get('title');
+          clubToPass = parsed.searchParams.get('club');
+          hoursToPass = parsed.searchParams.get('hours');
+        } catch (_) {}
+      }
+
+      // Regex fallback
+      if (!tokenToPass) {
+        const mToken = str.match(/token=([a-zA-Z0-9-]+)/i);
+        if (mToken) tokenToPass = mToken[1];
+      }
+      if (!codeToPass) {
+        const mCode = str.match(/code=([a-zA-Z0-9]+)/i);
+        if (mCode) codeToPass = mCode[1].toUpperCase();
+      }
+
+      // JSON fallback
+      if (!tokenToPass && !codeToPass && (str.startsWith('{') || str.startsWith('['))) {
+        try {
+          const json = JSON.parse(str);
+          tokenToPass = json.token;
+          codeToPass = json.code;
+          titleToPass = json.title;
+          clubToPass = json.club;
+          hoursToPass = json.hours;
+        } catch (_) {}
+      }
+
+      const res = await apiService.scanAttendance({
+        qrPayload: str,
+        sessionToken: tokenToPass || undefined,
+        code: codeToPass ? codeToPass.toUpperCase() : undefined,
+        eventTitle: titleToPass || undefined,
+        clubName: clubToPass || undefined,
+        hoursCredit: hoursToPass ? parseFloat(hoursToPass) : undefined,
+      });
+
       if (res.success) {
         setLastCheckIn(res);
         toast.success(res.message || 'Attendance confirmed!');

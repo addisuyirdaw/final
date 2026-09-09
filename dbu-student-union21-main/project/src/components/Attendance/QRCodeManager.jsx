@@ -327,7 +327,7 @@ export function QRCodeManager({ defaultClubId = null, defaultEventTitle = '' }) 
 
                 {/* The QR Code Card */}
                 {(() => {
-                  const scanUrl = `${window.location.origin}/attendance?token=${encodeURIComponent(session.sessionToken)}&code=${encodeURIComponent(session.shortCode)}`;
+                  const scanUrl = `${window.location.origin}/attendance?token=${encodeURIComponent(session.sessionToken)}&code=${encodeURIComponent(session.shortCode)}&title=${encodeURIComponent(session.eventTitle)}&club=${encodeURIComponent(session.clubName)}&hours=${session.hoursCredit}`;
                   return (
                     <div className="p-5 bg-white rounded-2xl shadow-xl border-4 border-sky-100 mb-5 relative group flex flex-col items-center">
                       <QRCode
