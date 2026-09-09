@@ -219,6 +219,51 @@ class ApiService {
     });
   }
 
+  // ── Transparent Budgeting & Micro-Grants ──────────────────────────────────────
+
+  async getBudgetLedger(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/budget/ledger${qs ? `?${qs}` : ''}`);
+  }
+
+  async recordBudgetTransaction(transactionData) {
+    return this.request('/budget/transactions', {
+      method: 'POST',
+      body: JSON.stringify(transactionData),
+    });
+  }
+
+  async getBudgetStats() {
+    return this.request('/budget/stats');
+  }
+
+  async getMicroGrants(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/grants${qs ? `?${qs}` : ''}`);
+  }
+
+  async getMyGrants() {
+    return this.request('/grants/my-grants');
+  }
+
+  async applyForMicroGrant(grantData) {
+    return this.request('/grants/apply', {
+      method: 'POST',
+      body: JSON.stringify(grantData),
+    });
+  }
+
+  async updateGrantStatus(grantId, statusData) {
+    return this.request(`/grants/${grantId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(statusData),
+    });
+  }
+
+  async getMicroGrantById(grantId) {
+    return this.request(`/grants/${grantId}`);
+  }
+
 
   // Complaints endpoints
   async getComplaints(params = {}) {

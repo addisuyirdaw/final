@@ -31,11 +31,14 @@ const { initBackupCron } = require("./services/backupService");
 const crossCampusRoutes = require("./routes/crossCampus");
 const attendanceRoutes = require("./routes/attendance");
 const transcriptRoutes = require("./routes/transcripts");
+const budgetRoutes = require("./routes/budget");
+const grantRoutes = require("./routes/grants");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
 const { createDefaultAdmin } = require("./utils/createAdmin");
 const { seedUniversities } = require("./utils/seedUniversities");
+const { seedBudget } = require("./utils/seedBudget");
 
 const app = express();
 
@@ -245,6 +248,8 @@ app.use("/api/cross-campus", crossCampusRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/transcripts", transcriptRoutes);
 app.use("/api/students", transcriptRoutes);
+app.use("/api/budget", budgetRoutes);
+app.use("/api/grants", grantRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -297,6 +302,13 @@ const connectDB = async (retries = 5, delay = 5000) => {
       await seedUniversities();
     } catch (seedError) {
       console.warn("⚠️ University seed warning:", seedError.message);
+    }
+
+    // Seed initial public financial ledger & micro-grants (idempotent)
+    try {
+      await seedBudget();
+    } catch (budgetError) {
+      console.warn("⚠️ Budget seed warning:", budgetError.message);
     }
 
   } catch (error) {

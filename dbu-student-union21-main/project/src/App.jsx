@@ -39,6 +39,8 @@ import { CoCurricularTranscriptView } from "./components/Attendance/CoCurricular
 import { UserManagement } from "./components/Admin/UserManagement";
 import { VerifyPage } from "./components/Pages/VerifyPage";
 import { CertificatesAdmin } from "./components/Admin/CertificatesAdmin";
+import { BudgetDashboard } from "./components/Budget/BudgetDashboard";
+import { MicroGrantPortal } from "./components/Budget/MicroGrantPortal";
 import "./index.css";
 
 function AppContent() {
@@ -214,6 +216,8 @@ function AppContent() {
           <Route path="/attendance" element={<AttendanceHub />} />
           <Route path="/transcript" element={<CoCurricularTranscriptView />} />
           <Route path="/transcript/:studentId" element={<CoCurricularTranscriptView />} />
+          <Route path="/budget" element={<BudgetDashboard />} />
+          <Route path="/grants" element={<MicroGrantPortal />} />
           <Route path="/student-services" element={<ServicesDirectory />} />
           <Route path="/dormitory-management" element={<Dormitory />} />
           <Route path="/leadership/:departmentId" element={<LeadershipDepartment />} />
