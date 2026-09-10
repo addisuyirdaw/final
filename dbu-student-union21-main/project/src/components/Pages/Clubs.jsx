@@ -1621,6 +1621,53 @@ export function Clubs() {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* High-level Non-Sensitive Overview Summary for All Visitors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Clubs</p>
+              <p className="text-xl font-black text-slate-900">{clubs.length}</p>
+              <p className="text-xs text-emerald-600 font-medium">Officially Recognized</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <Award className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Certificates</p>
+              <p className="text-xl font-black text-slate-900">Digital Verified</p>
+              <p className="text-xs text-indigo-600 font-medium">Co-Curricular Credit</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Student Activities</p>
+              <p className="text-xl font-black text-slate-900">Year-Round</p>
+              <p className="text-xs text-purple-600 font-medium">Workshops & Events</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Governance</p>
+              <p className="text-xl font-black text-slate-900">Student Union</p>
+              <p className="text-xs text-amber-600 font-medium">Oversight & Guidance</p>
+            </div>
+          </div>
+        </div>
+
         {/* Admin Controls */}
         {user?.isAdmin && !isAcademicAdmin && (
           <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">

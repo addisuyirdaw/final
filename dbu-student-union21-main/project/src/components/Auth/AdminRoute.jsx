@@ -3,9 +3,14 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function AdminRoute({ children }) {
-  const { user, adminCredential } = useAuth();
+  const { user } = useAuth();
 
-  if (!user || !user.isAdmin || !adminCredential) {
+  const isAdministrator =
+    user &&
+    (user.isAdmin === true ||
+      ["admin", "system_admin", "president", "academic_affairs", "clubs_coordinator"].includes(user.role));
+
+  if (!isAdministrator) {
     return <Navigate to="/dashboard" replace />;
   }
 

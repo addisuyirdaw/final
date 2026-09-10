@@ -75,7 +75,7 @@ export function MicroGrantPortal() {
 
   const isReviewer =
     user?.isAdmin ||
-    ['admin', 'superadmin', 'audit_finance', 'clubs_coordinator', 'academic_affairs', 'president'].includes(
+    ['admin', 'system_admin', 'superadmin', 'audit_finance', 'clubs_coordinator', 'academic_affairs', 'president'].includes(
       user?.role
     );
 

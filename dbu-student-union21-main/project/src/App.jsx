@@ -6,6 +6,7 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { Layout } from "./components/Layout/Layout";
 import { ProtectedRoute } from "./components/Auth/ProtectedRoute";
 import { AdminRoute } from "./components/Auth/AdminRoute";
+import { FinancialRoute } from "./components/Auth/FinancialRoute";
 import { LoginForm } from "./components/Auth/LoginForm";
 import { ForgotPassword } from "./components/Auth/ForgotPassword";
 import { ResetPassword } from "./components/Auth/ResetPassword";
@@ -216,8 +217,26 @@ function AppContent() {
           <Route path="/attendance" element={<AttendanceHub />} />
           <Route path="/transcript" element={<CoCurricularTranscriptView />} />
           <Route path="/transcript/:studentId" element={<CoCurricularTranscriptView />} />
-          <Route path="/budget" element={<BudgetDashboard />} />
-          <Route path="/grants" element={<MicroGrantPortal />} />
+          <Route
+            path="/budget"
+            element={
+              <ProtectedRoute>
+                <FinancialRoute>
+                  <BudgetDashboard />
+                </FinancialRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/grants"
+            element={
+              <ProtectedRoute>
+                <FinancialRoute>
+                  <MicroGrantPortal />
+                </FinancialRoute>
+              </ProtectedRoute>
+            }
+          />
           <Route path="/student-services" element={<ServicesDirectory />} />
           <Route path="/dormitory-management" element={<Dormitory />} />
           <Route path="/leadership/:departmentId" element={<LeadershipDepartment />} />

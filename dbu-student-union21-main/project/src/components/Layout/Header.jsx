@@ -78,7 +78,6 @@ export function Header() {
 			{ name: "Home", href: "/" },
 			...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
 			{ name: "Cross-Campus", href: "/cross-campus" },
-			{ name: "Budget & Grants", href: "/budget" },
 			...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 			{ name: "Latest Announcements", href: "/latest" },
 			{ name: "About Us", href: "/about" },
@@ -122,6 +121,12 @@ export function Header() {
 		return !matchesBlacklist;
 	});
 
+	// Restrict financial management to authorized roles (admin, system_admin, clubs_coordinator, president)
+	const canAccessFinance =
+		user &&
+		(user.isAdmin === true ||
+			["admin", "system_admin", "clubs_coordinator", "president"].includes(user.role));
+
 	const protectedNavigation = [
 		...(user
 			? [
@@ -130,8 +135,12 @@ export function Header() {
 				{ name: "Cross-Campus", href: "/cross-campus" },
 				{ name: "Attendance", href: "/attendance" },
 				{ name: "Transcript", href: "/transcript" },
-				{ name: "Budget", href: "/budget" },
-				{ name: "Grants", href: "/grants" },
+				...(canAccessFinance
+					? [
+						{ name: "Budget", href: "/budget" },
+						{ name: "Grants", href: "/grants" },
+					  ]
+					: []),
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },

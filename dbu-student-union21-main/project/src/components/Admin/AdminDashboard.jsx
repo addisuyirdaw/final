@@ -21,7 +21,9 @@ import {
   Trash2,
   Building2,
   Plus,
-  Award
+  Award,
+  DollarSign,
+  Sparkles
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -466,6 +468,20 @@ export function AdminDashboard() {
       icon: Award,
       color: 'bg-amber-500',
       action: () => navigate('/admin/certificates')
+    },
+    {
+      title: 'Budget & Treasury',
+      description: 'Public financial ledger, allocations & expense tracking',
+      icon: DollarSign,
+      color: 'bg-emerald-600',
+      action: () => navigate('/budget')
+    },
+    {
+      title: 'Micro-Grants Pool',
+      description: 'Review and evaluate student project grant requests',
+      icon: Sparkles,
+      color: 'bg-purple-600',
+      action: () => navigate('/grants')
     },
   ];
 

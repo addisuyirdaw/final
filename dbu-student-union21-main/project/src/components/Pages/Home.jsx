@@ -108,38 +108,67 @@ export const Home = () => {
 		}
 	};
 
+const DEFAULT_CAROUSEL_SLIDES = [
+	{
+		id: "default-slide-1",
+		image: "/images/main_campus_entrance.png",
+		caption: "Welcome to Debre Berhan University Student Union Portal",
+		isDynamic: false,
+	},
+	{
+		id: "default-slide-2",
+		image: "/image.png/building..jpg",
+		caption: "Unity, Diversity, and Excellence across Campus Life",
+		isDynamic: false,
+	},
+	{
+		id: "default-slide-3",
+		image: "/image.png/5976613440006589280.jpg",
+		caption: "Empowering Student Leaders & Academic Growth",
+		isDynamic: false,
+	},
+];
+
 	// Carousel State
 	const [currentSlide, setCurrentSlide] = useState(0);
-
-	const [carouselSlides, setCarouselSlides] = useState([]);
+	const [carouselSlides, setCarouselSlides] = useState(DEFAULT_CAROUSEL_SLIDES);
+	const [carouselLoading, setCarouselLoading] = useState(true);
+	const [loadedImages, setLoadedImages] = useState({});
 
 	const fetchCarousel = useCallback(async () => {
 		try {
+			setCarouselLoading(true);
 			const posts = await apiService.getPosts({ type: 'Directive' });
 			const directivesArray = Array.isArray(posts) ? posts : (posts?.posts || posts?.data || []);
 			
-			const mappedSlides = directivesArray.map((d, i) => {
-				let imageUrl = d.image || '';
-				if (imageUrl) {
-					if (!imageUrl.startsWith('http') && !imageUrl.startsWith('https')) {
-						const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-						imageUrl = `${CAROUSEL_API_BASE}${normalizedPath}`;
+			if (directivesArray && directivesArray.length > 0) {
+				const mappedSlides = directivesArray.map((d, i) => {
+					let imageUrl = d.image || '';
+					if (imageUrl) {
+						if (!imageUrl.startsWith('http') && !imageUrl.startsWith('https')) {
+							const normalizedPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+							imageUrl = `${CAROUSEL_API_BASE}${normalizedPath}`;
+						}
+					} else {
+						imageUrl = "/image.png/building..jpg";
 					}
-				} else {
-					imageUrl = "/image.png/building..jpg";
-				}
-				return {
-					id: d._id || i,
-					dbId: d._id,
-					image: imageUrl,
-					caption: d.title || '',
-					isDynamic: true
-				};
-			});
-			setCarouselSlides(mappedSlides);
+					return {
+						id: d._id || `slide-${i}`,
+						dbId: d._id,
+						image: imageUrl,
+						caption: d.title || '',
+						isDynamic: true
+					};
+				});
+				setCarouselSlides(mappedSlides);
+			} else {
+				setCarouselSlides(DEFAULT_CAROUSEL_SLIDES);
+			}
 		} catch (err) {
 			console.error('Error fetching carousel directives:', err);
-			setCarouselSlides([]);
+			setCarouselSlides(DEFAULT_CAROUSEL_SLIDES);
+		} finally {
+			setCarouselLoading(false);
 		}
 	}, []);
 
@@ -302,117 +331,176 @@ export const Home = () => {
 	return (
 		<div className="min-h-screen bg-gray-50">
 			{/* Hero Carousel Section — only for guests */}
-			{!user && (<section className="relative w-full h-[600px] overflow-hidden bg-gradient-to-br from-blue-100 via-white to-blue-200">
-				{carouselSlides.map((slide, index) => (
-					<motion.div
-						key={slide.id}
-						initial={{ opacity: 0 }}
-						animate={{ opacity: currentSlide === index ? 1 : 0 }}
-						transition={{ duration: 1 }}
-						className={`absolute inset-0 z-0 bg-gradient-to-br from-blue-50 to-blue-100 ${currentSlide === index ? 'pointer-events-auto' : 'pointer-events-none'}`}
-					>
-						{/* Blurred fill background — hides when image fails, showing light section bg */}
-						<img
-							src={slide.image}
-							alt=""
-							aria-hidden="true"
-							className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl transition-transform duration-10000"
-							style={{
-								transform: currentSlide === index ? 'scale(1.15)' : 'scale(1.1)',
-								filter: 'brightness(1.5) contrast(1.05) saturate(1.2)',
-							}}
-							onError={(e) => {
-								e.target.onerror = null;
-								e.target.style.display = 'none';
-							}}
-						/>
-						{/* Very subtle bottom gradient only */}
-						<div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
-
-						{/* Main clear image — fully bright */}
-						<img
-							src={slide.image}
-							alt={`Carousel slide ${index + 1}`}
-							className="absolute inset-0 w-full h-full object-contain transition-transform duration-10000"
-							style={{
-								transform: currentSlide === index ? 'scale(1.02)' : 'scale(1)',
-								filter: 'brightness(1.45) contrast(1.08) saturate(1.2)',
-							}}
-							onError={(e) => {
-								e.target.onerror = null;
-								e.target.style.display = 'none';
-							}}
-						/>
-
-						{/* Admin delete button — only on dynamic (uploaded) slides */}
-						{slide.isDynamic && (user?.isAdmin || ['Giziew','Sintayew','Sintayehu','Genete','Kalkidan'].some(n => user?.name?.includes(n))) && (
-							<button
-								onClick={() => deleteCarouselSlide(slide.dbId)}
-								title="Remove this slide"
-								className="absolute top-4 right-4 z-30 flex items-center gap-1.5 bg-red-600/90 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-all backdrop-blur-sm"
-							>
-								<Trash2 className="w-3.5 h-3.5" /> Remove Slide
-							</button>
-						)}
-
-						<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center items-center text-center">
-							<motion.div
-								initial={{ opacity: 0, y: 30 }}
-								animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 30 }}
-								transition={{ duration: 0.8, delay: 0.3 }}
-								className="bg-white/10 backdrop-blur-sm px-10 py-8 rounded-[2rem] border border-white/20 max-w-4xl mx-auto shadow-2xl"
-							>
-								
-								<motion.h1
-									initial={{ opacity: 0, y: 40 }}
-									animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 40 }}
-									transition={{ duration: 0.7, delay: 0.2 }}
-									className="text-4xl md:text-6xl font-black mb-3 text-white tracking-tight drop-shadow-xl">
-									{slide.caption || carouselCaptions[index % carouselCaptions.length]}
-								</motion.h1>
-
-								<motion.p
-									initial={{ opacity: 0, y: 30 }}
-									animate={{ opacity: currentSlide === index ? 1 : 0, y: currentSlide === index ? 0 : 30 }}
-									transition={{ duration: 0.7, delay: 0.35 }}
-									className="text-lg text-blue-300 font-extrabold tracking-widest uppercase">
-									Debre Berhan University Student Affairs
-								</motion.p>
-							</motion.div>
+			{!user && (
+				<section 
+					className="relative w-full h-[480px] sm:h-[540px] lg:h-[600px] min-h-[460px] max-h-[640px] aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-slate-900"
+					aria-label="Campus Highlights Carousel"
+				>
+					{/* Skeleton Shimmer Loader while initial carousel slides are resolving */}
+					{carouselLoading && (
+						<div className="absolute inset-0 z-20 flex flex-col justify-center items-center pointer-events-none bg-slate-900/60 backdrop-blur-xs">
+							<div className="w-full h-full animate-pulse bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 absolute inset-0" />
+							<div className="relative z-30 flex flex-col items-center space-y-4 px-6 text-center">
+								<div className="w-48 h-5 rounded-full bg-blue-500/20 border border-blue-400/30 animate-pulse" />
+								<div className="w-72 sm:w-96 md:w-[32rem] h-10 sm:h-14 rounded-2xl bg-white/10 animate-pulse" />
+								<div className="w-40 sm:w-60 h-4 rounded-full bg-slate-600/30 animate-pulse" />
+							</div>
 						</div>
-					</motion.div>
-				))}
+					)}
 
-				{/* Carousel Navigation Arrows */}
-				<button 
-					onClick={prevSlide}
-					className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-4 rounded-full bg-black/30 hover:bg-black/60 text-white transition-colors backdrop-blur-sm"
-				>
-					<ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
-				</button>
-				<button 
-					onClick={nextSlide}
-					className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-4 rounded-full bg-black/30 hover:bg-black/60 text-white transition-colors backdrop-blur-sm"
-				>
-					<ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
-				</button>
+					{carouselSlides.map((slide, index) => {
+						const isFirstSlide = index === 0;
+						const isLoaded = loadedImages[slide.id] || false;
+						const isActive = currentSlide === index;
 
-				{/* Carousel Indicators */}
-				<div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-					{carouselSlides.map((_, index) => (
-						<button
-							key={index}
-							onClick={() => setCurrentSlide(index)}
-							className={`transition-all duration-300 rounded-full ${
-								currentSlide === index 
-								? 'w-8 h-2 bg-blue-500' 
-								: 'w-2 h-2 bg-white/50 hover:bg-white/80'
-							}`}
-							aria-label={`Go to slide ${index + 1}`}
-						/>
-					))}
-				</div>
-			</section>)}
+						return (
+							<motion.div
+								key={slide.id}
+								initial={{ opacity: 0 }}
+								animate={{ opacity: isActive ? 1 : 0 }}
+								transition={{ duration: 0.8 }}
+								className={`absolute inset-0 z-0 bg-slate-900 ${isActive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+							>
+								{/* Placeholder Shimmer for this specific slide until image finishes loading */}
+								{!isLoaded && (
+									<div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 animate-pulse" />
+								)}
+
+								{/* Blurred fill background */}
+								<img
+									src={slide.image}
+									alt=""
+									aria-hidden="true"
+									width="1920"
+									height="1080"
+									loading={isFirstSlide ? "eager" : "lazy"}
+									fetchPriority={isFirstSlide ? "high" : "low"}
+									decoding="async"
+									onLoad={() => setLoadedImages((prev) => ({ ...prev, [slide.id]: true }))}
+									onError={(e) => {
+										e.target.onerror = null;
+										e.target.src = "/image.png/building..jpg";
+										setLoadedImages((prev) => ({ ...prev, [slide.id]: true }));
+									}}
+									className={`absolute inset-0 w-full h-full object-cover scale-110 blur-xl transition-all duration-1000 ${
+										isLoaded ? 'opacity-80' : 'opacity-0'
+									}`}
+									style={{
+										transform: isActive ? 'scale(1.15)' : 'scale(1.1)',
+										filter: 'brightness(1.3) contrast(1.05) saturate(1.2)',
+									}}
+								/>
+
+								{/* Subtle overlay gradient to guarantee high text contrast */}
+								<div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/40 to-slate-950/40" />
+
+								{/* Main clear image with explicit aspect ratio attributes and priority preloading on first slide */}
+								<img
+									src={slide.image}
+									alt={slide.caption || `Campus Highlight Slide ${index + 1}`}
+									width="1920"
+									height="1080"
+									loading={isFirstSlide ? "eager" : "lazy"}
+									fetchPriority={isFirstSlide ? "high" : "low"}
+									decoding="async"
+									onLoad={() => setLoadedImages((prev) => ({ ...prev, [slide.id]: true }))}
+									onError={(e) => {
+										e.target.onerror = null;
+										e.target.src = "/images/main_campus_entrance.png";
+										setLoadedImages((prev) => ({ ...prev, [slide.id]: true }));
+									}}
+									className={`absolute inset-0 w-full h-full object-contain transition-all duration-700 ${
+										isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+									}`}
+									style={{
+										transform: isActive ? 'scale(1.02)' : 'scale(1)',
+										filter: 'brightness(1.1) contrast(1.05) saturate(1.1)',
+									}}
+								/>
+
+								{/* Admin delete button — only on dynamic (uploaded) slides */}
+								{slide.isDynamic && (user?.isAdmin || ['Giziew','Sintayew','Sintayehu','Genete','Kalkidan'].some(n => user?.name?.includes(n))) && (
+									<button
+										onClick={() => deleteCarouselSlide(slide.dbId)}
+										title="Remove this slide"
+										className="absolute top-4 right-4 z-30 flex items-center gap-1.5 bg-red-600/90 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-all backdrop-blur-sm cursor-pointer"
+									>
+										<Trash2 className="w-3.5 h-3.5" /> Remove Slide
+									</button>
+								)}
+
+								<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center items-center text-center">
+									<motion.div
+										initial={{ opacity: 0, y: 30 }}
+										animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 30 }}
+										transition={{ duration: 0.8, delay: 0.2 }}
+										className="bg-slate-900/60 backdrop-blur-md px-8 sm:px-12 py-6 sm:py-8 rounded-3xl border border-white/20 max-w-4xl mx-auto shadow-2xl"
+									>
+										<motion.div
+											initial={{ opacity: 0, scale: 0.9 }}
+											animate={{ opacity: isActive ? 1 : 0, scale: isActive ? 1 : 0.9 }}
+											transition={{ duration: 0.5, delay: 0.1 }}
+											className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3"
+										>
+											Debre Berhan University • Student Affairs
+										</motion.div>
+
+										<motion.h1
+											initial={{ opacity: 0, y: 30 }}
+											animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 30 }}
+											transition={{ duration: 0.7, delay: 0.2 }}
+											className="text-3xl sm:text-5xl md:text-6xl font-black mb-3 text-white tracking-tight drop-shadow-xl"
+										>
+											{slide.caption || carouselCaptions[index % carouselCaptions.length]}
+										</motion.h1>
+
+										<motion.p
+											initial={{ opacity: 0, y: 20 }}
+											animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 20 }}
+											transition={{ duration: 0.7, delay: 0.3 }}
+											className="text-sm sm:text-base text-blue-200 font-medium tracking-wide"
+										>
+											Dedicated to Student Welfare, Academic Excellence & Vibrant Campus Life
+										</motion.p>
+									</motion.div>
+								</div>
+							</motion.div>
+						);
+					})}
+
+					{/* Carousel Navigation Arrows */}
+					<button 
+						onClick={prevSlide}
+						className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-4 rounded-full bg-black/40 hover:bg-black/70 text-white transition-all backdrop-blur-md shadow-lg cursor-pointer"
+						aria-label="Previous Slide"
+					>
+						<ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
+					</button>
+					<button 
+						onClick={nextSlide}
+						className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-4 rounded-full bg-black/40 hover:bg-black/70 text-white transition-all backdrop-blur-md shadow-lg cursor-pointer"
+						aria-label="Next Slide"
+					>
+						<ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
+					</button>
+
+					{/* Carousel Indicators */}
+					<div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2.5">
+						{carouselSlides.map((_, index) => (
+							<button
+								key={index}
+								onClick={() => setCurrentSlide(index)}
+								className={`transition-all duration-300 rounded-full cursor-pointer ${
+									currentSlide === index 
+									? 'w-8 h-2.5 bg-blue-500 shadow-md shadow-blue-500/50' 
+									: 'w-2.5 h-2.5 bg-white/40 hover:bg-white/80'
+								}`}
+								aria-label={`Go to slide ${index + 1}`}
+							/>
+						))}
+					</div>
+				</section>
+			)}
 
 			{/* Hero Action Bar — Buttons below carousel, guests only */}
 			{!user && (

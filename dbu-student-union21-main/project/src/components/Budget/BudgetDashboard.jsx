@@ -59,7 +59,10 @@ const CATEGORY_MAP = {
 
 export const BudgetDashboard = () => {
   const { user } = useAuth();
-  const isAdmin = user && (user.role === 'ADMIN' || user.role === 'STUDENT_UNION' || user.role === 'FEDERATION_ADMIN');
+  const isAdmin =
+    user &&
+    (user.isAdmin === true ||
+      ['admin', 'system_admin', 'clubs_coordinator', 'president'].includes(user.role));
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
