@@ -6,12 +6,12 @@ const MicroGrant = require('../models/MicroGrant');
 const Transaction = require('../models/Transaction');
 const University = require('../models/University');
 const Club = require('../models/Club');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 
 // @desc    Fetch micro-grants list (with filtering by status, university, club)
 // @route   GET /api/grants
 // @access  Public / Authenticated
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const { status, universityId, clubId, category, page = 1, limit = 20 } = req.query;
 
@@ -28,6 +28,27 @@ router.get('/', async (req, res) => {
     if (category) {
       query.category = category;
     }
+
+    // --- SENSITIVE DATA PROTECTION ---
+    const isReviewer = req.user && (
+      req.user.isAdmin ||
+      ['admin', 'superadmin', 'audit_finance', 'clubs_coordinator', 'academic_affairs', 'president', 'system_admin'].includes(req.user.role)
+    );
+
+    if (!isReviewer) {
+      const publicStatuses = ['APPROVED', 'DISBURSED'];
+      if (req.user) {
+        // Normal user (including club reps): can only see public grants + their own requests
+        query.$or = [
+          { status: { $in: publicStatuses } },
+          { applicantId: req.user._id }
+        ];
+      } else {
+        // Unauthenticated: only see public grants
+        query.status = { $in: publicStatuses };
+      }
+    }
+    // ---------------------------------
 
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10)));

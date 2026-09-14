@@ -1997,7 +1997,12 @@ export function Clubs() {
             {(filteredClubs || []).length > 0 ? (
               (filteredClubs || []).map((club, index) => {
                 const userId = user?._id || user?.id;
-                const isLeader = userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId));
+                const isLeader = userId && (
+                  String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId) ||
+                  String(club?.leadership?.vicePresident?._id || club?.leadership?.vicePresident) === String(userId) ||
+                  String(club?.leadership?.secretary?._id || club?.leadership?.secretary) === String(userId) ||
+                  String(club?.leadership?.treasurer?._id || club?.leadership?.treasurer) === String(userId)
+                );
                 const activeMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) && 
                   club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
 
@@ -2025,20 +2030,22 @@ export function Clubs() {
                           </span>
                         )}
                       </div>
-                      {user?.isAdmin && !isAcademicAdmin && (
-                        <div className="absolute top-2 right-2 flex space-x-1.5">
+                      {((user?.isAdmin && !isAcademicAdmin) || isLeader) && (
+                        <div className="absolute top-2 right-2 flex space-x-1.5 z-20">
                           <button
-                            onClick={() => handleEditClub(club)}
+                            onClick={(e) => { e.stopPropagation(); handleEditClub(club); }}
                             className="bg-amber-500/90 hover:bg-amber-600 text-white px-2 py-0.5 rounded text-[11px] font-medium shadow-xs transition"
                             title="Edit Club">
                             Edit
                           </button>
-                          <button
-                            onClick={() => handleDeleteClub(club._id || club.id)}
-                            className="bg-red-600/90 hover:bg-red-700 text-white px-2 py-0.5 rounded text-[11px] font-medium shadow-xs transition"
-                            title="Delete Club">
-                            Delete
-                          </button>
+                          {user?.isAdmin && !isAcademicAdmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteClub(club._id || club.id); }}
+                              className="bg-red-600/90 hover:bg-red-700 text-white px-2 py-0.5 rounded text-[11px] font-medium shadow-xs transition"
+                              title="Delete Club">
+                              Delete
+                            </button>
+                          )}
                         </div>
                       )}
 
