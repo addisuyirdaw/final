@@ -1669,7 +1669,7 @@ export function Clubs() {
         </div>
 
         {/* Admin Controls */}
-        {user?.isAdmin && !isAcademicAdmin && (
+        {((user?.isAdmin && !isAcademicAdmin) || isEditing) && (
           <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900">
