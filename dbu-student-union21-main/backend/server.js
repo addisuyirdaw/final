@@ -35,6 +35,7 @@ const budgetRoutes = require("./routes/budget");
 const grantRoutes = require("./routes/grants");
 const projectRoutes = require("./routes/projects");
 const taskRoutes = require("./routes/tasks");
+const announcementRoutes = require("./routes/announcements");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -254,6 +255,7 @@ app.use("/api/budget", budgetRoutes);
 app.use("/api/grants", grantRoutes);
 app.use("/api/clubs/:clubId/projects", projectRoutes);
 app.use("/api/clubs/:clubId/projects/:projectId/tasks", taskRoutes);
+app.use("/api/clubs/:clubId/announcements", announcementRoutes);
 
 
 // 404 handler

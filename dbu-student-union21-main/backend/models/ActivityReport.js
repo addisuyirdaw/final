@@ -6,6 +6,10 @@ const activityReportSchema = new mongoose.Schema({
     ref: 'Club',
     required: true
   },
+  eventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null
+  },
   title: {
     type: String,
     required: [true, 'Please provide a title for the activity report'],

@@ -1172,7 +1172,7 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
       description,
       date: new Date(date),
       location,
-      status: 'planned',
+      status: 'draft',
       attendees: [],
       activeCheckIn: false
     });
@@ -1187,6 +1187,108 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
   } catch (error) {
     console.error('Create event error:', error);
     res.status(500).json({ success: false, message: 'Server error creating event' });
+  }
+});
+
+// @desc    Update a draft/planned event
+// @route   PATCH /api/clubs/:id/events/:eventId
+// @access  Private (Club Leader / Admin / Coordinator)
+router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
+  try {
+    const { title, description, date, location } = req.body;
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
+
+    const event = club.events.id(req.params.eventId);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    if (event.status !== 'draft' && event.status !== 'planned' && event.status !== 'rejected') {
+      return res.status(400).json({ success: false, message: 'Only draft, rejected, or planned events can be edited' });
+    }
+
+    if (title) event.title = title;
+    if (description) event.description = description;
+    if (date) event.date = new Date(date);
+    if (location) event.location = location;
+
+    await club.save();
+    res.json({ success: true, message: 'Event updated successfully', event });
+  } catch (error) {
+    console.error('Update event error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating event' });
+  }
+});
+
+// @desc    Submit an event for approval
+// @route   PATCH /api/clubs/:id/events/:eventId/submit
+// @access  Private (Club Leader / Admin / Coordinator)
+router.patch('/:id/events/:eventId/submit', protect, clubLeader, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
+
+    const event = club.events.id(req.params.eventId);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    if (event.status !== 'draft' && event.status !== 'rejected') {
+      return res.status(400).json({ success: false, message: 'Only draft or rejected events can be submitted' });
+    }
+
+    event.status = 'pending_approval';
+    event.submittedBy = req.user._id;
+    event.submittedAt = Date.now();
+
+    await club.save();
+    res.json({ success: true, message: 'Event submitted for approval', event });
+  } catch (error) {
+    console.error('Submit event error:', error);
+    res.status(500).json({ success: false, message: 'Server error submitting event' });
+  }
+});
+
+// @desc    Review (Approve/Reject) an event
+// @route   PATCH /api/clubs/:id/events/:eventId/review
+// @access  Private (Admin / Coordinator)
+router.patch('/:id/events/:eventId/review', protect, async (req, res) => {
+  try {
+    // Only admins or coordinators can review
+    if (!req.user.isAdmin && !req.user.roles?.includes('coordinator')) {
+      return res.status(403).json({ success: false, message: 'Not authorized to review events' });
+    }
+
+    const { status, rejectionReason } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status must be approved or rejected' });
+    }
+
+    if (status === 'rejected' && !rejectionReason) {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required' });
+    }
+
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
+
+    const event = club.events.id(req.params.eventId);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    if (event.status !== 'pending_approval') {
+      return res.status(400).json({ success: false, message: 'Only pending events can be reviewed' });
+    }
+
+    event.status = status;
+    event.reviewedBy = req.user._id;
+    event.reviewedAt = Date.now();
+    if (status === 'rejected') {
+      event.rejectionReason = rejectionReason;
+    } else {
+      event.rejectionReason = null;
+    }
+
+    await club.save();
+    res.json({ success: true, message: `Event ${status} successfully`, event });
+  } catch (error) {
+    console.error('Review event error:', error);
+    res.status(500).json({ success: false, message: 'Server error reviewing event' });
   }
 });
 
@@ -1205,8 +1307,8 @@ router.post('/:id/events/:eventId/checkin/start', protect, clubLeader, async (re
       return res.status(404).json({ success: false, message: 'Event not found' });
     }
 
-    if (event.status === 'completed') {
-      return res.status(400).json({ success: false, message: 'Cannot start check-in for a completed event' });
+    if (event.status !== 'approved' && event.status !== 'planned') {
+      return res.status(400).json({ success: false, message: 'Only approved or planned events can start check-in' });
     }
 
     // Generate unique 4-digit code

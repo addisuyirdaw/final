@@ -140,6 +140,13 @@ export function Clubs() {
   const [editingTask, setEditingTask] = useState(null);
   const [taskFormData, setTaskFormData] = useState({ title: '', description: '', status: 'todo', priority: 'medium', assignee: '', dueDate: '' });
 
+  // Club Announcements (Phase 1B-3)
+  const [clubAnnouncements, setClubAnnouncements] = useState([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [announcementFormData, setAnnouncementFormData] = useState({ title: '', content: '' });
+
   // Expandable member panel per card
   const [expandedClubId, setExpandedClubId] = useState(null);
   const [expandedClubData, setExpandedClubData] = useState({});
@@ -310,6 +317,39 @@ export function Clubs() {
       toast.error(err.message || "Failed to start session");
     } finally {
       setStartingSessionEventId(null);
+    }
+  };
+
+  const handleSubmitEvent = async (eventId) => {
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const res = await apiService.submitClubEvent(clubId, eventId);
+      if (res.success) {
+        toast.success("Event submitted for approval!");
+        const updatedDetails = await apiService.getClub(clubId);
+        setSelectedClubDetails(updatedDetails);
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to submit event");
+    }
+  };
+
+  const handleReviewEvent = async (eventId, status) => {
+    let rejectionReason = null;
+    if (status === 'rejected') {
+      rejectionReason = window.prompt("Please provide a reason for rejection:");
+      if (!rejectionReason) return; // Cancelled
+    }
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const res = await apiService.reviewClubEvent(clubId, eventId, status, rejectionReason);
+      if (res.success) {
+        toast.success(`Event ${status} successfully!`);
+        const updatedDetails = await apiService.getClub(clubId);
+        setSelectedClubDetails(updatedDetails);
+      }
+    } catch (err) {
+      toast.error(err.message || `Failed to ${status} event`);
     }
   };
 
@@ -1160,6 +1200,71 @@ export function Clubs() {
       : { title: '', description: '', status: 'todo', priority: 'medium', assignee: '', dueDate: '' }
     );
     setShowTaskForm(true);
+  };
+
+  // Announcements API Logic (Phase 1B-3)
+  const fetchClubAnnouncements = async (clubId) => {
+    if (!clubId) return;
+    setAnnouncementsLoading(true);
+    try {
+      const res = await apiService.getClubAnnouncements(clubId);
+      setClubAnnouncements(res.announcements || []);
+    } catch (err) {
+      console.error('Failed to fetch announcements:', err);
+      setClubAnnouncements([]);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
+  const handleSaveAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!announcementFormData.title.trim() || !announcementFormData.content.trim()) {
+      toast.error('Title and content are required');
+      return;
+    }
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    if (!clubId) return;
+
+    try {
+      if (editingAnnouncement) {
+        const updated = await apiService.updateClubAnnouncement(clubId, editingAnnouncement._id, announcementFormData);
+        setClubAnnouncements(prev => prev.map(a => a._id === updated.announcement._id ? updated.announcement : a));
+        toast.success('Announcement updated');
+      } else {
+        const created = await apiService.createClubAnnouncement(clubId, announcementFormData);
+        setClubAnnouncements(prev => [created.announcement, ...prev]);
+        toast.success('Announcement posted');
+      }
+      setShowAnnouncementForm(false);
+      setEditingAnnouncement(null);
+      setAnnouncementFormData({ title: '', content: '' });
+    } catch (err) {
+      console.error('Failed to save announcement:', err);
+      toast.error(err.message || 'Failed to save announcement');
+    }
+  };
+
+  const handleDeleteAnnouncement = async (announcement) => {
+    if (!window.confirm(`Delete announcement "${announcement.title}"?`)) return;
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    try {
+      await apiService.deleteClubAnnouncement(clubId, announcement._id);
+      setClubAnnouncements(prev => prev.filter(a => a._id !== announcement._id));
+      toast.success('Announcement deleted');
+    } catch (err) {
+      console.error('Failed to delete announcement:', err);
+      toast.error(err.message || 'Failed to delete announcement');
+    }
+  };
+
+  const openAnnouncementForm = (announcement = null) => {
+    setEditingAnnouncement(announcement);
+    setAnnouncementFormData(announcement 
+      ? { title: announcement.title, content: announcement.content }
+      : { title: '', content: '' }
+    );
+    setShowAnnouncementForm(true);
   };
 
   // Reports API Logic
@@ -2619,6 +2724,7 @@ export function Clubs() {
                     ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'members', label: 'Club Management' }] : []),
                     { id: 'projects', label: 'Projects' },
                     { id: 'events', label: 'Events & Attendance' },
+                    { id: 'announcements', label: 'Announcements' },
                     { id: 'reports', label: 'Reports & Inbox' }
                   ].map(tab => (
                     <button
@@ -2629,6 +2735,11 @@ export function Clubs() {
                         if (tab.id === 'projects') {
                           const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
                           fetchClubProjects(clubId);
+                        }
+                        // Lazy-load announcements
+                        if (tab.id === 'announcements') {
+                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                          fetchClubAnnouncements(clubId);
                         }
                       }}
                       className={`px-4 py-2 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
@@ -3489,8 +3600,33 @@ export function Clubs() {
                                             Live Check-In Open
                                           </span>
                                         )}
+                                        {event.status === 'draft' && (
+                                          <span className="bg-gray-100 text-gray-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                            Draft
+                                          </span>
+                                        )}
+                                        {event.status === 'pending_approval' && (
+                                          <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                            Pending Approval
+                                          </span>
+                                        )}
+                                        {event.status === 'approved' && (
+                                          <span className="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                            Approved
+                                          </span>
+                                        )}
+                                        {event.status === 'rejected' && (
+                                          <span className="bg-red-100 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                            Rejected
+                                          </span>
+                                        )}
+                                        {event.status === 'planned' && (
+                                          <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                            Legacy
+                                          </span>
+                                        )}
                                         {event.status === 'completed' && (
-                                          <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                          <span className="bg-slate-100 text-slate-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
                                             Completed
                                           </span>
                                         )}
@@ -3504,7 +3640,36 @@ export function Clubs() {
                                     </div>
 
                                     <div className="flex items-center gap-3">
-                                      {event.status === 'planned' && (
+                                      {(event.status === 'draft' || event.status === 'rejected') && isLeader && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSubmitEvent(event._id)}
+                                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                        >
+                                          Submit for Approval
+                                        </button>
+                                      )}
+
+                                      {event.status === 'pending_approval' && (isCoordinator || user?.isAdmin) && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleReviewEvent(event._id, 'approved')}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                          >
+                                            Approve
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleReviewEvent(event._id, 'rejected')}
+                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                          >
+                                            Reject
+                                          </button>
+                                        </>
+                                      )}
+
+                                      {(event.status === 'planned' || event.status === 'approved') && (
                                         <button
                                           type="button"
                                           onClick={() => handleStartSession(event._id)}
@@ -3784,6 +3949,95 @@ export function Clubs() {
                         </span>
                       )}
                     </button>
+                  </div>
+                )}
+
+                {/* ── Announcements Tab (Phase 1B-3) ── */}
+                {activeWorkspaceTab === 'announcements' && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-5">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        📢 Club Announcements
+                        <span className="text-xs font-normal text-gray-400 ml-1">({clubAnnouncements.length})</span>
+                      </h3>
+                      {(user?.isAdmin || isCoordinator || isLeader) && (
+                        <button
+                          onClick={() => openAnnouncementForm()}
+                          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> New Announcement
+                        </button>
+                      )}
+                    </div>
+
+                    {showAnnouncementForm && (
+                      <form onSubmit={handleSaveAnnouncement} className="mb-6 p-5 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
+                        <h4 className="font-extrabold text-sm text-indigo-900">{editingAnnouncement ? 'Edit Announcement' : 'Post Announcement'}</h4>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Title *</label>
+                          <input
+                            type="text"
+                            value={announcementFormData.title}
+                            onChange={e => setAnnouncementFormData(p => ({ ...p, title: e.target.value }))}
+                            placeholder="e.g. Urgent: Meeting Rescheduled"
+                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Content *</label>
+                          <textarea
+                            value={announcementFormData.content}
+                            onChange={e => setAnnouncementFormData(p => ({ ...p, content: e.target.value }))}
+                            placeholder="Announcement message..."
+                            rows={4}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white resize-none"
+                            required
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                          <button type="button" onClick={() => setShowAnnouncementForm(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-xl text-xs font-bold transition-colors">
+                            Cancel
+                          </button>
+                          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-bold transition-colors shadow-sm">
+                            {editingAnnouncement ? 'Update' : 'Post Announcement'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {announcementsLoading ? (
+                      <div className="text-center py-10 text-gray-400 text-sm">Loading announcements...</div>
+                    ) : clubAnnouncements.length === 0 ? (
+                      <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
+                        No announcements posted yet.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {clubAnnouncements.map(announcement => (
+                          <div key={announcement._id} className="p-5 bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-shadow relative group">
+                            <div className="flex justify-between items-start mb-3">
+                              <h5 className="font-bold text-gray-900 text-lg">{announcement.title}</h5>
+                              {(user?.isAdmin || isCoordinator || isLeader) && (
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => openAnnouncementForm(announcement)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => handleDeleteAnnouncement(announcement)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap">{announcement.content}</p>
+                            <div className="flex justify-between items-center text-xs text-gray-400 pt-3 border-t border-gray-100">
+                              <span>Posted by {announcement.author?.name || announcement.author?.username || 'Club Leadership'}</span>
+                              <span>{new Date(announcement.createdAt).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

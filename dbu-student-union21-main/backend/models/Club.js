@@ -24,8 +24,30 @@ const eventSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['planned', 'ongoing', 'completed', 'cancelled'],
-    default: 'planned'
+    enum: ['draft', 'pending_approval', 'approved', 'rejected', 'planned', 'ongoing', 'completed', 'cancelled'],
+    default: 'draft'
+  },
+  submittedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  submittedAt: {
+    type: Date,
+    default: null
+  },
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  reviewedAt: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    default: null
   },
   attendanceCode: {
     type: String,

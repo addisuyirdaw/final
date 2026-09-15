@@ -35,6 +35,10 @@ const transactionSchema = new mongoose.Schema(
       ref: 'Club',
       default: null,
     },
+    eventId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
     referenceNumber: {
       type: String,
       unique: true,

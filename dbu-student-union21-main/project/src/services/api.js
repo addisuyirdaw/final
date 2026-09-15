@@ -814,6 +814,26 @@ class ApiService {
     });
   }
 
+  async updateClubEvent(clubId, eventId, eventData) {
+    return this.request(`/clubs/${clubId}/events/${eventId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(eventData)
+    });
+  }
+
+  async submitClubEvent(clubId, eventId) {
+    return this.request(`/clubs/${clubId}/events/${eventId}/submit`, {
+      method: 'PATCH'
+    });
+  }
+
+  async reviewClubEvent(clubId, eventId, status, rejectionReason = null) {
+    return this.request(`/clubs/${clubId}/events/${eventId}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, rejectionReason })
+    });
+  }
+
   async startCheckInSession(clubId, eventId) {
     return this.request(`/clubs/${clubId}/events/${eventId}/checkin/start`, {
       method: 'POST'
@@ -993,6 +1013,33 @@ class ApiService {
   /** Get all certificates for a specific student (own or admin) */
   async getStudentCertificates(studentId) {
     return this.request(`/certificates/student/${studentId}`);
+  }
+
+  // ── Club Announcements ────────────────────────────────────────────────────
+  
+  async getClubAnnouncements(clubId, params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/clubs/${clubId}/announcements${qs ? `?${qs}` : ''}`);
+  }
+
+  async createClubAnnouncement(clubId, announcementData) {
+    return this.request(`/clubs/${clubId}/announcements`, {
+      method: 'POST',
+      body: JSON.stringify(announcementData),
+    });
+  }
+
+  async updateClubAnnouncement(clubId, announcementId, updateData) {
+    return this.request(`/clubs/${clubId}/announcements/${announcementId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updateData),
+    });
+  }
+
+  async deleteClubAnnouncement(clubId, announcementId) {
+    return this.request(`/clubs/${clubId}/announcements/${announcementId}`, {
+      method: 'DELETE',
+    });
   }
 }
 
