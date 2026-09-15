@@ -465,6 +465,40 @@ class ApiService {
     });
   }
 
+  // ── Project Tasks ──────────────────────────────────────────────────────────
+
+  async getProjectTasks(clubId, projectId) {
+    const response = await this.request(`/clubs/${clubId}/projects/${projectId}/tasks`);
+    return response.tasks || [];
+  }
+
+  async getProjectTask(clubId, projectId, taskId) {
+    const response = await this.request(`/clubs/${clubId}/projects/${projectId}/tasks/${taskId}`);
+    return response.task || response;
+  }
+
+  async createProjectTask(clubId, projectId, taskData) {
+    const response = await this.request(`/clubs/${clubId}/projects/${projectId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    });
+    return response.task || response;
+  }
+
+  async updateProjectTask(clubId, projectId, taskId, taskData) {
+    const response = await this.request(`/clubs/${clubId}/projects/${projectId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(taskData),
+    });
+    return response.task || response;
+  }
+
+  async deleteProjectTask(clubId, projectId, taskId) {
+    return this.request(`/clubs/${clubId}/projects/${projectId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+  }
+
 
   async submitClubReport(clubId, reportData) {
     const isFormData = reportData && typeof reportData.append === 'function';

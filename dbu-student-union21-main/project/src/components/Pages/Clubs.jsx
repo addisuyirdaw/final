@@ -133,6 +133,13 @@ export function Clubs() {
   const [projectFormData, setProjectFormData] = useState({ title: '', description: '', status: 'planning', startDate: '', endDate: '' });
   const [selectedProject, setSelectedProject] = useState(null); // for detail view
 
+  // Project Tasks (Phase 1B-2)
+  const [projectTasks, setProjectTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [taskFormData, setTaskFormData] = useState({ title: '', description: '', status: 'todo', priority: 'medium', assignee: '', dueDate: '' });
+
   // Expandable member panel per card
   const [expandedClubId, setExpandedClubId] = useState(null);
   const [expandedClubData, setExpandedClubData] = useState({});
@@ -1066,6 +1073,93 @@ export function Clubs() {
       : { title: '', description: '', status: 'planning', startDate: '', endDate: '' }
     );
     setShowProjectForm(true);
+  };
+
+  // Tasks API Logic (Phase 1B-2)
+  const fetchProjectTasks = async (projectId) => {
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    if (!clubId || !projectId) return;
+    setTasksLoading(true);
+    try {
+      const tasks = await apiService.getProjectTasks(clubId, projectId);
+      setProjectTasks(Array.isArray(tasks) ? tasks : []);
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+      setProjectTasks([]);
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  const handleSaveTask = async (e) => {
+    e.preventDefault();
+    if (!taskFormData.title.trim()) { toast.error('Task title is required'); return; }
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    const projectId = selectedProject?._id || selectedProject?.id;
+    if (!clubId || !projectId) return;
+
+    try {
+      if (editingTask) {
+        const updated = await apiService.updateProjectTask(clubId, projectId, editingTask._id || editingTask.id, taskFormData);
+        setProjectTasks(prev => prev.map(t => (t._id || t.id) === (updated._id || updated.id) ? updated : t));
+        toast.success('Task updated successfully');
+      } else {
+        const created = await apiService.createProjectTask(clubId, projectId, taskFormData);
+        setProjectTasks(prev => [created, ...prev]);
+        toast.success('Task created successfully');
+      }
+      setShowTaskForm(false);
+      setEditingTask(null);
+      setTaskFormData({ title: '', description: '', status: 'todo', priority: 'medium', assignee: '', dueDate: '' });
+    } catch (err) {
+      console.error('Failed to save task:', err);
+      toast.error(err.message || 'Failed to save task');
+    }
+  };
+
+  const handleDeleteTask = async (task) => {
+    if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    const projectId = selectedProject?._id || selectedProject?.id;
+    try {
+      await apiService.deleteProjectTask(clubId, projectId, task._id || task.id);
+      setProjectTasks(prev => prev.filter(t => (t._id || t.id) !== (task._id || task.id)));
+      toast.success('Task deleted');
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      toast.error(err.message || 'Failed to delete task');
+    }
+  };
+  
+  const handleUpdateTaskStatus = async (task, newStatus) => {
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    const projectId = selectedProject?._id || selectedProject?.id;
+    try {
+      setProjectTasks(prev => prev.map(t => (t._id || t.id) === (task._id || task.id) ? { ...t, status: newStatus } : t));
+      const updated = await apiService.updateProjectTask(clubId, projectId, task._id || task.id, { status: newStatus });
+      setProjectTasks(prev => prev.map(t => (t._id || t.id) === (updated._id || updated.id) ? updated : t));
+      toast.success(`Task marked as ${newStatus.replace('_', ' ')}`);
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      toast.error(err.message || 'Failed to update task status');
+      fetchProjectTasks(projectId);
+    }
+  };
+
+  const openTaskForm = (task = null) => {
+    setEditingTask(task);
+    setTaskFormData(task
+      ? { 
+          title: task.title || '', 
+          description: task.description || '', 
+          status: task.status || 'todo', 
+          priority: task.priority || 'medium',
+          assignee: task.assignee?._id || task.assignee?.id || task.assignee || '',
+          dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '' 
+        }
+      : { title: '', description: '', status: 'todo', priority: 'medium', assignee: '', dueDate: '' }
+    );
+    setShowTaskForm(true);
   };
 
   // Reports API Logic
@@ -2725,21 +2819,184 @@ export function Clubs() {
                           <p><span className="font-semibold text-gray-700">Members:</span> {selectedProject.members?.length || 0}</p>
                         </div>
                         {(user?.isAdmin || isCoordinator || isLeader) && (
-                          <div className="flex gap-2 border-t border-gray-100 pt-4">
+                          <div className="flex gap-2 border-t border-gray-100 pt-4 mb-6">
                             <button
                               onClick={() => { openProjectForm(selectedProject); setSelectedProject(null); }}
                               className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors"
                             >
-                              Edit
+                              Edit Project
                             </button>
                             <button
                               onClick={() => handleDeleteProject(selectedProject)}
                               className="bg-red-50 hover:bg-red-100 text-red-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors"
                             >
-                              Delete
+                              Delete Project
                             </button>
                           </div>
                         )}
+
+                        {/* ── Tasks Section (Phase 1B-2) ── */}
+                        <div className="border-t border-gray-200 pt-6 mt-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h5 className="font-bold text-gray-900 flex items-center gap-2">
+                              Tasks <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{projectTasks.length}</span>
+                            </h5>
+                            {(user?.isAdmin || isCoordinator || isLeader) && (
+                              <button
+                                onClick={() => openTaskForm()}
+                                className="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg font-bold transition-colors"
+                              >
+                                + Add Task
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Task Form */}
+                          {showTaskForm && (
+                            <form onSubmit={handleSaveTask} className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                              <h6 className="font-bold text-xs text-gray-700 uppercase">{editingTask ? 'Edit Task' : 'New Task'}</h6>
+                              <div>
+                                <input
+                                  type="text"
+                                  value={taskFormData.title}
+                                  onChange={e => setTaskFormData(p => ({ ...p, title: e.target.value }))}
+                                  placeholder="Task Title *"
+                                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <textarea
+                                  value={taskFormData.description}
+                                  onChange={e => setTaskFormData(p => ({ ...p, description: e.target.value }))}
+                                  placeholder="Description (optional)"
+                                  rows={2}
+                                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 resize-none"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Status</label>
+                                  <select value={taskFormData.status} onChange={e => setTaskFormData(p => ({ ...p, status: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+                                    <option value="todo">To Do</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Priority</label>
+                                  <select value={taskFormData.priority} onChange={e => setTaskFormData(p => ({ ...p, priority: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Due Date</label>
+                                  <input type="date" value={taskFormData.dueDate} onChange={e => setTaskFormData(p => ({ ...p, dueDate: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 bg-white" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Assignee</label>
+                                  <select value={taskFormData.assignee} onChange={e => setTaskFormData(p => ({ ...p, assignee: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+                                    <option value="">Unassigned</option>
+                                    {selectedClubDetails?.members?.filter(m => m.status === 'approved').map(member => (
+                                      <option key={member.user._id || member.user.id || member.user} value={member.user._id || member.user.id || member.user}>
+                                        {member.fullName} ({member.role})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 pt-2">
+                                <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                  Save Task
+                                </button>
+                                <button type="button" onClick={() => { setShowTaskForm(false); setEditingTask(null); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          )}
+
+                          {/* Task List */}
+                          {!showTaskForm && (
+                            tasksLoading ? (
+                              <div className="text-center py-6 text-gray-400 text-sm">Loading tasks...</div>
+                            ) : projectTasks.length === 0 ? (
+                              <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">No tasks created yet.</div>
+                            ) : (
+                              <div className="space-y-3">
+                                {projectTasks.map(task => {
+                                  const isAssignedToMe = task.assignee && (task.assignee._id === user?._id || task.assignee.id === user?.id || task.assignee === user?._id);
+                                  const canManageTask = user?.isAdmin || isCoordinator || isLeader;
+                                  
+                                  return (
+                                    <div key={task._id || task.id} className="p-4 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-shadow">
+                                      <div className="flex justify-between items-start mb-2">
+                                        <div className="flex gap-2 items-center">
+                                          {/* Status Update Dropdown for Assignees or Managers */}
+                                          {(canManageTask || isAssignedToMe) ? (
+                                            <select 
+                                              value={task.status}
+                                              onChange={(e) => handleUpdateTaskStatus(task, e.target.value)}
+                                              onClick={e => e.stopPropagation()}
+                                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border focus:outline-none cursor-pointer ${
+                                                task.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                task.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                task.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                'bg-gray-50 text-gray-700 border-gray-200'
+                                              }`}
+                                            >
+                                              <option value="todo">To Do</option>
+                                              <option value="in_progress">In Progress</option>
+                                              <option value="completed">Completed</option>
+                                              <option value="cancelled">Cancelled</option>
+                                            </select>
+                                          ) : (
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                                              task.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                              task.status === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                              task.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                                              'bg-gray-50 text-gray-700 border-gray-200'
+                                            }`}>
+                                              {task.status.replace('_', ' ')}
+                                            </span>
+                                          )}
+                                          
+                                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                                            task.priority === 'high' ? 'text-red-600 bg-red-50' :
+                                            task.priority === 'medium' ? 'text-amber-600 bg-amber-50' :
+                                            'text-gray-500 bg-gray-50'
+                                          }`}>
+                                            {task.priority}
+                                          </span>
+                                        </div>
+                                        {canManageTask && (
+                                          <div className="flex gap-1">
+                                            <button onClick={() => openTaskForm(task)} className="text-gray-400 hover:text-indigo-600 p-1"><Edit className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => handleDeleteTask(task)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <h6 className="font-bold text-sm text-gray-900 mb-1">{task.title}</h6>
+                                      {task.description && <p className="text-xs text-gray-500 mb-3">{task.description}</p>}
+                                      
+                                      <div className="flex items-center justify-between text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                                        <div className="flex items-center gap-1">
+                                          <Users className="w-3 h-3" /> 
+                                          {task.assignee ? (task.assignee.name || task.assignee.username || 'Assigned') : 'Unassigned'}
+                                          {isAssignedToMe && <span className="ml-1 text-indigo-500 font-bold">(You)</span>}
+                                        </div>
+                                        {task.dueDate && <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -2763,7 +3020,7 @@ export function Clubs() {
                           {clubProjects.map(project => (
                             <div
                               key={project._id || project.id}
-                              onClick={() => setSelectedProject(project)}
+                              onClick={() => { setSelectedProject(project); fetchProjectTasks(project._id || project.id); }}
                               className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group"
                             >
                               <div className="flex items-start justify-between mb-2">
