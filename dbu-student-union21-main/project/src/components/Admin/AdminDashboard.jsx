@@ -23,7 +23,8 @@ import {
   Plus,
   Award,
   DollarSign,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -795,6 +796,35 @@ export function AdminDashboard() {
             <div className="text-2xl font-bold text-purple-600 mb-1">2.1GB</div>
             <div className="text-sm text-gray-600">Storage Used</div>
           </div>
+        </div>
+      </motion.div>
+      {/* ── Annual Club Renewals ───────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6"
+      >
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-indigo-600" /> Annual Club Renewals
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">Review and process annual club renewal applications.</p>
+            </div>
+            <button
+              onClick={() => {}}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+            >
+              Manage Renewals <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="p-6 bg-gray-50 text-center">
+          <p className="text-sm text-gray-500">
+            For MVP, club leaders submit renewals through their Club Management workspace. Go to the Clubs directory to manage renewals.
+          </p>
         </div>
       </motion.div>
 

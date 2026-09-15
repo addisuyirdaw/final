@@ -106,6 +106,15 @@ export function Clubs() {
   const [handoverFormData, setHandoverFormData] = useState({
     termYear: '', achievements: '', challenges: '', lessonsLearned: '', recommendations: '', pendingDeadlines: '', keyRelationships: ''
   });
+
+  // Renewal state
+  const [clubRenewals, setClubRenewals] = useState([]);
+  const [renewalsLoading, setRenewalsLoading] = useState(false);
+  const [showRenewalForm, setShowRenewalForm] = useState(false);
+  const [editingRenewal, setEditingRenewal] = useState(null);
+  const [renewalFormData, setRenewalFormData] = useState({
+    academicYear: '', operatingIntent: false, presidentConfirmation: false, notes: ''
+  });
   const [reportFeedback, setReportFeedback] = useState("");
   const [showReportReviewModal, setShowReportReviewModal] = useState(false);
   const [clubReports, setClubReports] = useState([]);
@@ -1234,6 +1243,141 @@ export function Clubs() {
       : { title: '', description: '', status: 'planning', startDate: '', endDate: '' }
     );
     setShowProjectForm(true);
+  };
+
+  // Handover API Logic (Phase 3)
+  const fetchClubHandovers = async (clubId) => {
+    if (!clubId) return;
+    setHandoversLoading(true);
+    try {
+      const resp = await apiService.getClubHandovers(clubId);
+      setClubHandovers(Array.isArray(resp.handovers) ? resp.handovers : []);
+    } catch (err) {
+      console.error('Failed to fetch handovers:', err);
+      setClubHandovers([]);
+    } finally {
+      setHandoversLoading(false);
+    }
+  };
+
+  const handleSaveHandover = async (e) => {
+    e.preventDefault();
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    try {
+      if (editingHandover) {
+        const updated = await apiService.updateHandover(editingHandover._id, handoverFormData);
+        setClubHandovers(prev => prev.map(h => h._id === updated.handover._id ? updated.handover : h));
+        toast.success('Handover updated successfully');
+      } else {
+        const created = await apiService.createHandover(clubId, handoverFormData);
+        setClubHandovers(prev => [created.handover, ...prev]);
+        toast.success('Handover draft created successfully');
+      }
+      setShowHandoverForm(false);
+      setEditingHandover(null);
+      setHandoverFormData({ termYear: '', achievements: '', challenges: '', lessonsLearned: '', recommendations: '', pendingDeadlines: '', keyRelationships: '' });
+    } catch (err) {
+      console.error('Failed to save handover:', err);
+      toast.error(err.message || 'Failed to save handover');
+    }
+  };
+
+  const handleSubmitHandover = async (id) => {
+    if (!window.confirm('Are you sure you want to submit this handover? It cannot be edited after submission.')) return;
+    try {
+      const resp = await apiService.submitHandover(id);
+      setClubHandovers(prev => prev.map(h => h._id === id ? resp.handover : h));
+      toast.success('Handover submitted successfully');
+    } catch (err) {
+      console.error('Failed to submit handover:', err);
+      toast.error(err.message || 'Failed to submit handover');
+    }
+  };
+
+  const handleAcceptHandover = async (id) => {
+    if (!window.confirm('Are you sure you want to formally accept this handover?')) return;
+    try {
+      const resp = await apiService.acceptHandover(id);
+      setClubHandovers(prev => prev.map(h => h._id === id ? resp.handover : h));
+      toast.success('Handover accepted successfully');
+    } catch (err) {
+      console.error('Failed to accept handover:', err);
+      toast.error(err.message || 'Failed to accept handover');
+    }
+  };
+
+  // Renewal API Logic (Phase 4)
+  const fetchClubRenewals = async (clubId) => {
+    if (!clubId) return;
+    setRenewalsLoading(true);
+    try {
+      const resp = await apiService.getClubRenewals(clubId);
+      setClubRenewals(Array.isArray(resp.renewals) ? resp.renewals : []);
+    } catch (err) {
+      console.error('Failed to fetch renewals:', err);
+      setClubRenewals([]);
+    } finally {
+      setRenewalsLoading(false);
+    }
+  };
+
+  const handleSaveRenewal = async (e) => {
+    e.preventDefault();
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    try {
+      if (editingRenewal) {
+        const updated = await apiService.updateRenewal(editingRenewal._id, renewalFormData);
+        setClubRenewals(prev => prev.map(r => r._id === updated.renewal._id ? updated.renewal : r));
+        toast.success('Renewal draft updated successfully');
+      } else {
+        const created = await apiService.createRenewal(clubId, renewalFormData);
+        setClubRenewals(prev => [created.renewal, ...prev]);
+        toast.success('Renewal draft created successfully');
+      }
+      setShowRenewalForm(false);
+      setEditingRenewal(null);
+      setRenewalFormData({ academicYear: '', operatingIntent: false, presidentConfirmation: false, notes: '' });
+    } catch (err) {
+      console.error('Failed to save renewal:', err);
+      toast.error(err.message || 'Failed to save renewal draft');
+    }
+  };
+
+  const handleSubmitRenewal = async (id) => {
+    if (!window.confirm('Are you sure you want to submit this renewal?')) return;
+    try {
+      const resp = await apiService.submitRenewal(id);
+      setClubRenewals(prev => prev.map(r => r._id === id ? resp.renewal : r));
+      toast.success('Renewal submitted successfully');
+    } catch (err) {
+      console.error('Failed to submit renewal:', err);
+      toast.error(err.message || 'Failed to submit renewal');
+    }
+  };
+
+  const handleApproveRenewal = async (id) => {
+    if (!window.confirm('Approve this renewal?')) return;
+    try {
+      const resp = await apiService.approveRenewal(id);
+      setClubRenewals(prev => prev.map(r => r._id === id ? resp.renewal : r));
+      toast.success('Renewal approved successfully');
+    } catch (err) {
+      console.error('Failed to approve renewal:', err);
+      toast.error(err.message || 'Failed to approve renewal');
+    }
+  };
+
+  const handleReturnRenewal = async (id) => {
+    const feedback = window.prompt("Reason for return:");
+    if (feedback === null) return;
+    try {
+      const resp = await apiService.returnRenewal(id, feedback);
+      setClubRenewals(prev => prev.map(r => r._id === id ? resp.renewal : r));
+      toast.success('Renewal returned successfully');
+    } catch (err) {
+      console.error('Failed to return renewal:', err);
+      toast.error(err.message || 'Failed to return renewal');
+    }
   };
 
   // Tasks API Logic (Phase 1B-2)
@@ -2847,7 +2991,8 @@ export function Clubs() {
                     { id: 'events', label: 'Events & Attendance' },
                     { id: 'announcements', label: 'Announcements' },
                     { id: 'reports', label: 'Reports & Inbox' },
-                    ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'handover', label: 'Leadership Handover' }] : [])
+                    ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'handover', label: 'Leadership Handover' }] : []),
+                    ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'renewal', label: 'Annual Renewal' }] : [])
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -2862,6 +3007,16 @@ export function Clubs() {
                         if (tab.id === 'announcements') {
                           const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
                           fetchClubAnnouncements(clubId);
+                        }
+                        // Lazy-load handovers
+                        if (tab.id === 'handover') {
+                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                          fetchClubHandovers(clubId);
+                        }
+                        // Lazy-load renewals
+                        if (tab.id === 'renewal') {
+                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                          fetchClubRenewals(clubId);
                         }
                       }}
                       className={`px-4 py-2 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
@@ -4607,6 +4762,175 @@ export function Clubs() {
                                 <button onClick={() => handleAcceptHandover(handover._id)} className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
                                   <CheckCircle className="w-3.5 h-3.5" /> Accept Handover
                                 </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeWorkspaceTab === 'renewal' && (
+                  <div className="mb-6 space-y-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-indigo-600" /> Annual Club Renewal
+                      </h3>
+                      {isLeader && (
+                        <button
+                          onClick={() => {
+                            setRenewalFormData({ academicYear: '', operatingIntent: false, presidentConfirmation: false, notes: '' });
+                            setEditingRenewal(null);
+                            setShowRenewalForm(true);
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Plus className="w-4 h-4" /> Start Renewal Application
+                        </button>
+                      )}
+                    </div>
+
+                    {showRenewalForm && (
+                      <form onSubmit={handleSaveRenewal} className="p-5 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-4 shadow-sm mb-6">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-bold text-indigo-900">{editingRenewal ? 'Edit Renewal Draft' : 'New Renewal Application'}</h4>
+                          <button type="button" onClick={() => setShowRenewalForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Academic Year</label>
+                            <input
+                              type="text"
+                              value={renewalFormData.academicYear}
+                              onChange={e => setRenewalFormData({ ...renewalFormData, academicYear: e.target.value })}
+                              placeholder="e.g. 2026/2027"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              required
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Additional Notes</label>
+                            <textarea
+                              value={renewalFormData.notes}
+                              onChange={e => setRenewalFormData({ ...renewalFormData, notes: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                              placeholder="Any context the coordinator should know..."
+                            />
+                          </div>
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={renewalFormData.operatingIntent}
+                                onChange={e => setRenewalFormData({ ...renewalFormData, operatingIntent: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                              />
+                              <span className="text-sm text-gray-700">We intend to operate actively for this academic year.</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={renewalFormData.presidentConfirmation}
+                                onChange={e => setRenewalFormData({ ...renewalFormData, presidentConfirmation: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                              />
+                              <span className="text-sm text-gray-700">I confirm that I am the active President and this application is accurate.</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button type="button" onClick={() => setShowRenewalForm(false)} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-semibold">Cancel</button>
+                          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm">Save Draft</button>
+                        </div>
+                      </form>
+                    )}
+
+                    {renewalsLoading ? (
+                      <div className="text-center py-8 text-gray-500 text-sm animate-pulse">Loading renewals...</div>
+                    ) : clubRenewals.length === 0 ? (
+                      <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
+                        <CheckCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm font-medium">No renewal applications found.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {clubRenewals.map(renewal => (
+                          <div key={renewal._id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col gap-4 relative overflow-hidden group">
+                            <div className="absolute top-6 right-6 flex gap-2">
+                              <span className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-full tracking-wide flex items-center gap-1 shadow-sm
+                                ${renewal.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                  renewal.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                  renewal.status === 'RETURNED' ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                                  'bg-slate-100 text-slate-600 border border-slate-200'}`}
+                              >
+                                {renewal.status}
+                              </span>
+                            </div>
+
+                            <div className="mb-2">
+                              <h4 className="text-xl font-bold text-gray-900">Renewal: {renewal.academicYear}</h4>
+                              <p className="text-[10px] text-gray-400 mt-0.5">Created: {new Date(renewal.createdAt).toLocaleDateString()}</p>
+                            </div>
+
+                            <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100/50">
+                               <p className="text-sm text-gray-700"><strong>Submitted by:</strong> {renewal.submittedBy?.name || 'Pending'}</p>
+                               <p className="text-sm text-gray-700"><strong>Notes:</strong> {renewal.notes || 'None'}</p>
+                               {renewal.coordinatorFeedback && (
+                                 <p className="text-sm text-rose-700 mt-2"><strong>Coordinator Feedback:</strong> {renewal.coordinatorFeedback}</p>
+                               )}
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <h5 className="text-sm font-bold text-gray-900 mb-3">Live Operational Summary</h5>
+                                <p className="text-xs text-gray-500 mb-4">Current operational state derived from active club systems.</p>
+                                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                  <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                    <span className="text-2xl font-black text-gray-800">{clubProjects.length}</span>
+                                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total Projects</span>
+                                  </div>
+                                  <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                    <span className="text-2xl font-black text-gray-800">{selectedClubDetails?.events?.length || 0}</span>
+                                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total Events</span>
+                                  </div>
+                                  <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                    <span className="text-2xl font-black text-gray-800">{selectedClubDetails?.members?.filter(m => m.status === 'approved').length || 0}</span>
+                                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Approved Members</span>
+                                  </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-2">
+                              {(renewal.status === 'DRAFT' || renewal.status === 'RETURNED') && isLeader && (
+                                <>
+                                  <button onClick={() => {
+                                    setEditingRenewal(renewal);
+                                    setRenewalFormData({
+                                      academicYear: renewal.academicYear || '',
+                                      operatingIntent: renewal.operatingIntent || false,
+                                      presidentConfirmation: renewal.presidentConfirmation || false,
+                                      notes: renewal.notes || ''
+                                    });
+                                    setShowRenewalForm(true);
+                                  }} className="px-4 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                                    Edit Draft
+                                  </button>
+                                  <button onClick={() => handleSubmitRenewal(renewal._id)} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">
+                                    Submit Renewal
+                                  </button>
+                                </>
+                              )}
+                              
+                              {renewal.status === 'SUBMITTED' && (isCoordinator || user?.isAdmin) && (
+                                <>
+                                  <button onClick={() => handleReturnRenewal(renewal._id)} className="px-4 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors shadow-sm">
+                                    Return with Feedback
+                                  </button>
+                                  <button onClick={() => handleApproveRenewal(renewal._id)} className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+                                    <CheckCircle className="w-3.5 h-3.5" /> Approve Renewal
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>

@@ -1097,6 +1097,52 @@ class ApiService {
       method: 'PATCH'
     });
   }
+
+  // --- RENEWALS ---
+  async getAllRenewals() {
+    return this.request('/renewals');
+  }
+
+  async getClubRenewals(clubId) {
+    return this.request(`/renewals/club/${clubId}`);
+  }
+
+  async getRenewal(id) {
+    return this.request(`/renewals/${id}`);
+  }
+
+  async createRenewal(clubId, data) {
+    return this.request(`/renewals/club/${clubId}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateRenewal(id, data) {
+    return this.request(`/renewals/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async submitRenewal(id) {
+    return this.request(`/renewals/${id}/submit`, {
+      method: 'PATCH'
+    });
+  }
+
+  async approveRenewal(id) {
+    return this.request(`/renewals/${id}/approve`, {
+      method: 'PATCH'
+    });
+  }
+
+  async returnRenewal(id, coordinatorFeedback) {
+    return this.request(`/renewals/${id}/return`, {
+      method: 'PATCH',
+      body: JSON.stringify({ coordinatorFeedback })
+    });
+  }
 }
 
 export const apiService = new ApiService();
