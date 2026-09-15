@@ -39,7 +39,6 @@ export const ClubPerformance = () => {
 
   const getSignalBadge = (signal) => {
     if (signal === 'Active') return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>;
-    if (signal === 'Low Recent Activity') return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Low Activity</span>;
     if (signal === 'No Recent Activity') return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Dormant</span>;
     if (signal.includes('Pending Review') || signal.includes('Returned')) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">{signal}</span>;
     if (signal === 'Club Approval Pending') return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Pending Approval</span>;

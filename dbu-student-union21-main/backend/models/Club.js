@@ -18,6 +18,24 @@ const eventSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  startTime: {
+    type: Date
+  },
+  endTime: {
+    type: Date,
+    validate: {
+      validator: function(v) {
+        if (!this.startTime || !v) return true;
+        return this.startTime < v;
+      },
+      message: 'End time must be after start time'
+    }
+  },
+  resourceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Resource',
+    default: null
+  },
   attendees: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

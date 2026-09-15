@@ -1041,7 +1041,7 @@ router.get('/performance', protect, adminOnly, async (req, res) => {
       Project.aggregate([
         { $group: { 
             _id: '$clubId', 
-            activeProjects: { $sum: { $cond: [{ $in: ['$status', ['planning', 'active', 'in_progress']] }, 1, 0] } }, 
+            activeProjects: { $sum: { $cond: [{ $in: ['$status', ['planning', 'active']] }, 1, 0] } }, 
             completedProjects: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } } 
         } }
       ]),
@@ -1076,9 +1076,6 @@ router.get('/performance', protect, adminOnly, async (req, res) => {
     const repMap = Object.fromEntries(reports.map(r => [r._id.toString(), r]));
     const renMap = Object.fromEntries(renewals.map(r => [r._id.toString(), r]));
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
     const performanceData = clubStats.map(club => {
       const p = projMap[club._id.toString()] || { activeProjects: 0, completedProjects: 0 };
       const t = taskMap[club._id.toString()] || { pendingTasks: 0, completedTasks: 0 };
@@ -1086,8 +1083,8 @@ router.get('/performance', protect, adminOnly, async (req, res) => {
       const ren = renMap[club._id.toString()] || { latestStatus: 'NOT_STARTED' };
 
       let signal = 'Active';
-      if (ren.latestStatus === 'RETURNED' || ren.latestStatus === 'PENDING') {
-        signal = `Renewal ${ren.latestStatus === 'PENDING' ? 'Pending' : 'Returned'}`;
+      if (ren.latestStatus === 'RETURNED' || ren.latestStatus === 'SUBMITTED') {
+        signal = `Renewal ${ren.latestStatus === 'SUBMITTED' ? 'Pending' : 'Returned'}`;
       } else if (r.pendingReports > 0) {
         signal = 'Report Pending Review';
       } else if (club.status === 'pending') {
@@ -1096,8 +1093,6 @@ router.get('/performance', protect, adminOnly, async (req, res) => {
         const lastActivity = club.latestEventDate ? new Date(club.latestEventDate) : null;
         if (!lastActivity && p.activeProjects === 0) {
           signal = 'No Recent Activity';
-        } else if (lastActivity && lastActivity < thirtyDaysAgo) {
-          signal = 'Low Recent Activity';
         }
       }
 
