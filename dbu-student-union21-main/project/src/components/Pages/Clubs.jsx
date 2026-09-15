@@ -75,6 +75,7 @@ export function Clubs() {
   const [showJoinRequests, setShowJoinRequests] = useState(false);
   const [selectedClubDetails, setSelectedClubDetails] = useState(null);
   const [showClubDetails, setShowClubDetails] = useState(false);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('overview');
   // Component-level isLeader: true when the logged-in user is the president of the currently open club
   const isLeader = (() => {
     const userId = user?._id || user?.id;
@@ -872,11 +873,13 @@ export function Clubs() {
       if (detailedClub) {
         setSelectedClub(club);
         setSelectedClubDetails(detailedClub);
+        setActiveWorkspaceTab('overview');
         setShowClubDetails(true);
       }
     } catch (err) {
       if (club) {
         setSelectedClubDetails(club);
+        setActiveWorkspaceTab('overview');
         setShowClubDetails(true);
       }
     }
@@ -1421,6 +1424,7 @@ export function Clubs() {
 
       setSelectedClub(club);
       setSelectedClubDetails(detailedClub);
+      setActiveWorkspaceTab('overview');
       setShowClubDetails(true);
     } catch (error) {
       console.error("Failed to fetch club details:", error);
@@ -1428,6 +1432,7 @@ export function Clubs() {
       // Fallback to basic data if details fetch fails
       if (club) {
         setSelectedClubDetails(club);
+        setActiveWorkspaceTab('overview');
         setShowClubDetails(true);
       }
     }
@@ -2444,6 +2449,29 @@ export function Clubs() {
                   </button>
                 </div>
 
+                <div className="flex items-center gap-4 border-b border-gray-200 mb-6 overflow-x-auto pb-2">
+                  {[
+                    { id: 'overview', label: 'Overview' },
+                    ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'members', label: 'Club Management' }] : []),
+                    { id: 'events', label: 'Events & Attendance' },
+                    { id: 'reports', label: 'Reports & Inbox' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveWorkspaceTab(tab.id)}
+                      className={`px-4 py-2 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
+                        activeWorkspaceTab === tab.id
+                          ? 'border-indigo-600 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {activeWorkspaceTab === 'overview' && (
+                  <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-3">Club Information</h3>
@@ -2501,6 +2529,8 @@ export function Clubs() {
                   <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
                   <p className="text-gray-600 text-sm leading-relaxed">{selectedClubDetails?.description || "No description available."}</p>
                 </div>
+                  </>
+                )}
 
                 {/* Live Check-in, Certification Trackers & Event Manager */}
                 {(() => {
@@ -2511,7 +2541,7 @@ export function Clubs() {
                   return (
                     <>
                       {/* Approved Student Member View */}
-                      {activeMember && (
+                      {activeWorkspaceTab === 'events' && activeMember && (
                         <>
                           {/* Live Check-In Alert */}
                           {(() => {
@@ -2569,7 +2599,7 @@ export function Clubs() {
                       )}
 
                           {/* 🛠️ Presentation Demo Control Panel (Club Admin + Coordinator only) */}
-                          {(isCoordinator || user?.isAdmin) && (
+                          {activeWorkspaceTab === 'overview' && (isCoordinator || user?.isAdmin) && (
                             <div className="mb-6 p-5 bg-gradient-to-br from-amber-500/10 to-yellow-500/5 rounded-3xl border border-amber-500/20 shadow-xl backdrop-blur-sm relative overflow-hidden">
                               <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/5 rounded-full blur-xl"></div>
                               <h4 className="font-extrabold text-sm text-amber-400 mb-4 uppercase tracking-widest flex items-center gap-2">
@@ -2611,7 +2641,7 @@ export function Clubs() {
                           )}
 
                           {/* Certification and Awards eligibility progress card */}
-                          {(eligibleData || isLeader || isCoordinator) && (
+                          {activeWorkspaceTab === 'overview' && (eligibleData || isLeader || isCoordinator) && (
                             <div className="mb-8 p-5 bg-gradient-to-br from-indigo-950 to-slate-900 text-white rounded-3xl border border-indigo-900 shadow-xl relative overflow-hidden">
                               <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-xl"></div>
                               <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-xl"></div>
@@ -2767,7 +2797,7 @@ export function Clubs() {
                           )}
 
                       {/* Coordinator-Only: Certificate Generator for All Representatives */}
-                      {isCoordinator && selectedClubDetails && (() => {
+                      {activeWorkspaceTab === 'overview' && isCoordinator && selectedClubDetails && (() => {
                         const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president || '');
                         const allReps = Array.isArray(selectedClubDetails?.members)
                           ? selectedClubDetails.members.filter(m =>
@@ -2835,7 +2865,7 @@ export function Clubs() {
                       })()}
 
                       {/* Club Leader / Coordinator / System Admin View */}
-                      {(isLeader || isCoordinator || user?.isAdmin) && (
+                      {activeWorkspaceTab === 'events' && (isLeader || isCoordinator || user?.isAdmin) && (
                         <div className="mb-8 p-6 bg-white rounded-3xl border border-gray-100 shadow-md">
                           <div className="flex justify-between items-center mb-6">
                             <div>
@@ -2993,6 +3023,7 @@ export function Clubs() {
                 })()}
 
                 {/* Structural Leaders */}
+                {activeWorkspaceTab === 'overview' && (
                 <div className="mb-8">
                   <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Award className="w-5 h-5 text-indigo-600" /> Structural Leaders
@@ -3024,9 +3055,10 @@ export function Clubs() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Authorized Members table VS Public objectives & schedule panel */}
-                {(user?.isAdmin || isCoordinator || isLeader) ? (
+                {activeWorkspaceTab === 'members' && (user?.isAdmin || isCoordinator || isLeader) && (
                   <div className="mb-6">
                     <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <Users className="w-5 h-5 text-blue-600" /> Club Members 
@@ -3141,7 +3173,9 @@ export function Clubs() {
                       </table>
                     </div>
                   </div>
-                ) : (
+                )}
+                
+                {activeWorkspaceTab === 'overview' && !(user?.isAdmin || isCoordinator || isLeader) && (
                   <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {selectedClubDetails?.requirements && (
                       <div className="p-5 bg-emerald-50 text-emerald-900 rounded-2xl border border-emerald-100 shadow-sm">
@@ -3158,82 +3192,137 @@ export function Clubs() {
                   </div>
                 )}
 
-                <div className="flex justify-center space-x-4">
-                  {!(user?.isAdmin || isCoordinator || isLeader) && (
-                    <button
-                      onClick={() => {
-                        const userId = user?._id || user?.id;
-                        const activeMember = (selectedClubDetails.userMembershipStatus === 'approved') || (userId && Array.isArray(selectedClubDetails?.members) && 
-                          selectedClubDetails.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
-                        
-                        if (activeMember) {
-                          toast.success("You are already an active member!");
-                          return;
-                        }
-                        const isPending = (selectedClubDetails.userMembershipStatus === 'pending') || (userId && Array.isArray(selectedClubDetails?.members) &&
-                          selectedClubDetails.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
-                        if (isPending) {
-                          toast.error("Your join request is already pending.");
-                          return;
-                        }
-                        setShowClubDetails(false);
-                        handleJoinClub(selectedClubDetails);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:scale-[1.02]"
-                    >
-                      Join Club
-                    </button>
-                  )}
-
-                  {isCoordinator && (
-                    <button
-                      onClick={() => {
-                        setShowAssignManagerModal(true);
-                        setAssignUserSearchTerm("");
-                        if (selectedClubDetails && Array.isArray(selectedClubDetails?.members)) {
-                          const approvedMembers = selectedClubDetails.members.filter(m => m?.status === 'approved' && m?.user);
-                          setSearchedUsers(approvedMembers.map(m => m.user));
-                        } else {
-                          setSearchedUsers([]);
-                        }
-                      }}
-                      className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-                      Change Rep
-                    </button>
-                  )}
-                  {(!isCoordinator && (user?.isAdmin || (user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id)))) && (
-                    <button
-                      onClick={() => fetchManagerPendingReports(selectedClubDetails._id || selectedClubDetails.id)}
-                      className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors">
-                      Review Member Submissions
-                    </button>
-                  )}
-                  {(user?.isAdmin || isCoordinator || ((user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id)))) && (
-                    <>
+                {/* Tab-Specific Action Buttons */}
+                {activeWorkspaceTab === 'overview' && (
+                  <div className="flex justify-center space-x-4 mt-6">
+                    {!(user?.isAdmin || isCoordinator || isLeader) && (
                       <button
                         onClick={() => {
-                          setSelectedClub(selectedClubDetails);
-                          fetchJoinRequests(selectedClubDetails._id || selectedClubDetails.id);
+                          const userId = user?._id || user?.id;
+                          const activeMember = (selectedClubDetails.userMembershipStatus === 'approved') || (userId && Array.isArray(selectedClubDetails?.members) && 
+                            selectedClubDetails.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
+                          
+                          if (activeMember) {
+                            toast.success("You are already an active member!");
+                            return;
+                          }
+                          const isPending = (selectedClubDetails.userMembershipStatus === 'pending') || (userId && Array.isArray(selectedClubDetails?.members) &&
+                            selectedClubDetails.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
+                          if (isPending) {
+                            toast.error("Your join request is already pending.");
+                            return;
+                          }
+                          setShowClubDetails(false);
+                          handleJoinClub(selectedClubDetails);
                         }}
-                        className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2">
-                        View Join Requests
-                        {Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.filter(m => m?.status === 'pending').length > 0 && (
-                          <span className="bg-white text-amber-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                            {selectedClubDetails.members.filter(m => m?.status === 'pending').length}
-                          </span>
-                        )}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:scale-[1.02]"
+                      >
+                        Join Club
                       </button>
+                    )}
+                    {isCoordinator && (
                       <button
-                        onClick={() => fetchInbox(selectedClubDetails._id || selectedClubDetails.id)}
-                        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2">
-                        <Mail className="w-4 h-4" /> Inbox
+                        onClick={() => {
+                          setShowAssignManagerModal(true);
+                          setAssignUserSearchTerm("");
+                          if (selectedClubDetails && Array.isArray(selectedClubDetails?.members)) {
+                            const approvedMembers = selectedClubDetails.members.filter(m => m?.status === 'approved' && m?.user);
+                            setSearchedUsers(approvedMembers.map(m => m.user));
+                          } else {
+                            setSearchedUsers([]);
+                          }
+                        }}
+                        className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+                        Change Rep
                       </button>
-                    </>
-                  )}
+                    )}
+                  </div>
+                )}
+
+                {activeWorkspaceTab === 'members' && (user?.isAdmin || isCoordinator || ((user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id)))) && (
+                  <div className="flex justify-center space-x-4 mt-6">
+                    <button
+                      onClick={() => {
+                        setSelectedClub(selectedClubDetails);
+                        fetchJoinRequests(selectedClubDetails._id || selectedClubDetails.id);
+                      }}
+                      className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2">
+                      View Join Requests
+                      {Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.filter(m => m?.status === 'pending').length > 0 && (
+                        <span className="bg-white text-amber-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                          {selectedClubDetails.members.filter(m => m?.status === 'pending').length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {activeWorkspaceTab === 'reports' && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-purple-600" /> Reports &amp; Inbox
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Leader: Submit Activity Report */}
+                      {isLeader && (
+                        <div className="p-5 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col gap-3">
+                          <h4 className="font-extrabold text-sm text-purple-900 flex items-center gap-2">📋 Activity Reports</h4>
+                          <p className="text-xs text-purple-700 leading-relaxed">Submit activity and annual reports for your club. Reports are reviewed by the Club Admin.</p>
+                          <button
+                            onClick={() => {
+                              setSelectedClub(selectedClubDetails);
+                              setReportFormData({ title: "", description: "", date: new Date().toISOString().split('T')[0], documentUrl: "", file: null, reportType: "ACTIVITY" });
+                              setShowReportModal(true);
+                            }}
+                            className="mt-auto bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl font-bold text-xs transition-colors shadow-sm flex items-center gap-1.5 w-fit"
+                          >
+                            <FileText className="w-4 h-4" /> Submit Activity Report
+                          </button>
+                        </div>
+                      )}
+                      {/* Leader / Admin: Review Member Submissions */}
+                      {(!isCoordinator && (user?.isAdmin || ((user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id))))) && (
+                        <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex flex-col gap-3">
+                          <h4 className="font-extrabold text-sm text-indigo-900 flex items-center gap-2">📥 Member Submissions</h4>
+                          <p className="text-xs text-indigo-700 leading-relaxed">Review activity reports submitted by members of this club.</p>
+                          <button
+                            onClick={() => fetchManagerPendingReports(selectedClubDetails._id || selectedClubDetails.id)}
+                            className="mt-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-bold text-xs transition-colors shadow-sm w-fit"
+                          >
+                            Review Member Submissions
+                          </button>
+                        </div>
+                      )}
+                      {/* Leader / Admin: Club Inbox */}
+                      {(user?.isAdmin || isCoordinator || ((user?._id || user?.id) && (String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president) === String(user?._id || user?.id)))) && (
+                        <div className="p-5 bg-green-50 rounded-2xl border border-green-100 flex flex-col gap-3">
+                          <h4 className="font-extrabold text-sm text-green-900 flex items-center gap-2">📨 Club Inbox</h4>
+                          <p className="text-xs text-green-700 leading-relaxed">Read and respond to messages sent by students to this club's representative.</p>
+                          <button
+                            onClick={() => fetchInbox(selectedClubDetails._id || selectedClubDetails.id)}
+                            className="mt-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-bold text-xs transition-colors shadow-sm flex items-center gap-1.5 w-fit"
+                          >
+                            <Mail className="w-4 h-4" /> Open Inbox
+                          </button>
+                        </div>
+                      )}
+                      {/* Non-leader: can message the rep */}
+                      {!isLeader && !isCoordinator && !user?.isAdmin && (
+                        <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 flex flex-col gap-3">
+                          <h4 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">✉️ Contact the Club Rep</h4>
+                          <p className="text-xs text-gray-600 leading-relaxed">Have a question? Send a message to this club's representative through the club directory.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Persistent Footer Actions */}
+                <div className="flex justify-end mt-8 border-t border-gray-100 pt-6">
                   <button
                     onClick={() => setShowClubDetails(false)}
-                    className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                    Close
+                    className="bg-gray-100 text-gray-700 px-8 py-2.5 rounded-xl hover:bg-gray-200 font-bold transition-colors">
+                    Close Workspace
                   </button>
                 </div>
               </div>
