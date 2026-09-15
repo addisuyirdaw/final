@@ -202,8 +202,12 @@ router.patch('/:id/approve', protect, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only coordinators or admins can approve renewals' });
     }
 
-    const renewal = await ClubRenewal.findById(req.params.id);
+    const renewal = await ClubRenewal.findById(req.params.id).populate('club');
     if (!renewal) return res.status(404).json({ success: false, message: 'Renewal not found' });
+
+    if (isPresident(renewal.club, req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Presidents cannot approve their own renewals, even if they have admin privileges' });
+    }
 
     if (renewal.status !== 'SUBMITTED') {
       return res.status(400).json({ success: false, message: 'Only SUBMITTED renewals can be approved' });
@@ -230,8 +234,12 @@ router.patch('/:id/return', protect, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Only coordinators or admins can return renewals' });
     }
 
-    const renewal = await ClubRenewal.findById(req.params.id);
+    const renewal = await ClubRenewal.findById(req.params.id).populate('club');
     if (!renewal) return res.status(404).json({ success: false, message: 'Renewal not found' });
+
+    if (isPresident(renewal.club, req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Presidents cannot return their own renewals' });
+    }
 
     if (renewal.status !== 'SUBMITTED') {
       return res.status(400).json({ success: false, message: 'Only SUBMITTED renewals can be returned' });
