@@ -259,9 +259,10 @@ export function Dashboard() {
 	} = useFeatureVisibility();
 	const [togglingKeys, setTogglingKeys] = useState({});
 	const isElectionToggler = user && (
-		['dbu10101020', 'dbu10101030'].includes(user.username) ||
-		user.role === 'president' ||
-		user.role === 'system_admin'
+		user.username === 'dbu10101040' ||
+		user.role === 'CLUB_ADMIN' ||
+		user.role === 'clubAdmin' ||
+		user.role === 'club_admin'
 	);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);

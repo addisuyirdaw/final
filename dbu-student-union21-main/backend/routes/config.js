@@ -66,11 +66,11 @@ router.get('/', async (req, res) => {
 // @access  Private/Admin
 router.post('/toggle-election', protect, async (req, res) => {
   try {
-    // Only president (dbu10101020) or system admin (dbu10101030) may change this
-    const allowedUsernames = ['dbu10101020', 'dbu10101030'];
-    const hasPermission = allowedUsernames.includes(req.user.username) ||
-                          req.user.role === 'president' ||
-                          req.user.role === 'system_admin';
+    // Only Club Admin (dbu10101040) may change this
+    const hasPermission = req.user.username === 'dbu10101040' ||
+                          req.user.role === 'CLUB_ADMIN' ||
+                          req.user.role === 'clubAdmin' ||
+                          req.user.role === 'club_admin';
 
     if (!hasPermission) {
       return res.status(403).json({ success: false, message: 'Not authorized to change system configuration' });
@@ -104,11 +104,11 @@ router.post('/toggle/:key', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid configuration key' });
     }
 
-    // Only president (dbu10101020) or system admin (dbu10101030) may change this
-    const allowedUsernames = ['dbu10101020', 'dbu10101030'];
-    const hasPermission = allowedUsernames.includes(req.user.username) ||
-                          req.user.role === 'president' ||
-                          req.user.role === 'system_admin';
+    // Only Club Admin (dbu10101040) may change this
+    const hasPermission = req.user.username === 'dbu10101040' ||
+                          req.user.role === 'CLUB_ADMIN' ||
+                          req.user.role === 'clubAdmin' ||
+                          req.user.role === 'club_admin';
 
     if (!hasPermission) {
       return res.status(403).json({ success: false, message: 'Not authorized to change system configuration' });

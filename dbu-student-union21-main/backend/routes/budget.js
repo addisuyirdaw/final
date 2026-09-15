@@ -5,12 +5,12 @@ const crypto = require('crypto');
 const Transaction = require('../models/Transaction');
 const University = require('../models/University');
 const Club = require('../models/Club');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 
 // @desc    Get public financial transparency ledger and budget balance summary
 // @route   GET /api/budget/ledger
 // @access  Public
-router.get('/ledger', async (req, res) => {
+router.get('/ledger', optionalAuth, async (req, res) => {
   try {
     const { category, universityId, search, page = 1, limit = 20 } = req.query;
 
@@ -31,6 +31,20 @@ router.get('/ledger', async (req, res) => {
         { referenceNumber: { $regex: s, $options: 'i' } },
         { description: { $regex: s, $options: 'i' } },
       ];
+    }
+
+    // Data Scoping for Club Reps
+    if (req.user) {
+      const isClubRep = req.user.role === 'CLUB_REP' || req.user.role === 'club_rep';
+      const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'CLUB_ADMIN' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin';
+
+      if (isClubRep && !isClubAdmin) {
+        const userClubIds = req.user.joinedClubs || [];
+        if (req.user.clubId) {
+          userClubIds.push(req.user.clubId);
+        }
+        query.clubId = { $in: userClubIds };
+      }
     }
 
     const pageNum = Math.max(1, parseInt(page, 10));
@@ -123,10 +137,10 @@ router.get('/ledger', async (req, res) => {
 router.post('/transactions', protect, async (req, res) => {
   try {
     const isPrivileged =
-      req.user.isAdmin ||
-      ['admin', 'superadmin', 'audit_finance', 'clubs_coordinator', 'academic_affairs', 'president'].includes(
+      req.user.username === 'dbu10101040' ||
+      ['CLUB_ADMIN', 'clubAdmin', 'club_admin', 'admin', 'superadmin', 'audit_finance', 'clubs_coordinator', 'academic_affairs', 'president'].includes(
         req.user.role
-      );
+      ) || req.user.isAdmin;
 
     if (!isPrivileged) {
       return res.status(403).json({
@@ -205,6 +219,124 @@ router.post('/transactions', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error recording transaction',
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Request new financial ledger transaction (Club Rep)
+// @route   POST /api/budget/request-funds
+// @access  Private (Club Rep)
+router.post('/request-funds', protect, async (req, res) => {
+  try {
+    const isClubRep = req.user.role === 'CLUB_REP' || req.user.role === 'club_rep';
+    
+    if (!isClubRep) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Club Representatives can request funds',
+      });
+    }
+
+    const {
+      title,
+      category,
+      amount,
+      description,
+    } = req.body;
+
+    if (!title || !category || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title, category, and amount are required fields',
+      });
+    }
+
+    const cleanAmount = parseFloat(amount);
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Amount must be a positive number',
+      });
+    }
+
+    const cleanRef = `REQ-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+    // Get the representative's club ID
+    let repClubId = null;
+    if (req.user.clubId) {
+      repClubId = req.user.clubId;
+    } else if (req.user.joinedClubs && req.user.joinedClubs.length > 0) {
+      repClubId = req.user.joinedClubs[0];
+    }
+
+    const transaction = await Transaction.create({
+      title: title.trim(),
+      category: category.toUpperCase(),
+      amount: cleanAmount,
+      clubId: repClubId,
+      referenceNumber: cleanRef,
+      description: description?.trim() || '',
+      date: new Date(),
+      recordedBy: req.user._id,
+      status: 'PENDING',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Fund request submitted successfully',
+      transaction,
+    });
+  } catch (error) {
+    console.error('Fund request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error submitting fund request',
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Update transaction status (Approve/Reject requests)
+// @route   PATCH /api/budget/transactions/:id/status
+// @access  Private (Club Admin)
+router.patch('/transactions/:id/status', protect, async (req, res) => {
+  try {
+    const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'CLUB_ADMIN' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin';
+    
+    if (!isClubAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only Club Admin can update transaction status',
+      });
+    }
+
+    const { status } = req.body;
+    if (!['CONFIRMED', 'CANCELLED'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be CONFIRMED or CANCELLED',
+      });
+    }
+
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    transaction.status = status;
+    await transaction.save();
+
+    res.json({
+      success: true,
+      message: `Transaction status updated to ${status}`,
+      transaction,
+    });
+  } catch (error) {
+    console.error('Update transaction status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating transaction status',
       error: error.message,
     });
   }

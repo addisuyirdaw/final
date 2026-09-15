@@ -233,6 +233,20 @@ class ApiService {
     });
   }
 
+  async requestBudgetFunds(requestData) {
+    return this.request('/budget/request-funds', {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+    });
+  }
+
+  async updateBudgetTransactionStatus(id, statusData) {
+    return this.request(`/budget/transactions/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(statusData),
+    });
+  }
+
   async getBudgetStats() {
     return this.request('/budget/stats');
   }

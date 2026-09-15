@@ -61,8 +61,10 @@ export const BudgetDashboard = () => {
   const { user } = useAuth();
   const isAdmin =
     user &&
-    (user.isAdmin === true ||
-      ['admin', 'system_admin', 'clubs_coordinator', 'president'].includes(user.role));
+    (user.username === 'dbu10101040' ||
+      user.role === 'CLUB_ADMIN' || user.role === 'clubAdmin' || user.role === 'club_admin');
+
+  const isClubRep = user && (user.role === 'CLUB_REP' || user.role === 'club_rep');
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,6 +77,7 @@ export const BudgetDashboard = () => {
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // New Transaction Form State
@@ -84,6 +87,13 @@ export const BudgetDashboard = () => {
     amount: '',
     description: '',
     referenceNumber: '',
+  });
+
+  const [requestFormData, setRequestFormData] = useState({
+    title: '',
+    category: 'EXPENSE',
+    amount: '',
+    description: '',
   });
 
   const fetchLedger = async () => {
@@ -158,6 +168,52 @@ export const BudgetDashboard = () => {
     }
   };
 
+  const handleRequestFunds = async (e) => {
+    e.preventDefault();
+    if (!requestFormData.title || !requestFormData.amount || Number(requestFormData.amount) <= 0) {
+      toast.error('Please enter a valid title and positive amount');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await apiService.requestBudgetFunds({
+        ...requestFormData,
+        amount: Number(requestFormData.amount),
+      });
+
+      if (res.data?.success) {
+        toast.success('Fund request submitted to the Club Admin!');
+        setIsRequestModalOpen(false);
+        setRequestFormData({
+          title: '',
+          category: 'EXPENSE',
+          amount: '',
+          description: '',
+        });
+        fetchLedger();
+      }
+    } catch (err) {
+      console.error('Failed to request funds:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit fund request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const updateStatus = async (id, status) => {
+    try {
+      const res = await apiService.updateBudgetTransactionStatus(id, { status });
+      if (res.success || res.data?.success) {
+        toast.success(`Request ${status === 'CONFIRMED' ? 'Approved' : 'Rejected'}`);
+        fetchLedger();
+      }
+    } catch (err) {
+      console.error('Update status failed:', err);
+      toast.error('Failed to update status');
+    }
+  };
+
   const formatETB = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'decimal',
@@ -210,6 +266,16 @@ export const BudgetDashboard = () => {
                 >
                   <Plus className="w-4 h-4 text-blue-600" />
                   <span>Record Transaction</span>
+                </button>
+              )}
+
+              {isClubRep && (
+                <button
+                  onClick={() => setIsRequestModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold shadow-lg transition-all active:scale-95"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                  <span>Request Funds</span>
                 </button>
               )}
 
@@ -356,6 +422,36 @@ export const BudgetDashboard = () => {
           </div>
         </div>
 
+        {/* Rep Request Tracker */}
+        {isClubRep && (
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <Receipt className="w-5 h-5 text-amber-600" />
+              <span>My Fund Requests Tracker</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                <span className="text-xs font-bold text-amber-600 uppercase">Pending</span>
+                <p className="text-2xl font-black text-amber-700 mt-1">
+                  {data.transactions.filter(t => t.status === 'PENDING').length}
+                </p>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                <span className="text-xs font-bold text-emerald-600 uppercase">Approved</span>
+                <p className="text-2xl font-black text-emerald-700 mt-1">
+                  {data.transactions.filter(t => t.status === 'CONFIRMED' && t.category === 'EXPENSE').length}
+                </p>
+              </div>
+              <div className="bg-rose-50 rounded-xl p-4 border border-rose-100">
+                <span className="text-xs font-bold text-rose-600 uppercase">Rejected</span>
+                <p className="text-2xl font-black text-rose-700 mt-1">
+                  {data.transactions.filter(t => t.status === 'CANCELLED').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Public Financial Ledger Table */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           {/* Table Header & Controls */}
@@ -493,19 +589,36 @@ export const BudgetDashboard = () => {
                           )}
                         </td>
 
-                        {/* Amount */}
-                        <td className="py-4 px-6 whitespace-nowrap text-right font-mono font-bold text-sm">
-                          <span
-                            className={
-                              isInflow
-                                ? 'text-emerald-600 font-black'
-                                : 'text-slate-900'
-                            }
-                          >
-                            {isInflow ? '+' : '-'}
-                            {formatETB(tx.amount)}
-                          </span>
-                          <span className="text-[10px] font-sans font-normal text-slate-400 ml-1">ETB</span>
+                        {/* Amount & Status */}
+                        <td className="py-4 px-6 whitespace-nowrap text-right">
+                          <div className="font-mono font-bold text-sm">
+                            <span
+                              className={
+                                isInflow
+                                  ? 'text-emerald-600 font-black'
+                                  : 'text-slate-900'
+                              }
+                            >
+                              {isInflow ? '+' : '-'}
+                              {formatETB(tx.amount)}
+                            </span>
+                            <span className="text-[10px] font-sans font-normal text-slate-400 ml-1">ETB</span>
+                          </div>
+                          
+                          <div className="mt-2 flex justify-end">
+                            {tx.status === 'PENDING' ? (
+                              isAdmin ? (
+                                <div className="flex gap-2">
+                                  <button onClick={() => updateStatus(tx._id, 'CONFIRMED')} className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[10px] font-bold rounded">APPROVE</button>
+                                  <button onClick={() => updateStatus(tx._id, 'CANCELLED')} className="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] font-bold rounded">REJECT</button>
+                                </div>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">PENDING</span>
+                              )
+                            ) : tx.status === 'CANCELLED' ? (
+                              <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-bold rounded">REJECTED</span>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -658,6 +771,119 @@ export const BudgetDashboard = () => {
                     <>
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Log to Ledger</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rep Request Funds Modal */}
+      {isRequestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsRequestModalOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                <Receipt className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Request Funds</h3>
+                <p className="text-xs text-slate-500">
+                  Submit a fund request to the Club Admin for approval
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleRequestFunds} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Request Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Club Tech Supplies"
+                  value={requestFormData.title}
+                  onChange={(e) => setRequestFormData({ ...requestFormData, title: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Category *
+                  </label>
+                  <select
+                    value={requestFormData.category}
+                    onChange={(e) => setRequestFormData({ ...requestFormData, category: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                  >
+                    <option value="EXPENSE">Operational Expense (-)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Amount (ETB) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    required
+                    placeholder="e.g. 5000"
+                    value={requestFormData.amount}
+                    onChange={(e) => setRequestFormData({ ...requestFormData, amount: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Description / Justification
+                </label>
+                <textarea
+                  rows="3"
+                  placeholder="Details regarding why these funds are needed..."
+                  value={requestFormData.description}
+                  onChange={(e) => setRequestFormData({ ...requestFormData, description: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsRequestModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 text-sm font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Submit Request</span>
                     </>
                   )}
                 </button>
