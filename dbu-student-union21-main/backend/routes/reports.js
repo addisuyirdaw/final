@@ -108,14 +108,26 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
       catch (e) { return val; }
     };
 
-    // If eventId is provided, enforce that only leaders can submit official reports
-    if (eventId && !isLeader) {
-      return res.status(403).json({ success: false, message: 'Only club leaders can create official outcome reports.' });
+    // If eventId is provided, enforce the new evidence workflow rules
+    if (eventId) {
+      if (!isLeader) {
+        return res.status(403).json({ success: false, message: 'Only club leaders can create official outcome reports.' });
+      }
+      
+      const eventExists = club.events && club.events.some(e => e._id.toString() === eventId.toString());
+      if (!eventExists) {
+        return res.status(400).json({ success: false, message: 'Event not found in this club.' });
+      }
     }
 
     // Determine initial status securely
     let initialStatus = isLeader ? 'PENDING_REVIEW' : 'PENDING_MANAGER';
-    if (status === 'DRAFT' && isLeader) {
+    
+    if (eventId) {
+      // New evidence workflow MUST start as DRAFT
+      initialStatus = 'DRAFT';
+    } else if (status === 'DRAFT' && isLeader) {
+      // Legacy behavior preservation
       initialStatus = 'DRAFT';
     }
 
@@ -430,7 +442,19 @@ router.patch('/:id', protect, upload.single('file'), async (req, res) => {
     }
 
     const data = req.file ? req.body : req.body;
-    const { title, description, date, objectives, results, outcomes, challenges, lessonsLearned, followUpActions, participantFeedback } = data;
+    const { title, description, date, objectives, results, outcomes, challenges, lessonsLearned, followUpActions, participantFeedback, eventId } = data;
+
+    if (eventId && eventId !== report.eventId?.toString()) {
+      const eventExists = club.events && club.events.some(e => e._id.toString() === eventId.toString());
+      if (!eventExists) {
+        return res.status(400).json({ success: false, message: 'Event not found in this club.' });
+      }
+      report.eventId = eventId;
+    }
+
+    if (report.status === 'RETURNED') {
+      report.status = 'DRAFT';
+    }
 
     // Safe parsing for form-data strings
     const safeParse = (val) => {
