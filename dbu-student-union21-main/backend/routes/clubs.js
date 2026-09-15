@@ -1326,7 +1326,7 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
       description,
       date: new Date(date),
       location,
-      expectedAttendance: expectedAttendance ? Number(expectedAttendance) : 0,
+      expectedAttendance: (() => { const v = Number(expectedAttendance); return (isFinite(v) && v >= 0) ? v : 0; })(),
       hasExternalGuests: Boolean(hasExternalGuests),
       isOffCampus: Boolean(isOffCampus),
       status: 'draft',
@@ -1394,7 +1394,13 @@ router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
     if (date !== undefined) event.date = new Date(date);
     if (location !== undefined) event.location = location;
     
-    if (expectedAttendance !== undefined) event.expectedAttendance = Number(expectedAttendance);
+    if (expectedAttendance !== undefined) {
+      const parsed = Number(expectedAttendance);
+      if (!isFinite(parsed) || parsed < 0) {
+        return res.status(400).json({ success: false, message: 'expectedAttendance must be a non-negative number' });
+      }
+      event.expectedAttendance = parsed;
+    }
     if (hasExternalGuests !== undefined) event.hasExternalGuests = Boolean(hasExternalGuests);
     if (isOffCampus !== undefined) event.isOffCampus = Boolean(isOffCampus);
 
