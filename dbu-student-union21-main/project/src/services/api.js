@@ -424,6 +424,10 @@ class ApiService {
     return this.request('/clubs/stats/overview');
   }
 
+  async getClubPerformance() {
+    return this.request('/clubs/performance');
+  }
+
   async assignClubLeader(clubId, userId) {
     return this.request(`/clubs/${clubId}/assign-leader`, {
       method: 'PATCH',
@@ -1060,6 +1064,12 @@ class ApiService {
   async deleteClubAnnouncement(clubId, announcementId) {
     return this.request(`/clubs/${clubId}/announcements/${announcementId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async acknowledgeAnnouncement(clubId, announcementId) {
+    return this.request(`/clubs/${clubId}/announcements/${announcementId}/acknowledge`, {
+      method: 'PATCH',
     });
   }
 

@@ -163,7 +163,12 @@ export function Clubs() {
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
-  const [announcementFormData, setAnnouncementFormData] = useState({ title: '', content: '' });
+  const [announcementFormData, setAnnouncementFormData] = useState({ 
+    title: '', content: '', type: 'GENERAL', audienceType: 'ALL_MEMBERS', 
+    relatedEvent: '', relatedProject: '', relatedTask: '', 
+    requiresAcknowledgement: false, deadline: '' 
+  });
+  const [announcementFilter, setAnnouncementFilter] = useState('ALL');
 
   // Expandable member panel per card
   const [expandedClubId, setExpandedClubId] = useState(null);
@@ -1494,7 +1499,7 @@ export function Clubs() {
     try {
       if (editingAnnouncement) {
         const updated = await apiService.updateClubAnnouncement(clubId, editingAnnouncement._id, announcementFormData);
-        setClubAnnouncements(prev => prev.map(a => a._id === updated.announcement._id ? updated.announcement : a));
+        setClubAnnouncements(prev => prev.map(a => a._id === updated.announcement._id ? { ...a, ...updated.announcement } : a));
         toast.success('Announcement updated');
       } else {
         const created = await apiService.createClubAnnouncement(clubId, announcementFormData);
@@ -1503,10 +1508,32 @@ export function Clubs() {
       }
       setShowAnnouncementForm(false);
       setEditingAnnouncement(null);
-      setAnnouncementFormData({ title: '', content: '' });
+      setAnnouncementFormData({ 
+        title: '', content: '', type: 'GENERAL', audienceType: 'ALL_MEMBERS', 
+        relatedEvent: '', relatedProject: '', relatedTask: '', 
+        requiresAcknowledgement: false, deadline: '' 
+      });
     } catch (err) {
       console.error('Failed to save announcement:', err);
       toast.error(err.message || 'Failed to save announcement');
+    }
+  };
+
+  const handleAcknowledgeAnnouncement = async (announcementId) => {
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    if (!clubId) return;
+    try {
+      await apiService.acknowledgeAnnouncement(clubId, announcementId);
+      setClubAnnouncements(prev => prev.map(a => {
+        if (a._id === announcementId) {
+          return { ...a, hasAcknowledged: true, acknowledgementCount: (a.acknowledgementCount || 0) + 1 };
+        }
+        return a;
+      }));
+      toast.success('Announcement acknowledged');
+    } catch (err) {
+      console.error('Failed to acknowledge announcement:', err);
+      toast.error(err.message || 'Failed to acknowledge announcement');
     }
   };
 
@@ -4456,7 +4483,7 @@ export function Clubs() {
                   </div>
                 )}
 
-                {/* ── Announcements Tab (Phase 1B-3) ── */}
+                {/* ── Announcements Tab (Phase 1B-3 & 1B-5) ── */}
                 {activeWorkspaceTab === 'announcements' && (
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-5">
@@ -4477,28 +4504,111 @@ export function Clubs() {
                     {showAnnouncementForm && (
                       <form onSubmit={handleSaveAnnouncement} className="mb-6 p-5 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
                         <h4 className="font-extrabold text-sm text-indigo-900">{editingAnnouncement ? 'Edit Announcement' : 'Post Announcement'}</h4>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Title *</label>
-                          <input
-                            type="text"
-                            value={announcementFormData.title}
-                            onChange={e => setAnnouncementFormData(p => ({ ...p, title: e.target.value }))}
-                            placeholder="e.g. Urgent: Meeting Rescheduled"
-                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                            required
-                          />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Title *</label>
+                            <input
+                              type="text"
+                              value={announcementFormData.title}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, title: e.target.value }))}
+                              placeholder="e.g. Urgent: Meeting Rescheduled"
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                              required
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Content *</label>
+                            <textarea
+                              value={announcementFormData.content}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, content: e.target.value }))}
+                              placeholder="Announcement message..."
+                              rows={3}
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white resize-none"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Type</label>
+                            <select
+                              value={announcementFormData.type}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, type: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="GENERAL">General</option>
+                              <option value="ACTION_REQUIRED">Action Required</option>
+                              <option value="DEADLINE">Deadline</option>
+                              <option value="EVENT_UPDATE">Event Update</option>
+                              <option value="PROJECT_UPDATE">Project Update</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Audience</label>
+                            <select
+                              value={announcementFormData.audienceType}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, audienceType: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="ALL_MEMBERS">All Members</option>
+                              <option value="LEADERSHIP">Leadership Only</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Related Event (Optional)</label>
+                            <select
+                              value={announcementFormData.relatedEvent || ''}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, relatedEvent: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="">-- Select Event --</option>
+                              {(selectedClubDetails?.events || []).map(ev => (
+                                <option key={ev._id} value={ev._id}>{ev.title}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Related Project (Optional)</label>
+                            <select
+                              value={announcementFormData.relatedProject || ''}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, relatedProject: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="">-- Select Project --</option>
+                              {(clubProjects || []).map(proj => (
+                                <option key={proj._id} value={proj._id}>{proj.title}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Deadline (Optional)</label>
+                            <input
+                              type="datetime-local"
+                              value={announcementFormData.deadline ? new Date(new Date(announcementFormData.deadline).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : ''}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, deadline: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+
+                          <div className="flex items-center mt-6">
+                            <input
+                              type="checkbox"
+                              id="requiresAck"
+                              checked={announcementFormData.requiresAcknowledgement}
+                              onChange={e => setAnnouncementFormData(p => ({ ...p, requiresAcknowledgement: e.target.checked }))}
+                              className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                            />
+                            <label htmlFor="requiresAck" className="ml-2 block text-sm text-gray-900">
+                              Requires User Acknowledgement
+                            </label>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Content *</label>
-                          <textarea
-                            value={announcementFormData.content}
-                            onChange={e => setAnnouncementFormData(p => ({ ...p, content: e.target.value }))}
-                            placeholder="Announcement message..."
-                            rows={4}
-                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white resize-none"
-                            required
-                          />
-                        </div>
+
                         <div className="flex justify-end gap-3 pt-2">
                           <button type="button" onClick={() => setShowAnnouncementForm(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-xl text-xs font-bold transition-colors">
                             Cancel
@@ -4510,6 +4620,23 @@ export function Clubs() {
                       </form>
                     )}
 
+                    {/* Filters */}
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                      {['ALL', 'ACTION_REQUIRED', 'DEADLINE', 'EVENT_UPDATE', 'PROJECT_UPDATE'].map(filter => (
+                        <button
+                          key={filter}
+                          onClick={() => setAnnouncementFilter(filter)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                            announcementFilter === filter
+                              ? 'bg-indigo-600 text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {filter === 'ALL' ? 'All' : filter.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+
                     {announcementsLoading ? (
                       <div className="text-center py-10 text-gray-400 text-sm">Loading announcements...</div>
                     ) : clubAnnouncements.length === 0 ? (
@@ -4518,10 +4645,28 @@ export function Clubs() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {clubAnnouncements.map(announcement => (
-                          <div key={announcement._id} className="p-5 bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-shadow relative group">
+                        {clubAnnouncements.filter(a => announcementFilter === 'ALL' || a.type === announcementFilter).map(announcement => (
+                          <div key={announcement._id} className={`p-5 bg-white border ${announcement.type === 'ACTION_REQUIRED' ? 'border-red-200' : 'border-gray-200'} rounded-2xl hover:shadow-md transition-shadow relative group`}>
                             <div className="flex justify-between items-start mb-3">
-                              <h5 className="font-bold text-gray-900 text-lg">{announcement.title}</h5>
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                    announcement.type === 'ACTION_REQUIRED' ? 'bg-red-100 text-red-700' :
+                                    announcement.type === 'DEADLINE' ? 'bg-orange-100 text-orange-700' :
+                                    announcement.type === 'EVENT_UPDATE' ? 'bg-blue-100 text-blue-700' :
+                                    announcement.type === 'PROJECT_UPDATE' ? 'bg-purple-100 text-purple-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {announcement.type?.replace('_', ' ')}
+                                  </span>
+                                  {announcement.audienceType === 'LEADERSHIP' && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">
+                                      LEADERSHIP ONLY
+                                    </span>
+                                  )}
+                                </div>
+                                <h5 className="font-bold text-gray-900 text-lg">{announcement.title}</h5>
+                              </div>
                               {(user?.isAdmin || isCoordinator || isLeader) && (
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button onClick={() => openAnnouncementForm(announcement)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
@@ -4533,10 +4678,54 @@ export function Clubs() {
                                 </div>
                               )}
                             </div>
+                            
                             <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap">{announcement.content}</p>
+                            
+                            {/* Operational Context Links */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {announcement.relatedEvent && (
+                                <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md font-medium">
+                                  📅 {selectedClubDetails?.events?.find(e => e._id === announcement.relatedEvent)?.title || 'Linked Event'}
+                                </span>
+                              )}
+                              {announcement.relatedProject && (
+                                <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded-md font-medium">
+                                  📋 {clubProjects?.find(p => p._id === announcement.relatedProject)?.title || 'Linked Project'}
+                                </span>
+                              )}
+                              {announcement.deadline && (
+                                <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-md font-medium">
+                                  ⏳ Due: {new Date(announcement.deadline).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+
                             <div className="flex justify-between items-center text-xs text-gray-400 pt-3 border-t border-gray-100">
-                              <span>Posted by {announcement.author?.name || announcement.author?.username || 'Club Leadership'}</span>
-                              <span>{new Date(announcement.createdAt).toLocaleString()}</span>
+                              <div className="flex flex-col gap-1">
+                                <span>Posted by {announcement.author?.name || announcement.author?.username || 'Club Leadership'}</span>
+                                <span>{new Date(announcement.createdAt).toLocaleString()}</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-3">
+                                {(user?.isAdmin || isCoordinator || isLeader) && announcement.requiresAcknowledgement && (
+                                  <span className="text-indigo-600 font-semibold bg-indigo-50 px-2 py-1 rounded-md">
+                                    {announcement.acknowledgementCount || 0} Acknowledged
+                                  </span>
+                                )}
+                                {announcement.requiresAcknowledgement && !announcement.hasAcknowledged && (
+                                  <button 
+                                    onClick={() => handleAcknowledgeAnnouncement(announcement._id)}
+                                    className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
+                                  >
+                                    Acknowledge
+                                  </button>
+                                )}
+                                {announcement.requiresAcknowledgement && announcement.hasAcknowledged && (
+                                  <span className="text-green-600 font-bold flex items-center gap-1">
+                                    <CheckCircle className="w-4 h-4" /> Acknowledged
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}

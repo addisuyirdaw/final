@@ -3,6 +3,9 @@ const Club = require('../models/Club');
 const User = require('../models/User');
 const ActivityReport = require('../models/ActivityReport');
 const Transaction = require('../models/Transaction');
+const Project = require('../models/Project');
+const Task = require('../models/Task');
+const ClubRenewal = require('../models/ClubRenewal');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
@@ -987,6 +990,154 @@ router.get('/stats/overview', protect, adminOnly, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching club statistics'
+    });
+  }
+});
+
+// @desc    Get institutional club performance insights
+// @route   GET /api/clubs/performance
+// @access  Private/Admin
+router.get('/performance', protect, adminOnly, async (req, res) => {
+  try {
+    const clubStats = await Club.aggregate([
+      { $match: { status: { $in: ['active', 'pending'] } } },
+      {
+        $project: {
+          name: 1,
+          category: 1,
+          status: 1,
+          memberCount: {
+            $size: {
+              $filter: {
+                input: { $ifNull: ["$members", []] },
+                as: "member",
+                cond: { $eq: ["$$member.status", "approved"] }
+              }
+            }
+          },
+          validEvents: {
+            $filter: {
+              input: { $ifNull: ["$events", []] },
+              as: "event",
+              cond: { $in: ["$$event.status", ["completed", "approved", "ongoing", "planned"]] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          category: 1,
+          status: 1,
+          memberCount: 1,
+          eventCount: { $size: "$validEvents" },
+          latestEventDate: { $max: "$validEvents.date" }
+        }
+      },
+      { $sort: { name: 1 } }
+    ]);
+
+    const [projects, tasks, reports, renewals] = await Promise.all([
+      Project.aggregate([
+        { $group: { 
+            _id: '$clubId', 
+            activeProjects: { $sum: { $cond: [{ $in: ['$status', ['planning', 'active', 'in_progress']] }, 1, 0] } }, 
+            completedProjects: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } } 
+        } }
+      ]),
+      Task.aggregate([
+        { $group: { 
+            _id: '$clubId', 
+            completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } }, 
+            pendingTasks: { $sum: { $cond: [{ $in: ['$status', ['todo', 'in_progress']] }, 1, 0] } } 
+        } }
+      ]),
+      ActivityReport.aggregate([
+        { $sort: { createdAt: -1 } },
+        { $group: { 
+            _id: '$club', 
+            latestReportDate: { $first: '$createdAt' }, 
+            totalReports: { $sum: 1 }, 
+            pendingReports: { $sum: { $cond: [{ $eq: ['$status', 'PENDING_REVIEW'] }, 1, 0] } } 
+        } }
+      ]),
+      ClubRenewal.aggregate([
+        { $sort: { createdAt: -1 } },
+        { $group: { 
+            _id: '$club', 
+            latestStatus: { $first: '$status' }, 
+            academicYear: { $first: '$academicYear' } 
+        } }
+      ])
+    ]);
+
+    const projMap = Object.fromEntries(projects.map(p => [p._id.toString(), p]));
+    const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
+    const repMap = Object.fromEntries(reports.map(r => [r._id.toString(), r]));
+    const renMap = Object.fromEntries(renewals.map(r => [r._id.toString(), r]));
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const performanceData = clubStats.map(club => {
+      const p = projMap[club._id.toString()] || { activeProjects: 0, completedProjects: 0 };
+      const t = taskMap[club._id.toString()] || { pendingTasks: 0, completedTasks: 0 };
+      const r = repMap[club._id.toString()] || { totalReports: 0, pendingReports: 0, latestReportDate: null };
+      const ren = renMap[club._id.toString()] || { latestStatus: 'NOT_STARTED' };
+
+      let signal = 'Active';
+      if (ren.latestStatus === 'RETURNED' || ren.latestStatus === 'PENDING') {
+        signal = `Renewal ${ren.latestStatus === 'PENDING' ? 'Pending' : 'Returned'}`;
+      } else if (r.pendingReports > 0) {
+        signal = 'Report Pending Review';
+      } else if (club.status === 'pending') {
+        signal = 'Club Approval Pending';
+      } else {
+        const lastActivity = club.latestEventDate ? new Date(club.latestEventDate) : null;
+        if (!lastActivity && p.activeProjects === 0) {
+          signal = 'No Recent Activity';
+        } else if (lastActivity && lastActivity < thirtyDaysAgo) {
+          signal = 'Low Recent Activity';
+        }
+      }
+
+      return {
+        id: club._id,
+        name: club.name,
+        category: club.category,
+        status: club.status,
+        memberCount: club.memberCount,
+        eventCount: club.eventCount,
+        latestEventDate: club.latestEventDate,
+        activeProjects: p.activeProjects,
+        completedProjects: p.completedProjects,
+        pendingTasks: t.pendingTasks,
+        completedTasks: t.completedTasks,
+        totalReports: r.totalReports,
+        pendingReports: r.pendingReports,
+        latestReportDate: r.latestReportDate,
+        renewalStatus: ren.latestStatus,
+        supportSignal: signal
+      };
+    });
+
+    const summary = {
+      totalClubs: performanceData.length,
+      activeProjects: performanceData.reduce((acc, curr) => acc + curr.activeProjects, 0),
+      totalActivities: performanceData.reduce((acc, curr) => acc + curr.eventCount, 0),
+      attentionRequired: performanceData.filter(c => c.supportSignal !== 'Active').length
+    };
+
+    res.json({
+      success: true,
+      summary,
+      performance: performanceData
+    });
+  } catch (error) {
+    console.error('Get club performance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching club performance'
     });
   }
 });

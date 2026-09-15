@@ -32,6 +32,7 @@ import { apiService } from "../../services/api";
 import { useElectionVisibility } from "../../contexts/FeatureVisibilityContext";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { ClubPerformance } from "./ClubPerformance";
 
 const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "http://localhost:5000/api")).replace(/\/api$/, "");
 
@@ -909,6 +910,15 @@ export function AdminDashboard() {
           )}
         </motion.div>
       )}
+
+      {/* ── Club Performance ─────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9 }}
+      >
+        <ClubPerformance />
+      </motion.div>
 
       {/* Modals */}
       {showCreateUserModal && (

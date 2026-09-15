@@ -22,7 +22,40 @@ const clubAnnouncementSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }
+  },
+  type: {
+    type: String,
+    enum: ['GENERAL', 'ACTION_REQUIRED', 'EVENT_UPDATE', 'PROJECT_UPDATE', 'DEADLINE'],
+    default: 'GENERAL'
+  },
+  audienceType: {
+    type: String,
+    enum: ['ALL_MEMBERS', 'LEADERSHIP'],
+    default: 'ALL_MEMBERS'
+  },
+  relatedEvent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Club.events'
+  },
+  relatedProject: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  },
+  relatedTask: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task'
+  },
+  requiresAcknowledgement: {
+    type: Boolean,
+    default: false
+  },
+  deadline: {
+    type: Date
+  },
+  acknowledgements: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    date: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 // Optimize lookups by clubId and sort by creation date
