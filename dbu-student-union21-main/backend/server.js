@@ -36,6 +36,7 @@ const grantRoutes = require("./routes/grants");
 const projectRoutes = require("./routes/projects");
 const taskRoutes = require("./routes/tasks");
 const announcementRoutes = require("./routes/announcements");
+const resourceRoutes = require("./routes/resources");
 const handoverRoutes = require("./routes/handover");
 const renewalRoutes = require("./routes/renewals");
 
@@ -260,6 +261,7 @@ app.use("/api/grants", grantRoutes);
 app.use("/api/clubs/:clubId/projects", projectRoutes);
 app.use("/api/clubs/:clubId/projects/:projectId/tasks", taskRoutes);
 app.use("/api/clubs/:clubId/announcements", announcementRoutes);
+app.use("/api/resources", resourceRoutes);
 
 
 // 404 handler
