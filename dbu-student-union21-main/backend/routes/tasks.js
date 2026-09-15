@@ -95,6 +95,16 @@ router.get('/', protect, async (req, res) => {
     const context = await resolveContext(req.params.clubId, req.params.projectId, res);
     if (!context) return;
 
+    const isAuthorizedLeader = isClubAuthorized(context.club, req.user);
+    const isMember = isApprovedMember(context.club, req.user._id);
+
+    if (!isAuthorizedLeader && !isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access tasks for this club',
+      });
+    }
+
     const tasks = await Task.find({
       projectId: req.params.projectId,
       clubId: req.params.clubId,
@@ -127,6 +137,16 @@ router.get('/:taskId', protect, async (req, res) => {
   try {
     const context = await resolveContext(req.params.clubId, req.params.projectId, res);
     if (!context) return;
+
+    const isAuthorizedLeader = isClubAuthorized(context.club, req.user);
+    const isMember = isApprovedMember(context.club, req.user._id);
+
+    if (!isAuthorizedLeader && !isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access tasks for this club',
+      });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(req.params.taskId)) {
       return res.status(400).json({ success: false, message: 'Invalid task ID' });
