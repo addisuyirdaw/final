@@ -74,5 +74,6 @@ transactionSchema.index({ date: -1 });
 transactionSchema.index({ category: 1 });
 transactionSchema.index({ referenceNumber: 1 });
 transactionSchema.index({ universityId: 1 });
+transactionSchema.index({ clubId: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);
