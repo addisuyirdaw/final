@@ -431,7 +431,41 @@ class ApiService {
     });
   }
 
-  // Reports Endpoints
+  // ── Club Projects ──────────────────────────────────────────────────────────
+
+  async getClubProjects(clubId) {
+    const response = await this.request(`/clubs/${clubId}/projects`);
+    return response.projects || [];
+  }
+
+  async getClubProject(clubId, projectId) {
+    const response = await this.request(`/clubs/${clubId}/projects/${projectId}`);
+    return response.project || response;
+  }
+
+  async createClubProject(clubId, projectData) {
+    const response = await this.request(`/clubs/${clubId}/projects`, {
+      method: 'POST',
+      body: JSON.stringify(projectData),
+    });
+    return response.project || response;
+  }
+
+  async updateClubProject(clubId, projectId, projectData) {
+    const response = await this.request(`/clubs/${clubId}/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(projectData),
+    });
+    return response.project || response;
+  }
+
+  async deleteClubProject(clubId, projectId) {
+    return this.request(`/clubs/${clubId}/projects/${projectId}`, {
+      method: 'DELETE',
+    });
+  }
+
+
   async submitClubReport(clubId, reportData) {
     const isFormData = reportData && typeof reportData.append === 'function';
     return this.request(`/reports/club/${clubId}`, {

@@ -125,6 +125,14 @@ export function Clubs() {
   const [managerPendingReports, setManagerPendingReports] = useState([]);
   const [showManagerPendingReports, setShowManagerPendingReports] = useState(false);
 
+  // Club Projects (Phase 1B-1)
+  const [clubProjects, setClubProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(null); // null = create, object = edit
+  const [projectFormData, setProjectFormData] = useState({ title: '', description: '', status: 'planning', startDate: '', endDate: '' });
+  const [selectedProject, setSelectedProject] = useState(null); // for detail view
+
   // Expandable member panel per card
   const [expandedClubId, setExpandedClubId] = useState(null);
   const [expandedClubData, setExpandedClubData] = useState({});
@@ -996,6 +1004,68 @@ export function Clubs() {
       console.error("Failed to join club:", error);
       toast.error(error.message || "Failed to join club");
     }
+  };
+
+  // Projects API Logic (Phase 1B-1)
+  const fetchClubProjects = async (clubId) => {
+    if (!clubId) return;
+    setProjectsLoading(true);
+    try {
+      const projects = await apiService.getClubProjects(clubId);
+      setClubProjects(Array.isArray(projects) ? projects : []);
+    } catch (err) {
+      console.error('Failed to fetch projects:', err);
+      setClubProjects([]);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const handleSaveProject = async (e) => {
+    e.preventDefault();
+    if (!projectFormData.title.trim()) { toast.error('Project title is required'); return; }
+    if (!projectFormData.description.trim()) { toast.error('Project description is required'); return; }
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    try {
+      if (editingProject) {
+        const updated = await apiService.updateClubProject(clubId, editingProject._id || editingProject.id, projectFormData);
+        setClubProjects(prev => prev.map(p => (p._id || p.id) === (updated._id || updated.id) ? updated : p));
+        toast.success('Project updated successfully');
+      } else {
+        const created = await apiService.createClubProject(clubId, projectFormData);
+        setClubProjects(prev => [created, ...prev]);
+        toast.success('Project created successfully');
+      }
+      setShowProjectForm(false);
+      setEditingProject(null);
+      setProjectFormData({ title: '', description: '', status: 'planning', startDate: '', endDate: '' });
+    } catch (err) {
+      console.error('Failed to save project:', err);
+      toast.error(err.message || 'Failed to save project');
+    }
+  };
+
+  const handleDeleteProject = async (project) => {
+    if (!window.confirm(`Delete project "${project.title}"? This cannot be undone.`)) return;
+    const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+    try {
+      await apiService.deleteClubProject(clubId, project._id || project.id);
+      setClubProjects(prev => prev.filter(p => (p._id || p.id) !== (project._id || project.id)));
+      if (selectedProject && (selectedProject._id || selectedProject.id) === (project._id || project.id)) setSelectedProject(null);
+      toast.success('Project deleted');
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+      toast.error(err.message || 'Failed to delete project');
+    }
+  };
+
+  const openProjectForm = (project = null) => {
+    setEditingProject(project);
+    setProjectFormData(project
+      ? { title: project.title || '', description: project.description || '', status: project.status || 'planning', startDate: project.startDate ? project.startDate.slice(0, 10) : '', endDate: project.endDate ? project.endDate.slice(0, 10) : '' }
+      : { title: '', description: '', status: 'planning', startDate: '', endDate: '' }
+    );
+    setShowProjectForm(true);
   };
 
   // Reports API Logic
@@ -2453,12 +2523,20 @@ export function Clubs() {
                   {[
                     { id: 'overview', label: 'Overview' },
                     ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'members', label: 'Club Management' }] : []),
+                    { id: 'projects', label: 'Projects' },
                     { id: 'events', label: 'Events & Attendance' },
                     { id: 'reports', label: 'Reports & Inbox' }
                   ].map(tab => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveWorkspaceTab(tab.id)}
+                      onClick={() => {
+                        setActiveWorkspaceTab(tab.id);
+                        // Lazy-load projects when the tab is first opened
+                        if (tab.id === 'projects') {
+                          const clubId = selectedClubDetails?._id || selectedClubDetails?.id;
+                          fetchClubProjects(clubId);
+                        }
+                      }}
                       className={`px-4 py-2 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
                         activeWorkspaceTab === tab.id
                           ? 'border-indigo-600 text-indigo-600'
@@ -2530,6 +2608,201 @@ export function Clubs() {
                   <p className="text-gray-600 text-sm leading-relaxed">{selectedClubDetails?.description || "No description available."}</p>
                 </div>
                   </>
+                )}
+
+                {/* ── Projects Tab ── */}
+                {activeWorkspaceTab === 'projects' && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-5">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 text-indigo-600" /> Club Projects
+                        <span className="text-xs font-normal text-gray-400 ml-1">({clubProjects.length})</span>
+                      </h3>
+                      {(user?.isAdmin || isCoordinator || isLeader) && (
+                        <button
+                          onClick={() => openProjectForm()}
+                          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> New Project
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Create / Edit Form */}
+                    {showProjectForm && (
+                      <form onSubmit={handleSaveProject} className="mb-6 p-5 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
+                        <h4 className="font-extrabold text-sm text-indigo-900">{editingProject ? 'Edit Project' : 'New Project'}</h4>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Title *</label>
+                          <input
+                            type="text"
+                            value={projectFormData.title}
+                            onChange={e => setProjectFormData(p => ({ ...p, title: e.target.value }))}
+                            placeholder="e.g. AI Awareness Seminar"
+                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Description *</label>
+                          <textarea
+                            value={projectFormData.description}
+                            onChange={e => setProjectFormData(p => ({ ...p, description: e.target.value }))}
+                            placeholder="Briefly describe what this project aims to achieve..."
+                            rows={3}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white resize-none"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                            <select
+                              value={projectFormData.status}
+                              onChange={e => setProjectFormData(p => ({ ...p, status: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="planning">Planning</option>
+                              <option value="active">Active</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Start Date</label>
+                            <input
+                              type="date"
+                              value={projectFormData.startDate}
+                              onChange={e => setProjectFormData(p => ({ ...p, startDate: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">End Date</label>
+                            <input
+                              type="date"
+                              value={projectFormData.endDate}
+                              onChange={e => setProjectFormData(p => ({ ...p, endDate: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-colors">
+                            {editingProject ? 'Save Changes' : 'Create Project'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowProjectForm(false); setEditingProject(null); }}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-xl text-sm font-bold transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Project Detail View */}
+                    {selectedProject && !showProjectForm && (
+                      <div className="mb-6 p-5 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <span className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full mb-2 ${
+                              selectedProject.status === 'active' ? 'bg-green-100 text-green-800' :
+                              selectedProject.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                              selectedProject.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>{selectedProject.status}</span>
+                            <h4 className="font-extrabold text-lg text-gray-900">{selectedProject.title}</h4>
+                          </div>
+                          <button onClick={() => setSelectedProject(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none">✕</button>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-4">{selectedProject.description}</p>
+                        <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 mb-4">
+                          {selectedProject.startDate && <p><span className="font-semibold text-gray-700">Start:</span> {new Date(selectedProject.startDate).toLocaleDateString()}</p>}
+                          {selectedProject.endDate && <p><span className="font-semibold text-gray-700">End:</span> {new Date(selectedProject.endDate).toLocaleDateString()}</p>}
+                          {selectedProject.owner && <p><span className="font-semibold text-gray-700">Owner:</span> {selectedProject.owner?.name || selectedProject.owner?.username || '—'}</p>}
+                          <p><span className="font-semibold text-gray-700">Members:</span> {selectedProject.members?.length || 0}</p>
+                        </div>
+                        {(user?.isAdmin || isCoordinator || isLeader) && (
+                          <div className="flex gap-2 border-t border-gray-100 pt-4">
+                            <button
+                              onClick={() => { openProjectForm(selectedProject); setSelectedProject(null); }}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProject(selectedProject)}
+                              className="bg-red-50 hover:bg-red-100 text-red-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Project List */}
+                    {!showProjectForm && !selectedProject && (
+                      projectsLoading ? (
+                        <div className="flex items-center justify-center py-12 text-gray-400">
+                          <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Loading projects...
+                        </div>
+                      ) : clubProjects.length === 0 ? (
+                        <div className="text-center py-12 text-gray-400">
+                          <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm font-medium">No projects yet.</p>
+                          {(user?.isAdmin || isCoordinator || isLeader) && (
+                            <p className="text-xs mt-1">Click <strong>New Project</strong> to create the first one.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {clubProjects.map(project => (
+                            <div
+                              key={project._id || project.id}
+                              onClick={() => setSelectedProject(project)}
+                              className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                  project.status === 'active' ? 'bg-green-100 text-green-800' :
+                                  project.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                  project.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  'bg-amber-100 text-amber-800'
+                                }`}>{project.status}</span>
+                                {(user?.isAdmin || isCoordinator || isLeader) && (
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                    <button
+                                      onClick={() => { openProjectForm(project); }}
+                                      className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                      title="Edit"
+                                    ><Edit className="w-3.5 h-3.5" /></button>
+                                    <button
+                                      onClick={() => handleDeleteProject(project)}
+                                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                      title="Delete"
+                                    ><Trash2 className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                )}
+                              </div>
+                              <h4 className="font-extrabold text-sm text-gray-900 mb-1 group-hover:text-indigo-700 transition-colors">{project.title}</h4>
+                              <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">{project.description}</p>
+                              <div className="flex items-center justify-between text-[10px] text-gray-400">
+                                <span>{project.owner?.name || project.owner?.username || 'No owner'}</span>
+                                <div className="flex items-center gap-2">
+                                  {project.startDate && <span>{new Date(project.startDate).toLocaleDateString()}</span>}
+                                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{project.members?.length || 0}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    )}
+                  </div>
                 )}
 
                 {/* Live Check-in, Certification Trackers & Event Manager */}

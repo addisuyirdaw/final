@@ -33,6 +33,7 @@ const attendanceRoutes = require("./routes/attendance");
 const transcriptRoutes = require("./routes/transcripts");
 const budgetRoutes = require("./routes/budget");
 const grantRoutes = require("./routes/grants");
+const projectRoutes = require("./routes/projects");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -250,6 +251,7 @@ app.use("/api/transcripts", transcriptRoutes);
 app.use("/api/students", transcriptRoutes);
 app.use("/api/budget", budgetRoutes);
 app.use("/api/grants", grantRoutes);
+app.use("/api/clubs/:clubId/projects", projectRoutes);
 
 // 404 handler
 app.use("*", (req, res) => {
