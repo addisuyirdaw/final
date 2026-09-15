@@ -24,8 +24,13 @@ import {
 	Upload,
 	Pencil,
 	ChevronDown,
-	ChevronUp
+	ChevronUp,
+	ChevronRight,
+	QrCode,
+	HeartHandshake,
+	MapPin
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiService } from "../../services/api";
@@ -344,6 +349,13 @@ export function Dashboard() {
 
 	const [recentActivities, setRecentActivities] = useState([]);
 	const [upcomingEvents, setUpcomingEvents] = useState([]);
+	const [myEvents, setMyEvents] = useState([]);
+	const [myEventsLoading, setMyEventsLoading] = useState(false);
+
+	const isInstitutionalUser = Boolean(
+		user?.isAdmin ||
+		['admin', 'system_admin', 'clubs_coordinator', 'academic_affairs', 'president', 'council_president', 'council_secretary'].includes(user?.role)
+	);
 
 	const loadDashboardStats = useCallback(async (showRefreshState = false) => {
 		try {
@@ -442,23 +454,36 @@ export function Dashboard() {
 				},
 			]);
 
-			// Dynamic upcoming events
-			setUpcomingEvents([
-				{
-					id: 1,
-					title: "Student Council Meeting",
-					date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-					time: "02:00 PM",
-					location: "Conference Hall",
-				},
-				{
-					id: 2,
-					title: "Club Registration Deadline",
-					date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-					time: "11:59 PM",
-					location: "Online Portal",
-				},
-			]);
+			// Real upcoming campus events (Priority #9)
+			try {
+				const eventsRes = await apiService.getUpcomingEvents();
+				if (eventsRes && eventsRes.success) {
+					setUpcomingEvents(eventsRes.events || []);
+				} else {
+					setUpcomingEvents([]);
+				}
+			} catch (eventErr) {
+				console.error('Error fetching upcoming events in dashboard:', eventErr);
+				setUpcomingEvents([]);
+			}
+
+			// Student-only: My joined clubs upcoming events
+			if (!isInstitutionalUser) {
+				try {
+					setMyEventsLoading(true);
+					const myRes = await apiService.getMyUpcomingEvents();
+					if (myRes && myRes.success) {
+						setMyEvents(myRes.events || []);
+					} else {
+						setMyEvents([]);
+					}
+				} catch (myErr) {
+					console.error('Error fetching my upcoming events in dashboard:', myErr);
+					setMyEvents([]);
+				} finally {
+					setMyEventsLoading(false);
+				}
+			}
 
 			setLastUpdated(new Date());
 		} catch (err) {
@@ -901,6 +926,179 @@ export function Dashboard() {
 				)}
 			</div>
 
+			{/* Student-Only Experience: Quick Actions & My Upcoming Events (Priority #9) */}
+			{!isInstitutionalUser && (
+				<div className="space-y-6">
+					{/* Student Quick Actions Panel */}
+					<motion.div
+						initial={{ opacity: 0, y: 15 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ delay: 0.2 }}
+						className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+								<Sparkles className="w-5 h-5 text-blue-600" />
+								Student Quick Actions
+							</h3>
+							<span className="text-xs text-gray-400">Campus Services & Activities</span>
+						</div>
+						<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+							<Link
+								to="/attendance"
+								className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-sky-100 bg-sky-50/50 hover:bg-sky-100/70 hover:border-sky-300 text-sky-900 transition-all text-center group">
+								<div className="w-10 h-10 rounded-lg bg-sky-600 text-white flex items-center justify-center mb-2 shadow-sm group-hover:scale-105 transition-transform">
+									<QrCode className="w-5 h-5" />
+								</div>
+								<span className="text-xs sm:text-bold font-bold">Check In</span>
+								<span className="text-[10px] text-sky-600 mt-0.5">Scan QR Session</span>
+							</Link>
+
+							<Link
+								to="/events"
+								className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-purple-100 bg-purple-50/50 hover:bg-purple-100/70 hover:border-purple-300 text-purple-900 transition-all text-center group">
+								<div className="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-2 shadow-sm group-hover:scale-105 transition-transform">
+									<Calendar className="w-5 h-5" />
+								</div>
+								<span className="text-xs sm:text-bold font-bold">Campus Events</span>
+								<span className="text-[10px] text-purple-600 mt-0.5">Discover Activities</span>
+							</Link>
+
+							<Link
+								to="/clubs"
+								className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-100/70 hover:border-emerald-300 text-emerald-900 transition-all text-center group">
+								<div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center mb-2 shadow-sm group-hover:scale-105 transition-transform">
+									<Users className="w-5 h-5" />
+								</div>
+								<span className="text-xs sm:text-bold font-bold">My Clubs</span>
+								<span className="text-[10px] text-emerald-600 mt-0.5">Join & Manage</span>
+							</Link>
+
+							<Link
+								to="/transcript"
+								className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-100/70 hover:border-indigo-300 text-indigo-900 transition-all text-center group">
+								<div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center mb-2 shadow-sm group-hover:scale-105 transition-transform">
+									<FileText className="w-5 h-5" />
+								</div>
+								<span className="text-xs sm:text-bold font-bold">My Transcript</span>
+								<span className="text-[10px] text-indigo-600 mt-0.5">Verified Records</span>
+							</Link>
+
+							<Link
+								to="/student-services"
+								className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-teal-100 bg-teal-50/50 hover:bg-teal-100/70 hover:border-teal-300 text-teal-900 transition-all text-center group">
+								<div className="w-10 h-10 rounded-lg bg-teal-600 text-white flex items-center justify-center mb-2 shadow-sm group-hover:scale-105 transition-transform">
+									<HeartHandshake className="w-5 h-5" />
+								</div>
+								<span className="text-xs sm:text-bold font-bold">Services</span>
+								<span className="text-[10px] text-teal-600 mt-0.5">Student Support</span>
+							</Link>
+
+							<Link
+								to="/complaints"
+								className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-amber-100 bg-amber-50/50 hover:bg-amber-100/70 hover:border-amber-300 text-amber-900 transition-all text-center group">
+								<div className="w-10 h-10 rounded-lg bg-amber-600 text-white flex items-center justify-center mb-2 shadow-sm group-hover:scale-105 transition-transform">
+									<MessageSquare className="w-5 h-5" />
+								</div>
+								<span className="text-xs sm:text-bold font-bold">File Complaint</span>
+								<span className="text-[10px] text-amber-600 mt-0.5">Submit Feedback</span>
+							</Link>
+						</div>
+					</motion.div>
+
+					{/* My Upcoming Events Strip */}
+					<motion.div
+						initial={{ opacity: 0, y: 15 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ delay: 0.3 }}
+						className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+								<Calendar className="w-5 h-5 text-indigo-600" />
+								My Upcoming Events
+							</h3>
+							<span className="text-xs text-gray-400">From your joined clubs</span>
+						</div>
+
+						{myEventsLoading ? (
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								{[1, 2, 3].map((idx) => (
+									<div key={idx} className="border border-gray-100 rounded-lg p-4 animate-pulse space-y-2">
+										<div className="h-4 bg-gray-200 rounded w-3/4"></div>
+										<div className="h-3 bg-gray-100 rounded w-1/2"></div>
+										<div className="h-3 bg-gray-100 rounded w-2/3"></div>
+									</div>
+								))}
+							</div>
+						) : myEvents.length === 0 ? (
+							<div className="border border-dashed border-gray-200 rounded-xl p-6 text-center bg-gray-50/50">
+								<Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+								<p className="text-sm font-medium text-gray-700">
+									You haven't joined any clubs with upcoming events yet.
+								</p>
+								<p className="text-xs text-gray-400 mt-0.5">
+									Join clubs to see their approved workshops, activities, and meetings here.
+								</p>
+								<Link
+									to="/clubs"
+									className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 mt-3 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+									Explore Clubs →
+								</Link>
+							</div>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								{myEvents.slice(0, 3).map((event, index) => {
+									const dateStr = event.date ? new Date(event.date).toLocaleDateString() : 'Date TBD';
+									const timeStr = event.startTime
+										? new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+										: null;
+
+									return (
+										<div
+											key={event._id || index}
+											className="border border-indigo-100 bg-indigo-50/30 rounded-xl p-4 flex flex-col justify-between hover:border-indigo-300 hover:shadow-sm transition-all">
+											<div className="space-y-1.5">
+												<div className="flex items-center justify-between text-xs">
+													<span className="font-semibold text-indigo-700 truncate max-w-[150px]">
+														{event.club?.name || 'Club Event'}
+													</span>
+													<span className="text-[10px] text-gray-500 font-medium">
+														{dateStr}
+													</span>
+												</div>
+												<h4 className="font-bold text-gray-900 text-sm line-clamp-1">
+													{event.title}
+												</h4>
+												<div className="flex items-center gap-2 text-xs text-gray-500 pt-1">
+													{timeStr && (
+														<span className="flex items-center gap-1">
+															<Clock className="w-3 h-3 text-gray-400" />
+															{timeStr}
+														</span>
+													)}
+													{event.location && (
+														<span className="flex items-center gap-1 truncate">
+															<MapPin className="w-3 h-3 text-gray-400" />
+															{event.location}
+														</span>
+													)}
+												</div>
+											</div>
+											<div className="pt-3 mt-3 border-t border-indigo-100/60 flex justify-end">
+												<Link
+													to={event.club?._id ? `/clubs/${event.club._id}` : '/clubs'}
+													className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+													View Club <ChevronRight className="w-3 h-3" />
+												</Link>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						)}
+					</motion.div>
+				</div>
+			)}
+
 			{/* Activity and Events Grid - Responsive */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				{/* Recent Activity */}
@@ -953,38 +1151,72 @@ export function Dashboard() {
 							<Calendar className="w-5 h-5 text-purple-500" />
 							Upcoming Events
 						</h3>
-						<Calendar className="w-5 h-5 text-gray-400" />
+						<Link
+							to="/events"
+							className="text-xs font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors">
+							View All
+							<ChevronRight className="w-3.5 h-3.5" />
+						</Link>
 					</div>
 					{isLoading ? (
 						<ActivitySkeleton />
+					) : upcomingEvents.length === 0 ? (
+						<div className="text-center py-8 text-gray-500">
+							<Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+							<p className="text-sm font-medium text-gray-700">No upcoming events scheduled</p>
+							<p className="text-xs text-gray-400 mt-0.5">Check back soon or explore active clubs</p>
+							<Link
+								to="/events"
+								className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 hover:text-purple-700 mt-3">
+								Explore Campus Events →
+							</Link>
+						</div>
 					) : (
 						<div className="space-y-3">
-							{upcomingEvents.map((event, index) => (
-								<motion.div
-									key={event.id}
-									initial={{ opacity: 0, x: 10 }}
-									animate={{ opacity: 1, x: 0 }}
-									transition={{ delay: 0.6 + index * 0.1 }}
-									whileHover={{ scale: 1.01 }}
-									className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
-									<h4 className="font-medium text-gray-900 text-sm sm:text-base group-hover:text-blue-600 transition-colors truncate">
-										{event.title}
-									</h4>
-									<div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mt-2">
-										<div className="flex items-center gap-1">
-											<Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-											<span>{new Date(event.date).toLocaleDateString()}</span>
+							{upcomingEvents.slice(0, 5).map((event, index) => {
+								const dateStr = event.date ? new Date(event.date).toLocaleDateString() : 'Date TBD';
+								const timeStr = event.startTime
+									? new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+									: event.time || null;
+
+								return (
+									<motion.div
+										key={event._id || event.id || index}
+										initial={{ opacity: 0, x: 10 }}
+										animate={{ opacity: 1, x: 0 }}
+										transition={{ delay: 0.6 + index * 0.1 }}
+										whileHover={{ scale: 1.01 }}
+										className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:border-purple-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
+										<div className="flex items-start justify-between gap-2">
+											<h4 className="font-medium text-gray-900 text-sm sm:text-base group-hover:text-purple-600 transition-colors truncate">
+												{event.title}
+											</h4>
+											{event.club?.name && (
+												<span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">
+													{event.club.name}
+												</span>
+											)}
 										</div>
-										<div className="flex items-center gap-1">
-											<Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-											<span>{event.time}</span>
+										<div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mt-2">
+											<div className="flex items-center gap-1">
+												<Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+												<span>{dateStr}</span>
+											</div>
+											{timeStr && (
+												<div className="flex items-center gap-1">
+													<Clock className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+													<span>{timeStr}</span>
+												</div>
+											)}
 										</div>
-									</div>
-									<p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">
-										📍 {event.location}
-									</p>
-								</motion.div>
-							))}
+										{event.location && (
+											<p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">
+												📍 {event.location}
+											</p>
+										)}
+									</motion.div>
+								);
+							})}
 						</div>
 					)}
 				</motion.div>

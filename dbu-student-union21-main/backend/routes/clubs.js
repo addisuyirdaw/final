@@ -158,6 +158,138 @@ router.get('/public-stats', async (req, res) => {
   }
 });
 
+// Helper to get start of today with timezone safety buffer for DBU / East Africa (UTC+3)
+// Dates in MongoDB are stored as UTC Date objects. Setting to UTC midnight minus 4 hours
+// ensures today's events in local Ethiopian time are not prematurely excluded.
+const getUpcomingDateThreshold = () => {
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  todayStart.setUTCHours(todayStart.getUTCHours() - 4);
+  return todayStart;
+};
+
+// @desc    Get upcoming approved events across all active clubs (Public Discovery)
+// @route   GET /api/clubs/events/upcoming
+// @access  Public
+router.get('/events/upcoming', async (req, res) => {
+  try {
+    const todayStart = getUpcomingDateThreshold();
+
+    const events = await Club.aggregate([
+      { $match: { status: 'active' } },
+      { $unwind: '$events' },
+      {
+        $match: {
+          'events.status': 'approved',
+          'events.date': { $gte: todayStart }
+        }
+      },
+      { $sort: { 'events.date': 1, 'events.startTime': 1 } },
+      { $limit: 20 },
+      {
+        $project: {
+          _id: '$events._id',
+          title: '$events.title',
+          description: '$events.description',
+          date: '$events.date',
+          location: '$events.location',
+          startTime: '$events.startTime',
+          endTime: '$events.endTime',
+          club: {
+            _id: '$_id',
+            name: '$name',
+            category: '$category'
+          }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      events
+    });
+  } catch (error) {
+    console.error('Public upcoming events aggregation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching upcoming events'
+    });
+  }
+});
+
+// @desc    Get upcoming approved events for authenticated student's joined clubs
+// @route   GET /api/clubs/events/my-upcoming
+// @access  Private (protect)
+router.get('/events/my-upcoming', protect, async (req, res) => {
+  try {
+    const joinedClubs = req.user?.joinedClubs || [];
+    if (!joinedClubs.length) {
+      return res.json({
+        success: true,
+        events: []
+      });
+    }
+
+    const clubObjectIds = joinedClubs
+      .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    if (!clubObjectIds.length) {
+      return res.json({
+        success: true,
+        events: []
+      });
+    }
+
+    const todayStart = getUpcomingDateThreshold();
+
+    const events = await Club.aggregate([
+      {
+        $match: {
+          _id: { $in: clubObjectIds },
+          status: 'active'
+        }
+      },
+      { $unwind: '$events' },
+      {
+        $match: {
+          'events.status': 'approved',
+          'events.date': { $gte: todayStart }
+        }
+      },
+      { $sort: { 'events.date': 1, 'events.startTime': 1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          _id: '$events._id',
+          title: '$events.title',
+          description: '$events.description',
+          date: '$events.date',
+          location: '$events.location',
+          startTime: '$events.startTime',
+          endTime: '$events.endTime',
+          club: {
+            _id: '$_id',
+            name: '$name',
+            category: '$category'
+          }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      events
+    });
+  } catch (error) {
+    console.error('My upcoming events aggregation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching your upcoming events'
+    });
+  }
+});
+
 // @desc    Get single club
 // @route   GET /api/clubs/:id
 // @access  Public

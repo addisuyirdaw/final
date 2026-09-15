@@ -1163,6 +1163,15 @@ class ApiService {
     const params = new URLSearchParams({ startTime, endTime });
     return this.request(`/resources/${resourceId}/availability?${params.toString()}`);
   }
+
+  // --- CAMPUS EVENTS & STUDENT DISCOVERY (Priority #9) ---
+  async getUpcomingEvents() {
+    return this.request('/clubs/events/upcoming');
+  }
+
+  async getMyUpcomingEvents() {
+    return this.request('/clubs/events/my-upcoming');
+  }
 }
 
 export const apiService = new ApiService();

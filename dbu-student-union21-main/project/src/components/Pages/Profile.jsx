@@ -17,6 +17,7 @@ function resolveImageUrl(url) {
   // Relative path like /uploads/profiles/...
   return `${BACKEND_ORIGIN}${url}`;
 }
+import { Link } from "react-router-dom";
 import {
   User,
   Mail,
@@ -33,7 +34,8 @@ import {
   CheckCircle,
   AlertCircle,
   BookOpen,
-  Camera
+  Camera,
+  FileText
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -276,10 +278,19 @@ export function Profile() {
               </div>
             </div>
           </div>
-          <div className="bg-sky-50/50 p-4 rounded-xl border border-sky-100/50 text-right md:w-64">
-            <p className="text-xs text-gray-500">Student ID Code</p>
-            <p className="text-xl font-bold text-sky-700 font-mono tracking-wider mt-0.5">{user?.username?.toUpperCase()}</p>
-            <p className="text-xs text-gray-400 mt-1">Debre Berhan University</p>
+          <div className="bg-sky-50/50 p-4 rounded-xl border border-sky-100/50 text-right md:w-64 flex flex-col justify-between items-end">
+            <div>
+              <p className="text-xs text-gray-500">Student ID Code</p>
+              <p className="text-xl font-bold text-sky-700 font-mono tracking-wider mt-0.5">{user?.username?.toUpperCase()}</p>
+              <p className="text-xs text-gray-400 mt-1">Debre Berhan University</p>
+            </div>
+            <Link
+              to="/transcript"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              View My Co-Curricular Transcript →
+            </Link>
           </div>
         </div>
 

@@ -42,6 +42,7 @@ import { VerifyPage } from "./components/Pages/VerifyPage";
 import { CertificatesAdmin } from "./components/Admin/CertificatesAdmin";
 import { BudgetDashboard } from "./components/Budget/BudgetDashboard";
 import { MicroGrantPortal } from "./components/Budget/MicroGrantPortal";
+import { EventsPage } from "./components/Pages/EventsPage";
 import "./index.css";
 
 function AppContent() {
@@ -108,6 +109,7 @@ function AppContent() {
 
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/clubs/:id" element={<Clubs />} />
+          <Route path="/events" element={<EventsPage />} />
 
           <Route
             path="/elections"
