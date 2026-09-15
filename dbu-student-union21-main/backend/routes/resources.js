@@ -184,8 +184,8 @@ router.post('/:id/reservations', protect, async (req, res) => {
     }
 
     // 1. Authorize the user (must be club leader or privileged)
-    const privilegedRoles = ['admin', 'president', 'council_president', 'system_admin', 'clubs_coordinator'];
-    const isPrivileged = req.user.isAdmin || privilegedRoles.includes(req.user.role) || req.user.username === 'dbu10101030' || req.user.username === 'dbu10101040';
+    // Institutional admins should manage resources, not blindly impersonate clubs.
+    // We only check if the user is an authorized leader of the requested club.
 
     const club = await Club.findById(clubId);
     if (!club) {
@@ -199,7 +199,7 @@ router.post('/:id/reservations', protect, async (req, res) => {
       (club.leadership.secretary && club.leadership.secretary.toString() === req.user._id.toString())
     );
 
-    if (!isPrivileged && !isLeader) {
+    if (!isLeader) {
       await session.abortTransaction();
       return res.status(403).json({ success: false, message: 'Not authorized for this club' });
     }
