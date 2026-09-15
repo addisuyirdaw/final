@@ -2,6 +2,7 @@ const express = require('express');
 const Club = require('../models/Club');
 const User = require('../models/User');
 const ActivityReport = require('../models/ActivityReport');
+const Transaction = require('../models/Transaction');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
@@ -1390,6 +1391,31 @@ router.post('/:id/events/:eventId/checkin/end', protect, clubLeader, async (req,
   } catch (error) {
     console.error('End checkin error:', error);
     res.status(500).json({ success: false, message: 'Server error ending check-in session' });
+  }
+});
+
+// @desc    Get financial transactions linked to a specific event (strict RBAC)
+// @route   GET /api/clubs/:id/events/:eventId/transactions
+// @access  Private (Club Leader / Admin / Coordinator)
+router.get('/:id/events/:eventId/transactions', protect, clubLeader, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
+
+    const event = club.events.id(req.params.eventId);
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+    // Fetch transactions
+    const transactions = await Transaction.find({ eventId: req.params.eventId }).sort({ date: -1 });
+
+    res.json({
+      success: true,
+      count: transactions.length,
+      transactions
+    });
+  } catch (error) {
+    console.error('Get event transactions error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching event transactions' });
   }
 });
 

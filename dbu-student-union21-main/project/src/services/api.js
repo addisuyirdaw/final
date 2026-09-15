@@ -555,6 +555,27 @@ class ApiService {
     });
   }
 
+  // ── Event Evidence & Impact ───────────────────────────────────────────────
+  
+  async updateEventOutcomeReport(reportId, reportData) {
+    const isFormData = reportData && typeof reportData.append === 'function';
+    return this.request(`/reports/${reportId}`, {
+      method: 'PATCH',
+      body: isFormData ? reportData : JSON.stringify(reportData)
+    });
+  }
+
+  async submitEventOutcomeReport(reportId) {
+    return this.request(`/reports/${reportId}/submit`, {
+      method: 'PATCH'
+    });
+  }
+
+  async getEventTransactions(clubId, eventId) {
+    const response = await this.request(`/clubs/${clubId}/events/${eventId}/transactions`);
+    return response.transactions || [];
+  }
+
   // Public stats for student dashboard
   async getClubPublicStats() {
     return this.request('/clubs/public-stats');

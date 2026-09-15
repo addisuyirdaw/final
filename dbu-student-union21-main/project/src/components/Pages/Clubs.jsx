@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
-import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus, Download, Upload, BookOpen, X } from "lucide-react";
+import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { CertificateTemplate } from "../CertificateTemplate";
@@ -186,6 +186,16 @@ export function Clubs() {
   const [templateForm, setTemplateForm] = useState({ title: '', description: '', category: 'Other', file: null });
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
 
+  // Evidence & Impact UI states
+  const [outcomeFormEventId, setOutcomeFormEventId] = useState(null);
+  const [outcomeForm, setOutcomeForm] = useState({
+    objectives: "", results: "", outcomes: "", challenges: "", lessonsLearned: "", followUpActions: "", participantFeedbackMethod: "", participantFeedbackSummary: "", file: null
+  });
+  const [submittingOutcome, setSubmittingOutcome] = useState(false);
+  const [expandedEventId, setExpandedEventId] = useState(null);
+  const [eventTransactions, setEventTransactions] = useState({});
+  const [eventReports, setEventReports] = useState({});
+
   const fetchEligibility = async (clubId) => {
     setLoadingEligibility(true);
     try {
@@ -369,6 +379,108 @@ export function Clubs() {
       toast.error(err.message || "Failed to end session");
     } finally {
       setEndingSessionEventId(null);
+    }
+  };
+
+  // ── Evidence & Impact ───────────────────────────────────────────────────
+
+  const toggleEvidenceView = async (eventId) => {
+    if (expandedEventId === eventId) {
+      setExpandedEventId(null);
+      return;
+    }
+    setExpandedEventId(eventId);
+    const clubId = selectedClubDetails._id || selectedClubDetails.id;
+
+    // Fetch reports
+    try {
+      const reports = await apiService.getClubReports(clubId);
+      const eventReport = reports.find(r => r.eventId === eventId);
+      if (eventReport) {
+        setEventReports(prev => ({ ...prev, [eventId]: eventReport }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch reports", err);
+    }
+
+    // Fetch transactions
+    try {
+      const txs = await apiService.getEventTransactions(clubId, eventId);
+      const totalCost = txs.reduce((sum, tx) => sum + tx.amount, 0);
+      setEventTransactions(prev => ({ ...prev, [eventId]: { totalCost, count: txs.length } }));
+    } catch (err) {
+      console.error("Failed to fetch transactions", err);
+    }
+  };
+
+  const handleSaveOutcomeDraft = async (e) => {
+    e.preventDefault();
+    setSubmittingOutcome(true);
+    try {
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const formData = new FormData();
+      formData.append("title", `Outcome Report: ${selectedClubDetails.events.find(ev => ev._id === outcomeFormEventId)?.title}`);
+      formData.append("eventId", outcomeFormEventId);
+      formData.append("status", "DRAFT");
+      
+      if (outcomeForm.objectives) formData.append("objectives", JSON.stringify([outcomeForm.objectives]));
+      if (outcomeForm.results) formData.append("results", outcomeForm.results);
+      if (outcomeForm.outcomes) formData.append("outcomes", JSON.stringify([{ description: outcomeForm.outcomes }]));
+      if (outcomeForm.challenges) formData.append("challenges", outcomeForm.challenges);
+      if (outcomeForm.lessonsLearned) formData.append("lessonsLearned", outcomeForm.lessonsLearned);
+      if (outcomeForm.followUpActions) formData.append("followUpActions", JSON.stringify([outcomeForm.followUpActions]));
+      
+      if (outcomeForm.participantFeedbackSummary) {
+        formData.append("participantFeedback", JSON.stringify({
+          method: outcomeForm.participantFeedbackMethod || 'Survey',
+          satisfactionSummary: outcomeForm.participantFeedbackSummary
+        }));
+      }
+
+      if (outcomeForm.file) {
+        formData.append("file", outcomeForm.file);
+      }
+
+      const existingReport = eventReports[outcomeFormEventId];
+      if (existingReport && (existingReport.status === 'DRAFT' || existingReport.status === 'RETURNED')) {
+        await apiService.updateEventOutcomeReport(existingReport._id, formData);
+        toast.success("Draft updated successfully");
+      } else {
+        await apiService.submitClubReport(clubId, formData);
+        toast.success("Draft created successfully");
+      }
+      
+      setOutcomeFormEventId(null);
+      setOutcomeForm({ objectives: "", results: "", outcomes: "", challenges: "", lessonsLearned: "", followUpActions: "", participantFeedbackMethod: "", participantFeedbackSummary: "", file: null });
+      
+      // Refresh
+      const reports = await apiService.getClubReports(clubId);
+      const updatedReport = reports.find(r => r.eventId === outcomeFormEventId);
+      if (updatedReport) {
+        setEventReports(prev => ({ ...prev, [outcomeFormEventId]: updatedReport }));
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to save draft");
+    } finally {
+      setSubmittingOutcome(false);
+    }
+  };
+
+  const handleSubmitOutcome = async (reportId) => {
+    if (!window.confirm("Submit official report for review? You will no longer be able to edit it unless returned.")) return;
+    try {
+      await apiService.submitEventOutcomeReport(reportId);
+      toast.success("Official report submitted for review.");
+      
+      // Refresh
+      const clubId = selectedClubDetails._id || selectedClubDetails.id;
+      const reports = await apiService.getClubReports(clubId);
+      const updatedReport = reports.find(r => r._id === reportId);
+      if (updatedReport) {
+        setEventReports(prev => ({ ...prev, [updatedReport.eventId]: updatedReport }));
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to submit report");
     }
   };
 
@@ -3591,122 +3703,349 @@ export function Clubs() {
                               [...selectedClubDetails.events]
                                 .sort((a, b) => new Date(b.date) - new Date(a.date))
                                 .map((event) => (
-                                  <div key={event._id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <h4 className="font-bold text-sm text-gray-800">{event.title}</h4>
-                                        {event.activeCheckIn && (
-                                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-                                            Live Check-In Open
-                                          </span>
-                                        )}
-                                        {event.status === 'draft' && (
-                                          <span className="bg-gray-100 text-gray-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                            Draft
-                                          </span>
-                                        )}
-                                        {event.status === 'pending_approval' && (
-                                          <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                            Pending Approval
-                                          </span>
-                                        )}
-                                        {event.status === 'approved' && (
-                                          <span className="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                            Approved
-                                          </span>
-                                        )}
-                                        {event.status === 'rejected' && (
-                                          <span className="bg-red-100 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                            Rejected
-                                          </span>
-                                        )}
-                                        {event.status === 'planned' && (
-                                          <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                            Legacy
-                                          </span>
-                                        )}
-                                        {event.status === 'completed' && (
-                                          <span className="bg-slate-100 text-slate-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                            Completed
-                                          </span>
-                                        )}
-                                      </div>
-                                      {event.description && <p className="text-xs text-gray-500 mt-1">{event.description}</p>}
-                                      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400 font-medium">
-                                        <span>📅 {new Date(event.date).toLocaleDateString()}</span>
-                                        {event.location && <span>📍 {event.location}</span>}
-                                        {event.status === 'completed' && <span>👥 {event.attendees?.length || 0} Attended</span>}
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                      {(event.status === 'draft' || event.status === 'rejected') && isLeader && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSubmitEvent(event._id)}
-                                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
-                                        >
-                                          Submit for Approval
-                                        </button>
-                                      )}
-
-                                      {event.status === 'pending_approval' && (isCoordinator || user?.isAdmin) && (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleReviewEvent(event._id, 'approved')}
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
-                                          >
-                                            Approve
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleReviewEvent(event._id, 'rejected')}
-                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
-                                          >
-                                            Reject
-                                          </button>
-                                        </>
-                                      )}
-
-                                      {(event.status === 'planned' || event.status === 'approved') && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleStartSession(event._id)}
-                                          disabled={startingSessionEventId === event._id}
-                                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
-                                        >
-                                          {startingSessionEventId === event._id ? "Starting..." : "Start Session"}
-                                        </button>
-                                      )}
-
-                                      {event.status === 'ongoing' && event.activeCheckIn && (
-                                        <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-2.5 rounded-xl border border-emerald-200">
-                                          <div className="text-center">
-                                            <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Attendance Code</p>
-                                            <p className="text-xl font-black text-emerald-950 tracking-wider leading-none mt-0.5 font-mono">{event.attendanceCode}</p>
-                                          </div>
-                                          {checkInTimeLeft !== null && (
-                                            <div className="text-center border-l border-gray-100 pl-3">
-                                              <p className="text-[8px] font-bold text-indigo-600 uppercase tracking-widest">Time Remaining</p>
-                                              <p className={`text-xl font-mono leading-none mt-0.5 ${
-                                                checkInTimeLeft < 60 ? "text-red-500 font-black animate-pulse" : "text-slate-800 font-bold"
-                                              }`}>
-                                                {formatTime(checkInTimeLeft)}
-                                              </p>
-                                            </div>
+                                  <div key={event._id} className="mb-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col overflow-hidden">
+                                    <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <h4 className="font-bold text-sm text-gray-800">{event.title}</h4>
+                                          {event.activeCheckIn && (
+                                            <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                              Live Check-In Open
+                                            </span>
                                           )}
+                                          {event.status === 'draft' && (
+                                            <span className="bg-gray-100 text-gray-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                              Draft
+                                            </span>
+                                          )}
+                                          {event.status === 'pending_approval' && (
+                                            <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                              Pending Approval
+                                            </span>
+                                          )}
+                                          {event.status === 'approved' && (
+                                            <span className="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                              Approved
+                                            </span>
+                                          )}
+                                          {event.status === 'rejected' && (
+                                            <span className="bg-red-100 text-red-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                              Rejected
+                                            </span>
+                                          )}
+                                          {event.status === 'planned' && (
+                                            <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                              Legacy
+                                            </span>
+                                          )}
+                                          {event.status === 'completed' && (
+                                            <span className="bg-slate-200 text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                                              Completed
+                                            </span>
+                                          )}
+                                        </div>
+                                        {event.description && <p className="text-xs text-gray-500 mt-1">{event.description}</p>}
+                                        <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400 font-medium">
+                                          <span>📅 {new Date(event.date).toLocaleDateString()}</span>
+                                          {event.location && <span>📍 {event.location}</span>}
+                                          {event.status === 'completed' && <span>👥 {event.attendees?.length || 0} Attended</span>}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-3">
+                                        {(event.status === 'draft' || event.status === 'rejected') && isLeader && (
                                           <button
                                             type="button"
-                                            onClick={() => handleEndSession(event._id)}
-                                            disabled={endingSessionEventId === event._id}
-                                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                                            onClick={() => handleSubmitEvent(event._id)}
+                                            className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
                                           >
-                                            {endingSessionEventId === event._id ? "Ending..." : "End & Close Check-In"}
+                                            Submit for Approval
                                           </button>
-                                        </div>
-                                      )}
+                                        )}
+
+                                        {event.status === 'pending_approval' && (isCoordinator || user?.isAdmin) && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleReviewEvent(event._id, 'approved')}
+                                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                            >
+                                              Approve
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleReviewEvent(event._id, 'rejected')}
+                                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                            >
+                                              Reject
+                                            </button>
+                                          </>
+                                        )}
+
+                                        {(event.status === 'planned' || event.status === 'approved') && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartSession(event._id)}
+                                            disabled={startingSessionEventId === event._id}
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                                          >
+                                            {startingSessionEventId === event._id ? "Starting..." : "Start Session"}
+                                          </button>
+                                        )}
+
+                                        {event.status === 'ongoing' && event.activeCheckIn && (
+                                          <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-2.5 rounded-xl border border-emerald-200">
+                                            <div className="text-center">
+                                              <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Attendance Code</p>
+                                              <p className="text-xl font-black text-emerald-950 tracking-wider leading-none mt-0.5 font-mono">{event.attendanceCode}</p>
+                                            </div>
+                                            {checkInTimeLeft !== null && (
+                                              <div className="text-center border-l border-gray-100 pl-3">
+                                                <p className="text-[8px] font-bold text-indigo-600 uppercase tracking-widest">Time Remaining</p>
+                                                <p className={`text-xl font-mono leading-none mt-0.5 ${
+                                                  checkInTimeLeft < 60 ? "text-red-500 font-black animate-pulse" : "text-slate-800 font-bold"
+                                                }`}>
+                                                  {formatTime(checkInTimeLeft)}
+                                                </p>
+                                              </div>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => handleEndSession(event._id)}
+                                              disabled={endingSessionEventId === event._id}
+                                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                                            >
+                                              {endingSessionEventId === event._id ? "Ending..." : "End & Close Check-In"}
+                                            </button>
+                                          </div>
+                                        )}
+
+                                        {event.status === 'completed' && (
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleEvidenceView(event._id)}
+                                            className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                          >
+                                            {expandedEventId === event._id ? "Hide Evidence" : "Evidence & Impact"}
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
+
+                                    {/* Evidence & Impact Panel */}
+                                    {event.status === 'completed' && expandedEventId === event._id && (
+                                      <div className="bg-white border-t border-slate-100 p-5">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                          {/* Participation Summary */}
+                                          <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100/50">
+                                            <h5 className="text-xs font-bold text-indigo-900 mb-2 flex items-center gap-1.5">
+                                              <Users className="w-3.5 h-3.5 text-indigo-500" /> Participation
+                                            </h5>
+                                            <div className="flex items-end gap-2">
+                                              <span className="text-2xl font-black text-indigo-950 leading-none">{event.attendees?.length || 0}</span>
+                                              <span className="text-[10px] font-semibold text-indigo-600/80 mb-0.5 uppercase tracking-wide">Verified Attendees</span>
+                                            </div>
+                                            <p className="text-[10px] text-indigo-700/60 mt-1.5">Source: Official QR Check-in System</p>
+                                          </div>
+
+                                          {/* Resource Summary */}
+                                          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100/50">
+                                            <h5 className="text-xs font-bold text-emerald-900 mb-2 flex items-center gap-1.5">
+                                              <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> Resources Utilized
+                                            </h5>
+                                            {eventTransactions[event._id] ? (
+                                              <>
+                                                <div className="flex items-end gap-2">
+                                                  <span className="text-2xl font-black text-emerald-950 leading-none">
+                                                    ${eventTransactions[event._id].totalCost.toLocaleString()}
+                                                  </span>
+                                                  <span className="text-[10px] font-semibold text-emerald-600/80 mb-0.5 uppercase tracking-wide">
+                                                    {eventTransactions[event._id].count} Transactions
+                                                  </span>
+                                                </div>
+                                                <p className="text-[10px] text-emerald-700/60 mt-1.5">Source: Club Budget Ledger</p>
+                                              </>
+                                            ) : (
+                                              <p className="text-[10px] text-emerald-700/60">Loading financial data...</p>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Outcome Report Section */}
+                                        <div className="mt-4">
+                                          <h5 className="text-xs font-bold text-gray-900 mb-3 flex items-center gap-1.5 border-b border-gray-100 pb-2">
+                                            <FileText className="w-4 h-4 text-gray-500" /> Official Outcome Report
+                                          </h5>
+
+                                          {eventReports[event._id] ? (
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                              <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                                                    eventReports[event._id].status === 'DRAFT' ? 'bg-gray-200 text-gray-700' :
+                                                    eventReports[event._id].status === 'RETURNED' ? 'bg-red-100 text-red-700' :
+                                                    eventReports[event._id].status === 'PENDING_REVIEW' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-emerald-100 text-emerald-700'
+                                                  }`}>
+                                                    {eventReports[event._id].status.replace('_', ' ')}
+                                                  </span>
+                                                  {eventReports[event._id].status === 'RETURNED' && eventReports[event._id].feedback && (
+                                                    <p className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded-md border border-red-100">
+                                                      <strong>Feedback:</strong> {eventReports[event._id].feedback}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                                {isLeader && (eventReports[event._id].status === 'DRAFT' || eventReports[event._id].status === 'RETURNED') && (
+                                                  <div className="flex gap-2">
+                                                    <button
+                                                      onClick={() => {
+                                                        setOutcomeFormEventId(event._id);
+                                                        const r = eventReports[event._id];
+                                                        setOutcomeForm({
+                                                          objectives: r.objectives?.[0] || '',
+                                                          results: r.results || '',
+                                                          outcomes: r.outcomes?.[0]?.description || '',
+                                                          challenges: r.challenges || '',
+                                                          lessonsLearned: r.lessonsLearned || '',
+                                                          followUpActions: r.followUpActions?.[0] || '',
+                                                          participantFeedbackMethod: r.participantFeedback?.method || '',
+                                                          participantFeedbackSummary: r.participantFeedback?.satisfactionSummary || '',
+                                                          file: null
+                                                        });
+                                                      }}
+                                                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-wider"
+                                                    >
+                                                      Edit Draft
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleSubmitOutcome(eventReports[event._id]._id)}
+                                                      className="text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded-md uppercase tracking-wider"
+                                                    >
+                                                      Submit
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </div>
+
+                                              <div className="space-y-4 text-xs text-gray-700">
+                                                {eventReports[event._id].objectives && eventReports[event._id].objectives.length > 0 && (
+                                                  <div>
+                                                    <strong className="text-gray-900 block mb-1">Objectives:</strong>
+                                                    <p className="bg-white p-2 rounded border border-gray-100">{eventReports[event._id].objectives[0]}</p>
+                                                  </div>
+                                                )}
+                                                {eventReports[event._id].results && (
+                                                  <div>
+                                                    <strong className="text-gray-900 block mb-1">Results (Immediate):</strong>
+                                                    <p className="bg-white p-2 rounded border border-gray-100">{eventReports[event._id].results}</p>
+                                                  </div>
+                                                )}
+                                                {eventReports[event._id].outcomes && eventReports[event._id].outcomes.length > 0 && (
+                                                  <div>
+                                                    <strong className="text-gray-900 block mb-1">Long-term Outcomes:</strong>
+                                                    <p className="bg-white p-2 rounded border border-gray-100">{eventReports[event._id].outcomes[0]?.description}</p>
+                                                  </div>
+                                                )}
+                                                {eventReports[event._id].fileUrl && (
+                                                  <div className="mt-2">
+                                                    <a href={eventReports[event._id].fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold">
+                                                      <Download className="w-3 h-3" /> View Evidence Attachment
+                                                    </a>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ) : isLeader ? (
+                                            <>
+                                              {outcomeFormEventId !== event._id ? (
+                                                <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                                  <p className="text-xs text-gray-500 mb-3">No outcome report has been created for this event.</p>
+                                                  <button
+                                                    onClick={() => setOutcomeFormEventId(event._id)}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-xs transition-colors shadow-sm"
+                                                  >
+                                                    Start Draft Report
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <form onSubmit={handleSaveOutcomeDraft} className="bg-white p-5 rounded-xl border border-indigo-100 shadow-sm">
+                                                  <div className="space-y-4">
+                                                    <div>
+                                                      <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Objectives</label>
+                                                      <textarea
+                                                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+                                                        rows="2"
+                                                        placeholder="What were the goals of this event?"
+                                                        value={outcomeForm.objectives}
+                                                        onChange={(e) => setOutcomeForm({...outcomeForm, objectives: e.target.value})}
+                                                      ></textarea>
+                                                    </div>
+                                                    <div>
+                                                      <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Immediate Results</label>
+                                                      <textarea
+                                                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+                                                        rows="2"
+                                                        placeholder="What was produced or delivered?"
+                                                        value={outcomeForm.results}
+                                                        onChange={(e) => setOutcomeForm({...outcomeForm, results: e.target.value})}
+                                                      ></textarea>
+                                                    </div>
+                                                    <div>
+                                                      <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Outcomes</label>
+                                                      <textarea
+                                                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+                                                        rows="2"
+                                                        placeholder="What changes or impacts were observed?"
+                                                        value={outcomeForm.outcomes}
+                                                        onChange={(e) => setOutcomeForm({...outcomeForm, outcomes: e.target.value})}
+                                                      ></textarea>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                      <div>
+                                                        <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Participant Feedback Summary</label>
+                                                        <input
+                                                          type="text"
+                                                          className="w-full text-sm border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+                                                          placeholder="e.g. 90% satisfaction"
+                                                          value={outcomeForm.participantFeedbackSummary}
+                                                          onChange={(e) => setOutcomeForm({...outcomeForm, participantFeedbackSummary: e.target.value})}
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Supporting Evidence</label>
+                                                        <input
+                                                          type="file"
+                                                          className="w-full text-sm text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                          onChange={(e) => setOutcomeForm({...outcomeForm, file: e.target.files[0]})}
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => setOutcomeFormEventId(null)}
+                                                        className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl"
+                                                      >
+                                                        Cancel
+                                                      </button>
+                                                      <button
+                                                        type="submit"
+                                                        disabled={submittingOutcome}
+                                                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 shadow-sm"
+                                                      >
+                                                        {submittingOutcome ? 'Saving...' : 'Save Draft'}
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                </form>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <p className="text-xs text-gray-400 italic">Report not submitted yet.</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 ))
                             )}

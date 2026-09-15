@@ -66,7 +66,7 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
     const data = req.file ? req.body : req.body;
     if (!req.body.title) { console.log('BODY IS EMPTY - MULTIPLE PARSING FAIL'); }
     
-    const { title, description, date, photos, documentUrl, reportType } = data;
+    const { title, description, date, photos, documentUrl, reportType, eventId, objectives, results, outcomes, challenges, lessonsLearned, followUpActions, participantFeedback, status } = data;
     // We intentionally map to /uploads/ instead of req.file.path to maintain valid browser URL static routing
     const fileUrl = req.file ? `/uploads/reports/${req.file.filename}` : undefined;
 
@@ -102,9 +102,27 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
       return res.status(403).json({ success: false, message: 'Only Club Representatives can submit structured administrative documents.' });
     }
 
+    // Safe parsing for form-data strings
+    const safeParse = (val) => {
+      try { return typeof val === 'string' ? JSON.parse(val) : val; }
+      catch (e) { return val; }
+    };
+
+    // If eventId is provided, enforce that only leaders can submit official reports
+    if (eventId && !isLeader) {
+      return res.status(403).json({ success: false, message: 'Only club leaders can create official outcome reports.' });
+    }
+
+    // Determine initial status securely
+    let initialStatus = isLeader ? 'PENDING_REVIEW' : 'PENDING_MANAGER';
+    if (status === 'DRAFT' && isLeader) {
+      initialStatus = 'DRAFT';
+    }
+
     // Create report
     const report = await ActivityReport.create({
       club: req.params.clubId,
+      eventId: eventId || null,
       title,
       description: description || 'Attached file report',
       date: date || new Date(),
@@ -115,8 +133,15 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
       fileName,
       fileMimeType,
       reportType: reportType || 'ACTIVITY',
-      status: isLeader ? 'PENDING_REVIEW' : 'PENDING_MANAGER', // Leader -> Coordinator. Member -> Manager.
-      submittedBy: req.user._id
+      status: initialStatus,
+      submittedBy: req.user._id,
+      objectives: safeParse(objectives),
+      results,
+      outcomes: safeParse(outcomes),
+      challenges,
+      lessonsLearned,
+      followUpActions: safeParse(followUpActions),
+      participantFeedback: safeParse(participantFeedback)
     });
 
     res.status(201).json({
@@ -380,6 +405,100 @@ router.get('/inbox', protect, async (req, res) => {
   } catch (error) {
     console.error('Reports inbox error:', error);
     res.status(500).json({ success: false, message: 'Server error retrieving reports inbox' });
+  }
+});
+
+// @desc    Edit a draft or returned report
+// @route   PATCH /api/reports/:id
+// @access  Private/Club Leader
+router.patch('/:id', protect, upload.single('file'), async (req, res) => {
+  try {
+    const report = await ActivityReport.findById(req.params.id).populate('club');
+    if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
+
+    const club = report.club;
+    const isLeader = (club.leadership?.president?.toString() === req.user._id?.toString()) ||
+      (club.leadership?.vicePresident?.toString() === req.user._id?.toString()) ||
+      req.user.role === 'president' || req.user.role === 'clubs_coordinator' || req.user.isAdmin;
+
+    if (!isLeader) {
+      return res.status(403).json({ success: false, message: 'Only club leaders can edit this report' });
+    }
+
+    if (report.status !== 'DRAFT' && report.status !== 'RETURNED') {
+      return res.status(400).json({ success: false, message: 'Only DRAFT or RETURNED reports can be edited' });
+    }
+
+    const data = req.file ? req.body : req.body;
+    const { title, description, date, objectives, results, outcomes, challenges, lessonsLearned, followUpActions, participantFeedback } = data;
+
+    // Safe parsing for form-data strings
+    const safeParse = (val) => {
+      try { return typeof val === 'string' ? JSON.parse(val) : val; }
+      catch (e) { return val; }
+    };
+
+    if (title) report.title = title;
+    if (description) report.description = description;
+    if (date) report.date = new Date(date);
+    if (objectives !== undefined) report.objectives = safeParse(objectives);
+    if (results !== undefined) report.results = results;
+    if (outcomes !== undefined) report.outcomes = safeParse(outcomes);
+    if (challenges !== undefined) report.challenges = challenges;
+    if (lessonsLearned !== undefined) report.lessonsLearned = lessonsLearned;
+    if (followUpActions !== undefined) report.followUpActions = safeParse(followUpActions);
+    if (participantFeedback !== undefined) report.participantFeedback = safeParse(participantFeedback);
+
+    if (req.file) {
+      report.fileUrl = `/uploads/reports/${req.file.filename}`;
+      report.fileName = req.file.originalname;
+      report.fileMimeType = req.file.mimetype;
+      try {
+        const fileBuffer = fs.readFileSync(req.file.path);
+        report.fileData = fileBuffer.toString('base64');
+      } catch (err) {
+        console.error('Error reading uploaded file:', err);
+      }
+    }
+
+    // Do NOT update status here. Status is stripped and locked.
+    await report.save();
+
+    res.json({ success: true, message: 'Report updated successfully', report });
+  } catch (error) {
+    console.error('Update report error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating report' });
+  }
+});
+
+// @desc    Submit a draft report
+// @route   PATCH /api/reports/:id/submit
+// @access  Private/Club Leader
+router.patch('/:id/submit', protect, async (req, res) => {
+  try {
+    const report = await ActivityReport.findById(req.params.id).populate('club');
+    if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
+
+    const club = report.club;
+    const isLeader = (club.leadership?.president?.toString() === req.user._id?.toString()) ||
+      (club.leadership?.vicePresident?.toString() === req.user._id?.toString()) ||
+      req.user.role === 'president' || req.user.role === 'clubs_coordinator' || req.user.isAdmin;
+
+    if (!isLeader) {
+      return res.status(403).json({ success: false, message: 'Only club leaders can submit this report' });
+    }
+
+    if (report.status !== 'DRAFT') {
+      return res.status(400).json({ success: false, message: 'Only DRAFT reports can be submitted' });
+    }
+
+    report.status = 'PENDING_REVIEW';
+    await report.save();
+
+    res.json({ success: true, message: 'Report submitted successfully', report });
+  } catch (error) {
+    console.error('Submit report error:', error);
+    res.status(500).json({ success: false, message: 'Server error submitting report' });
   }
 });
 

@@ -47,7 +47,7 @@ const activityReportSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['PENDING_MANAGER', 'PENDING_REVIEW', 'RETURNED', 'PUBLISHED', 'APPROVED'],
+    enum: ['DRAFT', 'PENDING_MANAGER', 'PENDING_REVIEW', 'RETURNED', 'PUBLISHED', 'APPROVED'],
     default: 'PENDING_REVIEW'
   },
   feedback: {
@@ -67,6 +67,34 @@ const activityReportSchema = new mongoose.Schema({
     type: String,
     enum: ['ACTIVITY', 'ANNUAL_REPORT', 'DOCUMENT', 'ADMIN_REQUEST'],
     default: 'ACTIVITY'
+  },
+  objectives: [{
+    type: String
+  }],
+  results: {
+    type: String
+  },
+  outcomes: [{
+    description: String,
+    indicator: String,
+    target: String,
+    achieved: String
+  }],
+  challenges: {
+    type: String
+  },
+  lessonsLearned: {
+    type: String
+  },
+  followUpActions: [{
+    type: String
+  }],
+  participantFeedback: {
+    method: String,
+    responseCount: Number,
+    satisfactionSummary: String,
+    notableFeedback: String,
+    improvementSuggestions: String
   }
 }, {
   timestamps: true
