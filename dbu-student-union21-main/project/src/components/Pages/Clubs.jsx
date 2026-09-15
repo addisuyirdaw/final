@@ -190,7 +190,16 @@ export function Clubs() {
   const [togglingRule, setTogglingRule] = useState(null);
   const [loadingEligibility, setLoadingEligibility] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
-  const [eventForm, setEventForm] = useState({ title: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
+  const [eventForm, setEventForm] = useState({ 
+    title: "", 
+    description: "", 
+    date: new Date().toISOString().split('T')[0], 
+    location: "",
+    resourceId: "",
+    startTime: "",
+    endTime: ""
+  });
+  const [systemResources, setSystemResources] = useState([]);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [startingSessionEventId, setStartingSessionEventId] = useState(null);
   const [endingSessionEventId, setEndingSessionEventId] = useState(null);
@@ -865,6 +874,14 @@ export function Clubs() {
       toast.error(err.message || "Error updating certificate status");
     }
   };
+
+  useEffect(() => {
+    if ((showCreateEvent || isCoordinator || user?.isAdmin) && systemResources.length === 0) {
+      apiService.getResources()
+        .then(res => setSystemResources(res.resources || []))
+        .catch(err => console.error("Failed to load resources:", err));
+    }
+  }, [showCreateEvent, isCoordinator, user?.isAdmin]);
 
   useEffect(() => {
     if (showClubDetails && selectedClubDetails) {
@@ -3845,22 +3862,22 @@ export function Clubs() {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-semibold text-gray-500 mb-1">Location / Venue</label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. Block 42, Room 102"
-                                    value={eventForm.location}
-                                    onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
-                                  />
-                                </div>
-                                <div>
                                   <label className="block text-xs font-semibold text-gray-500 mb-1">Date *</label>
                                   <input
                                     type="date"
                                     required
                                     value={eventForm.date}
                                     onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1">Legacy Location</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Block 42, Room 102"
+                                    value={eventForm.location}
+                                    onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
                                   />
                                 </div>
@@ -3873,6 +3890,39 @@ export function Clubs() {
                                     onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800"
                                   />
+                                </div>
+                                <div className="md:col-span-2 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                  <label className="block text-xs font-semibold text-indigo-700 mb-2">Institutional Resource Reservation (Optional)</label>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div>
+                                      <select 
+                                        className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white"
+                                        value={eventForm.resourceId}
+                                        onChange={(e) => setEventForm({ ...eventForm, resourceId: e.target.value })}
+                                      >
+                                        <option value="">-- No resource needed --</option>
+                                        {systemResources.map(r => (
+                                          <option key={r._id} value={r._id}>{r.name} ({r.type})</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <input 
+                                        type="datetime-local" 
+                                        className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white"
+                                        value={eventForm.startTime}
+                                        onChange={(e) => setEventForm({ ...eventForm, startTime: e.target.value })}
+                                      />
+                                    </div>
+                                    <div>
+                                      <input 
+                                        type="datetime-local" 
+                                        className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white"
+                                        value={eventForm.endTime}
+                                        onChange={(e) => setEventForm({ ...eventForm, endTime: e.target.value })}
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex justify-end gap-2 pt-2">
@@ -3937,11 +3987,17 @@ export function Clubs() {
                                           )}
                                         </div>
                                         {event.description && <p className="text-xs text-gray-500 mt-1">{event.description}</p>}
-                                        <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400 font-medium">
+                                        <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] text-gray-400 font-medium">
                                           <span>📅 {new Date(event.date).toLocaleDateString()}</span>
                                           {event.location && <span>📍 {event.location}</span>}
                                           {event.status === 'completed' && <span>👥 {event.attendees?.length || 0} Attended</span>}
                                         </div>
+                                        {event.resourceId && (
+                                          <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] text-indigo-600 font-semibold bg-indigo-50/80 px-2 py-1 rounded-md w-fit border border-indigo-100">
+                                            <span>🏛️ {systemResources.find(r => String(r._id) === String(event.resourceId))?.name || 'Requested Resource'}</span>
+                                            {event.startTime && <span>🕒 {new Date(event.startTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })} - {new Date(event.endTime).toLocaleString([], { timeStyle: 'short' })}</span>}
+                                          </div>
+                                        )}
                                       </div>
 
                                       <div className="flex items-center gap-3">

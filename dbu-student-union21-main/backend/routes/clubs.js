@@ -5,7 +5,10 @@ const ActivityReport = require('../models/ActivityReport');
 const Transaction = require('../models/Transaction');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const mongoose = require('mongoose');
 const ClubRenewal = require('../models/ClubRenewal');
+const Resource = require('../models/Resource');
+const Reservation = require('../models/Reservation');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
@@ -1303,7 +1306,7 @@ router.post('/checkin', protect, async (req, res) => {
 // @access  Private (Club Leader / Admin / Coordinator)
 router.post('/:id/events', protect, clubLeader, async (req, res) => {
   try {
-    const { title, description, date, location } = req.body;
+    const { title, description, date, location, resourceId, startTime, endTime } = req.body;
 
     if (!title || !date) {
       return res.status(400).json({ success: false, message: 'Event title and date are required' });
@@ -1314,7 +1317,7 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Club not found' });
     }
 
-    club.events.push({
+    const newEvent = {
       title,
       description,
       date: new Date(date),
@@ -1322,7 +1325,29 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
       status: 'draft',
       attendees: [],
       activeCheckIn: false
-    });
+    };
+
+    if (resourceId) {
+      if (!startTime || !endTime) {
+        return res.status(400).json({ success: false, message: 'Both startTime and endTime are required for resource-linked events' });
+      }
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      if (isNaN(start) || isNaN(end) || start >= end) {
+        return res.status(400).json({ success: false, message: 'Invalid time range' });
+      }
+
+      const resource = await Resource.findById(resourceId);
+      if (!resource || !resource.isActive) {
+        return res.status(404).json({ success: false, message: 'Resource not found or inactive' });
+      }
+
+      newEvent.resourceId = resourceId;
+      newEvent.startTime = start;
+      newEvent.endTime = end;
+    }
+
+    club.events.push(newEvent);
 
     await club.save();
 
@@ -1342,7 +1367,7 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
 // @access  Private (Club Leader / Admin / Coordinator)
 router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
   try {
-    const { title, description, date, location } = req.body;
+    const { title, description, date, location, resourceId, startTime, endTime } = req.body;
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
 
@@ -1358,6 +1383,30 @@ router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
     if (date) event.date = new Date(date);
     if (location) event.location = location;
 
+    if (resourceId) {
+      if (!startTime || !endTime) {
+        return res.status(400).json({ success: false, message: 'Both startTime and endTime are required for resource-linked events' });
+      }
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      if (isNaN(start) || isNaN(end) || start >= end) {
+        return res.status(400).json({ success: false, message: 'Invalid time range' });
+      }
+
+      const resource = await Resource.findById(resourceId);
+      if (!resource || !resource.isActive) {
+        return res.status(404).json({ success: false, message: 'Resource not found or inactive' });
+      }
+
+      event.resourceId = resourceId;
+      event.startTime = start;
+      event.endTime = end;
+    } else if (resourceId === null || resourceId === '') {
+      event.resourceId = undefined;
+      event.startTime = undefined;
+      event.endTime = undefined;
+    }
+
     await club.save();
     res.json({ success: true, message: 'Event updated successfully', event });
   } catch (error) {
@@ -1370,6 +1419,7 @@ router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
 // @route   PATCH /api/clubs/:id/events/:eventId/submit
 // @access  Private (Club Leader / Admin / Coordinator)
 router.patch('/:id/events/:eventId/submit', protect, clubLeader, async (req, res) => {
+  let session = null;
   try {
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
@@ -1381,13 +1431,74 @@ router.patch('/:id/events/:eventId/submit', protect, clubLeader, async (req, res
       return res.status(400).json({ success: false, message: 'Only draft or rejected events can be submitted' });
     }
 
+    // Atomic submission with Reservation
+    if (event.resourceId && event.startTime && event.endTime) {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
+      // Check for an existing active reservation for this exact event to prevent duplicates
+      const existingReservation = await Reservation.findOne({
+        eventId: event._id,
+        status: { $in: ['PENDING', 'APPROVED'] }
+      }).session(session);
+
+      if (!existingReservation) {
+        // Enforce Phase 2 write-lock serialization to prevent race conditions
+        const resource = await Resource.findOneAndUpdate(
+          { _id: event.resourceId, isActive: true },
+          { $inc: { __v: 1 } },
+          { new: true, session }
+        );
+
+        if (!resource) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(404).json({ success: false, message: 'Resource not found or inactive' });
+        }
+
+        const overlapCount = await Reservation.countDocuments({
+          resourceId: event.resourceId,
+          status: { $in: ['PENDING', 'APPROVED'] },
+          startTime: { $lt: event.endTime },
+          endTime: { $gt: event.startTime }
+        }).session(session);
+
+        if (overlapCount > 0) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(409).json({ success: false, message: 'Resource is already reserved for this time period' });
+        }
+
+        await Reservation.create([{
+          resourceId: event.resourceId,
+          clubId: club._id,
+          eventId: event._id,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          status: 'PENDING',
+          createdBy: req.user._id
+        }], { session });
+      }
+    }
+
     event.status = 'pending_approval';
     event.submittedBy = req.user._id;
     event.submittedAt = Date.now();
 
-    await club.save();
+    if (session) {
+      await club.save({ session });
+      await session.commitTransaction();
+      session.endSession();
+    } else {
+      await club.save();
+    }
+
     res.json({ success: true, message: 'Event submitted for approval', event });
   } catch (error) {
+    if (session) {
+      await session.abortTransaction();
+      session.endSession();
+    }
     console.error('Submit event error:', error);
     res.status(500).json({ success: false, message: 'Server error submitting event' });
   }
@@ -1397,6 +1508,7 @@ router.patch('/:id/events/:eventId/submit', protect, clubLeader, async (req, res
 // @route   PATCH /api/clubs/:id/events/:eventId/review
 // @access  Private (Admin / Coordinator)
 router.patch('/:id/events/:eventId/review', protect, async (req, res) => {
+  let session = null;
   try {
     // Only admins or coordinators can review
     if (!req.user.isAdmin && !req.user.roles?.includes('coordinator')) {
@@ -1422,6 +1534,22 @@ router.patch('/:id/events/:eventId/review', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Only pending events can be reviewed' });
     }
 
+    // Atomic sync of reservation status
+    if (event.resourceId && event.startTime && event.endTime) {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
+      const pendingReservation = await Reservation.findOne({
+        eventId: event._id,
+        status: 'PENDING'
+      }).session(session);
+
+      if (pendingReservation) {
+        pendingReservation.status = (status === 'approved') ? 'APPROVED' : 'REJECTED';
+        await pendingReservation.save({ session });
+      }
+    }
+
     event.status = status;
     event.reviewedBy = req.user._id;
     event.reviewedAt = Date.now();
@@ -1431,9 +1559,20 @@ router.patch('/:id/events/:eventId/review', protect, async (req, res) => {
       event.rejectionReason = null;
     }
 
-    await club.save();
+    if (session) {
+      await club.save({ session });
+      await session.commitTransaction();
+      session.endSession();
+    } else {
+      await club.save();
+    }
+
     res.json({ success: true, message: `Event ${status} successfully`, event });
   } catch (error) {
+    if (session) {
+      await session.abortTransaction();
+      session.endSession();
+    }
     console.error('Review event error:', error);
     res.status(500).json({ success: false, message: 'Server error reviewing event' });
   }

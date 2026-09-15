@@ -1153,6 +1153,16 @@ class ApiService {
       body: JSON.stringify({ coordinatorFeedback })
     });
   }
+
+  // --- RESOURCES (Priority #7) ---
+  async getResources() {
+    return this.request('/resources');
+  }
+
+  async checkResourceAvailability(resourceId, startTime, endTime) {
+    const params = new URLSearchParams({ startTime, endTime });
+    return this.request(`/resources/${resourceId}/availability?${params.toString()}`);
+  }
 }
 
 export const apiService = new ApiService();
