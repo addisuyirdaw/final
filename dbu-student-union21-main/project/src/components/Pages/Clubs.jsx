@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign } from "lucide-react";
@@ -197,7 +197,10 @@ export function Clubs() {
     location: "",
     resourceId: "",
     startTime: "",
-    endTime: ""
+    endTime: "",
+    expectedAttendance: 0,
+    hasExternalGuests: false,
+    isOffCampus: false
   });
   const [systemResources, setSystemResources] = useState([]);
   const [creatingEvent, setCreatingEvent] = useState(false);
@@ -3925,6 +3928,41 @@ export function Clubs() {
                                   </div>
                                 </div>
                               </div>
+                               {/* Priority #8: Compliance Signals */}
+                               <div className="border-t border-indigo-100 pt-3 mt-1">
+                                 <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-2">{String.fromCharCode(0x1F4CB)} Event Compliance Information</p>
+                                 <div className="grid grid-cols-1 gap-2">
+                                   <div>
+                                     <label className="block text-xs font-semibold text-gray-600 mb-1">Expected Attendance</label>
+                                     <input
+                                       type="number"
+                                       min="0"
+                                       className="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm bg-white"
+                                       placeholder="Estimated number of attendees"
+                                       value={eventForm.expectedAttendance}
+                                       onChange={(e) => setEventForm({ ...eventForm, expectedAttendance: Number(e.target.value) })}
+                                     />
+                                   </div>
+                                   <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                     <label className="text-sm font-semibold text-gray-700">External Guests / Speakers?</label>
+                                     <input
+                                       type="checkbox"
+                                       className="w-4 h-4 accent-indigo-600"
+                                       checked={eventForm.hasExternalGuests}
+                                       onChange={(e) => setEventForm({ ...eventForm, hasExternalGuests: e.target.checked })}
+                                     />
+                                   </div>
+                                   <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                     <label className="text-sm font-semibold text-gray-700">Off-Campus Activity?</label>
+                                     <input
+                                       type="checkbox"
+                                       className="w-4 h-4 accent-indigo-600"
+                                       checked={eventForm.isOffCampus}
+                                       onChange={(e) => setEventForm({ ...eventForm, isOffCampus: e.target.checked })}
+                                     />
+                                   </div>
+                                 </div>
+                               </div>
                               <div className="flex justify-end gap-2 pt-2">
                                 <button
                                   type="submit"
@@ -3998,8 +4036,33 @@ export function Clubs() {
                                             {event.startTime && <span>🕒 {new Date(event.startTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })} - {new Date(event.endTime).toLocaleString([], { timeStyle: 'short' })}</span>}
                                           </div>
                                         )}
+                                        {/* Priority #8: Risk Flags - shown to reviewers on pending events */}
+                                        {event.riskFlags && event.riskFlags.length > 0 && (isCoordinator || user?.isAdmin) && (
+                                          <div className="mt-2 p-2 rounded-lg bg-red-50 border border-red-200">
+                                            <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1">! Additional Review Required</p>
+                                            <ul className="space-y-0.5">
+                                              {event.riskFlags.map((flag) => {
+                                                const flagLabels = {
+                                                  ATTENDANCE_CAPACITY: "Large expected attendance",
+                                                  EXTERNAL_GUEST: "External guests or speakers",
+                                                  OFF_CAMPUS: "Off-campus activity",
+                                                };
+                                                return (
+                                                  <li key={flag.code} className="flex items-center gap-1 text-[10px] text-red-700 font-semibold">
+                                                    <span>-</span>
+                                                    <span>{flagLabels[flag.code] || flag.code}</span>
+                                                  </li>
+                                                );
+                                              })}
+                                            </ul>
+                                          </div>
+                                        )}
+                                        {event.status === "pending_approval" && (isCoordinator || user?.isAdmin) && (!event.riskFlags || event.riskFlags.length === 0) && (
+                                          <div className="mt-2 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100 text-[10px] text-emerald-700 font-semibold">
+                                            No additional review signals
+                                          </div>
+                                        )}
                                       </div>
-
                                       <div className="flex items-center gap-3">
                                         {(event.status === 'draft' || event.status === 'rejected') && isLeader && (
                                           <button

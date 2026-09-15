@@ -49,6 +49,12 @@ const systemConfigSchema = new mongoose.Schema({
   portalActivityRequired: {
     type: Boolean,
     default: true
+  },
+  // ── Event Risk & Compliance (Priority #8) ───────────────────────────────
+  // Threshold above which an event receives an ATTENDANCE_CAPACITY risk flag
+  maxStandardAttendance: {
+    type: Number,
+    default: 500
   }
 }, {
   timestamps: true

@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const ClubRenewal = require('../models/ClubRenewal');
 const Resource = require('../models/Resource');
 const Reservation = require('../models/Reservation');
+const SystemConfig = require('../models/SystemConfig');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
@@ -1306,7 +1307,10 @@ router.post('/checkin', protect, async (req, res) => {
 // @access  Private (Club Leader / Admin / Coordinator)
 router.post('/:id/events', protect, clubLeader, async (req, res) => {
   try {
-    const { title, description, date, location, resourceId, startTime, endTime } = req.body;
+    const { 
+      title, description, date, location, resourceId, startTime, endTime,
+      expectedAttendance, hasExternalGuests, isOffCampus
+    } = req.body;
 
     if (!title || !date) {
       return res.status(400).json({ success: false, message: 'Event title and date are required' });
@@ -1322,9 +1326,13 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
       description,
       date: new Date(date),
       location,
+      expectedAttendance: expectedAttendance ? Number(expectedAttendance) : 0,
+      hasExternalGuests: Boolean(hasExternalGuests),
+      isOffCampus: Boolean(isOffCampus),
       status: 'draft',
       attendees: [],
-      activeCheckIn: false
+      activeCheckIn: false,
+      riskFlags: [] // explicitly prevent client injection
     };
 
     if (resourceId) {
@@ -1367,7 +1375,10 @@ router.post('/:id/events', protect, clubLeader, async (req, res) => {
 // @access  Private (Club Leader / Admin / Coordinator)
 router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
   try {
-    const { title, description, date, location, resourceId, startTime, endTime } = req.body;
+    const { 
+      title, description, date, location, resourceId, startTime, endTime,
+      expectedAttendance, hasExternalGuests, isOffCampus
+    } = req.body;
     const club = await Club.findById(req.params.id);
     if (!club) return res.status(404).json({ success: false, message: 'Club not found' });
 
@@ -1378,10 +1389,14 @@ router.patch('/:id/events/:eventId', protect, clubLeader, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Only draft, rejected, or planned events can be edited' });
     }
 
-    if (title) event.title = title;
-    if (description) event.description = description;
-    if (date) event.date = new Date(date);
-    if (location) event.location = location;
+    if (title !== undefined) event.title = title;
+    if (description !== undefined) event.description = description;
+    if (date !== undefined) event.date = new Date(date);
+    if (location !== undefined) event.location = location;
+    
+    if (expectedAttendance !== undefined) event.expectedAttendance = Number(expectedAttendance);
+    if (hasExternalGuests !== undefined) event.hasExternalGuests = Boolean(hasExternalGuests);
+    if (isOffCampus !== undefined) event.isOffCampus = Boolean(isOffCampus);
 
     if (resourceId) {
       if (!startTime || !endTime) {
@@ -1480,6 +1495,23 @@ router.patch('/:id/events/:eventId/submit', protect, clubLeader, async (req, res
         }], { session });
       }
     }
+
+    // Priority #8: Compute Risk Flags based on SystemConfig and event data
+    const config = await SystemConfig.findOne({ _key: 'global' });
+    const maxStandardAttendance = config ? config.maxStandardAttendance : 500;
+    
+    // Explicitly recalculate flags (prevents stale flags from previous rejections)
+    const newRiskFlags = [];
+    if (event.expectedAttendance > maxStandardAttendance) {
+      newRiskFlags.push({ code: 'ATTENDANCE_CAPACITY', generatedAt: Date.now() });
+    }
+    if (event.hasExternalGuests) {
+      newRiskFlags.push({ code: 'EXTERNAL_GUEST', generatedAt: Date.now() });
+    }
+    if (event.isOffCampus) {
+      newRiskFlags.push({ code: 'OFF_CAMPUS', generatedAt: Date.now() });
+    }
+    event.riskFlags = newRiskFlags;
 
     event.status = 'pending_approval';
     event.submittedBy = req.user._id;

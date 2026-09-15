@@ -40,6 +40,23 @@ const eventSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  expectedAttendance: {
+    type: Number,
+    default: 0,
+    min: [0, 'Expected attendance cannot be negative']
+  },
+  hasExternalGuests: {
+    type: Boolean,
+    default: false
+  },
+  isOffCampus: {
+    type: Boolean,
+    default: false
+  },
+  riskFlags: [{
+    code: String,
+    generatedAt: Date
+  }],
   status: {
     type: String,
     enum: ['draft', 'pending_approval', 'approved', 'rejected', 'planned', 'ongoing', 'completed', 'cancelled'],
