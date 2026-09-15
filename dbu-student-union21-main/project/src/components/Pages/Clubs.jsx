@@ -97,6 +97,15 @@ export function Clubs() {
   const [pendingReports, setPendingReports] = useState([]);
   const [showPendingReports, setShowPendingReports] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+
+  // Handover state
+  const [clubHandovers, setClubHandovers] = useState([]);
+  const [handoversLoading, setHandoversLoading] = useState(false);
+  const [showHandoverForm, setShowHandoverForm] = useState(false);
+  const [editingHandover, setEditingHandover] = useState(null);
+  const [handoverFormData, setHandoverFormData] = useState({
+    termYear: '', achievements: '', challenges: '', lessonsLearned: '', recommendations: '', pendingDeadlines: '', keyRelationships: ''
+  });
   const [reportFeedback, setReportFeedback] = useState("");
   const [showReportReviewModal, setShowReportReviewModal] = useState(false);
   const [clubReports, setClubReports] = useState([]);
@@ -2837,7 +2846,8 @@ export function Clubs() {
                     { id: 'projects', label: 'Projects' },
                     { id: 'events', label: 'Events & Attendance' },
                     { id: 'announcements', label: 'Announcements' },
-                    { id: 'reports', label: 'Reports & Inbox' }
+                    { id: 'reports', label: 'Reports & Inbox' },
+                    ...(user?.isAdmin || isCoordinator || isLeader ? [{ id: 'handover', label: 'Leadership Handover' }] : [])
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -4372,6 +4382,232 @@ export function Clubs() {
                             <div className="flex justify-between items-center text-xs text-gray-400 pt-3 border-t border-gray-100">
                               <span>Posted by {announcement.author?.name || announcement.author?.username || 'Club Leadership'}</span>
                               <span>{new Date(announcement.createdAt).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeWorkspaceTab === 'handover' && (
+                  <div className="mb-6 space-y-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 text-indigo-600" /> Leadership Handover & Continuity
+                      </h3>
+                      {isLeader && (
+                        <button
+                          onClick={() => {
+                            setHandoverFormData({ termYear: '', achievements: '', challenges: '', lessonsLearned: '', recommendations: '', pendingDeadlines: '', keyRelationships: '' });
+                            setEditingHandover(null);
+                            setShowHandoverForm(true);
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Plus className="w-4 h-4" /> Create Handover Draft
+                        </button>
+                      )}
+                    </div>
+
+                    {showHandoverForm && (
+                      <form onSubmit={handleSaveHandover} className="p-5 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-4 shadow-sm mb-6">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-bold text-indigo-900">{editingHandover ? 'Edit Handover Draft' : 'New Handover Draft'}</h4>
+                          <button type="button" onClick={() => setShowHandoverForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Term / Academic Year</label>
+                            <input
+                              type="text"
+                              value={handoverFormData.termYear}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, termYear: e.target.value })}
+                              placeholder="e.g. 2026/2027"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              required
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Achievements (What did you accomplish?)</label>
+                            <textarea
+                              value={handoverFormData.achievements}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, achievements: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                              required
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Challenges (What obstacles did you face?)</label>
+                            <textarea
+                              value={handoverFormData.challenges}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, challenges: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Lessons Learned</label>
+                            <textarea
+                              value={handoverFormData.lessonsLearned}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, lessonsLearned: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Recommendations for Incoming Leadership</label>
+                            <textarea
+                              value={handoverFormData.recommendations}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, recommendations: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Pending Deadlines</label>
+                            <textarea
+                              value={handoverFormData.pendingDeadlines}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, pendingDeadlines: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-indigo-900 mb-1">Key Relationships / Contacts</label>
+                            <textarea
+                              value={handoverFormData.keyRelationships}
+                              onChange={e => setHandoverFormData({ ...handoverFormData, keyRelationships: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                              rows="2"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button type="button" onClick={() => setShowHandoverForm(false)} className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-semibold">Cancel</button>
+                          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm">Save Draft</button>
+                        </div>
+                      </form>
+                    )}
+
+                    {handoversLoading ? (
+                      <div className="text-center py-8 text-gray-500 text-sm animate-pulse">Loading handovers...</div>
+                    ) : clubHandovers.length === 0 ? (
+                      <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
+                        <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm font-medium">No handover records found.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {clubHandovers.map(handover => (
+                          <div key={handover._id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col gap-4 relative overflow-hidden group">
+                            {/* Status Badge */}
+                            <div className="absolute top-6 right-6 flex gap-2">
+                              <span className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-full tracking-wide flex items-center gap-1 shadow-sm
+                                ${handover.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                  handover.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                  'bg-slate-100 text-slate-600 border border-slate-200'}`}
+                              >
+                                {handover.status}
+                              </span>
+                            </div>
+
+                            <div className="mb-2">
+                              <h4 className="text-xl font-bold text-gray-900">{handover.termYear || 'Handover Report'}</h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Outgoing: <span className="font-semibold text-gray-700">{handover.outgoingPresident?.name || 'Unknown'}</span>
+                                {handover.incomingPresident && (
+                                  <> → Incoming: <span className="font-semibold text-gray-700">{handover.incomingPresident?.name}</span></>
+                                )}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">Created: {new Date(handover.createdAt).toLocaleDateString()}</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100/50">
+                                <h5 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Award className="w-3.5 h-3.5"/> Achievements</h5>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{handover.achievements || 'None recorded'}</p>
+                              </div>
+                              <div className="bg-rose-50/50 rounded-xl p-4 border border-rose-100/50">
+                                <h5 className="text-xs font-bold text-rose-800 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5"/> Challenges</h5>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{handover.challenges || 'None recorded'}</p>
+                              </div>
+                              <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100/50">
+                                <h5 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5"/> Lessons Learned</h5>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{handover.lessonsLearned || 'None recorded'}</p>
+                              </div>
+                              <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100/50">
+                                <h5 className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5"/> Recommendations</h5>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{handover.recommendations || 'None recorded'}</p>
+                              </div>
+                              {handover.pendingDeadlines && (
+                                <div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100/50 md:col-span-2">
+                                  <h5 className="text-xs font-bold text-orange-800 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5"/> Pending Deadlines</h5>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{handover.pendingDeadlines}</p>
+                                </div>
+                              )}
+                              {handover.keyRelationships && (
+                                <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50 md:col-span-2">
+                                  <h5 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users className="w-3.5 h-3.5"/> Key Relationships & Contacts</h5>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{handover.keyRelationships}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Aggregated Operational Summary (Day 1 Briefing) */}
+                            {handover.status === 'ACCEPTED' && (
+                              <div className="mt-4 pt-4 border-t border-gray-100">
+                                <h5 className="text-sm font-bold text-gray-900 mb-3">Live Continuity Summary</h5>
+                                <p className="text-xs text-gray-500 mb-4">Current operational state derived from active club systems.</p>
+                                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                  <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                    <span className="text-2xl font-black text-gray-800">{clubProjects.filter(p => p.status === 'active').length}</span>
+                                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Active Projects</span>
+                                  </div>
+                                  <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                    <span className="text-2xl font-black text-gray-800">{selectedClubDetails?.events?.filter(e => e.status === 'approved' || e.status === 'ongoing').length || 0}</span>
+                                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Upcoming Events</span>
+                                  </div>
+                                  <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
+                                    <span className="text-2xl font-black text-gray-800">{selectedClubDetails?.budget?.allocated - selectedClubDetails?.budget?.spent || 0}</span>
+                                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Remaining Budget</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div className="flex justify-end gap-3 mt-2">
+                              {handover.status === 'DRAFT' && handover.outgoingPresident?._id === user?._id && (
+                                <>
+                                  <button onClick={() => {
+                                    setEditingHandover(handover);
+                                    setHandoverFormData({
+                                      termYear: handover.termYear || '',
+                                      achievements: handover.achievements || '',
+                                      challenges: handover.challenges || '',
+                                      lessonsLearned: handover.lessonsLearned || '',
+                                      recommendations: handover.recommendations || '',
+                                      pendingDeadlines: handover.pendingDeadlines || '',
+                                      keyRelationships: handover.keyRelationships || ''
+                                    });
+                                    setShowHandoverForm(true);
+                                  }} className="px-4 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                                    Edit Draft
+                                  </button>
+                                  <button onClick={() => handleSubmitHandover(handover._id)} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">
+                                    Submit Handover
+                                  </button>
+                                </>
+                              )}
+                              
+                              {handover.status === 'SUBMITTED' && (isLeader || isCoordinator || user?.isAdmin) && (
+                                <button onClick={() => handleAcceptHandover(handover._id)} className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+                                  <CheckCircle className="w-3.5 h-3.5" /> Accept Handover
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}

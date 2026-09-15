@@ -1062,6 +1062,41 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // --- HANDOVER ---
+  async getClubHandovers(clubId) {
+    return this.request(`/handover/club/${clubId}`);
+  }
+
+  async getHandover(id) {
+    return this.request(`/handover/${id}`);
+  }
+
+  async createHandover(clubId, data) {
+    return this.request(`/handover/club/${clubId}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateHandover(id, data) {
+    return this.request(`/handover/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async submitHandover(id) {
+    return this.request(`/handover/${id}/submit`, {
+      method: 'PATCH'
+    });
+  }
+
+  async acceptHandover(id) {
+    return this.request(`/handover/${id}/accept`, {
+      method: 'PATCH'
+    });
+  }
 }
 
 export const apiService = new ApiService();

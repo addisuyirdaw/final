@@ -36,6 +36,7 @@ const grantRoutes = require("./routes/grants");
 const projectRoutes = require("./routes/projects");
 const taskRoutes = require("./routes/tasks");
 const announcementRoutes = require("./routes/announcements");
+const handoverRoutes = require("./routes/handover");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -237,6 +238,7 @@ app.use("/api/elections", electionRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/handover", handoverRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/carousel", carouselRoutes);
