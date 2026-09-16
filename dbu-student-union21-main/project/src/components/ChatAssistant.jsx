@@ -16,6 +16,7 @@ const ChatAssistant = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -36,8 +37,11 @@ const ChatAssistant = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiService.sendChatMessage(text.trim());
+      const response = await apiService.sendChatMessage(text.trim(), conversationId);
       if (response && response.answer) {
+        if (response.conversationId) {
+          setConversationId(response.conversationId);
+        }
         setMessages(prev => [...prev, { role: 'assistant', text: toPlainText(response.answer) }]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', text: "Sorry, I received an invalid response from the server." }]);

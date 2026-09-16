@@ -392,6 +392,10 @@ router.post('/sessions/:sessionToken/close', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Attendance session not found' });
     }
 
+    if (!session.isActive) {
+      return res.status(400).json({ success: false, message: 'This attendance session has already been closed.' });
+    }
+
     let targetClub = null;
     if (session.clubId) {
       targetClub = await Club.findById(session.clubId);
@@ -407,10 +411,16 @@ router.post('/sessions/:sessionToken/close', protect, async (req, res) => {
       });
     }
 
-    session.isActive = false;
-    session.closedAt = new Date();
-    session.closedBy = req.user._id;
-    await session.save();
+    // Atomic update to prevent race conditions during closure
+    const updatedSession = await AttendanceSession.findOneAndUpdate(
+      { _id: session._id, isActive: true },
+      { $set: { isActive: false, closedAt: new Date(), closedBy: req.user._id } },
+      { new: true }
+    );
+
+    if (!updatedSession) {
+      return res.status(400).json({ success: false, message: 'This attendance session was closed by another request.' });
+    }
 
     // Deactivate check-in on the club event and process absentees
     if (targetClub && session.eventId) {

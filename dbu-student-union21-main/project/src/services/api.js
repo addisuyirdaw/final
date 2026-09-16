@@ -856,10 +856,12 @@ class ApiService {
   }
 
   // AI Assistant Endpoints
-  async sendChatMessage(message) {
+  async sendChatMessage(message, conversationId = null) {
+    const payload = { message };
+    if (conversationId) payload.conversationId = conversationId;
     return this.request('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message })
+      body: JSON.stringify(payload)
     });
   }
 

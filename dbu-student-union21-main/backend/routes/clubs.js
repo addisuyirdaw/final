@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
+const clubService = require('../services/clubService');
 
 const router = express.Router();
 
@@ -496,114 +497,18 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
 // @access  Private
 router.post('/:id/join', protect, async (req, res) => {
   try {
-    const { fullName, department, year, background } = req.body;
-
-    const resolvedFullName = fullName || req.user.name;
-    const resolvedDepartment = department || req.user.department;
-    const resolvedYear = year || req.user.year;
-
-    if (!resolvedFullName || !resolvedDepartment || !resolvedYear) {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name, department, and academic year are required'
-      });
-    }
-
-    if (!background || !background.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please specify why you want to join this club'
-      });
-    }
-
-    const club = await Club.findById(req.params.id);
-    if (!club) {
-      return res.status(404).json({
-        success: false,
-        message: 'Club not found'
-      });
-    }
-
-    if (club.status !== 'active') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot join inactive club'
-      });
-    }
-
-    // Check if user is already a member
-    const existingMember = club.members.find(member =>
-      member.user.toString() === req.user._id.toString()
-    );
-
-    if (existingMember) {
-      if (existingMember.status === 'pending') {
-        return res.status(400).json({
-          success: false,
-          message: 'Your join request is already pending approval'
-        });
-      }
-      if (existingMember.status === 'approved') {
-        return res.status(400).json({
-          success: false,
-          message: 'You are already a member of this club'
-        });
-      }
-    }
-
-    // Check requireApproval configuration:
-    // If false: Auto-approve upon join!
-    // If true (or undefined): Member stays pending until manually approved.
-    const isAutoApprove = club.requireApproval === false;
-    const memberStatus = isAutoApprove ? 'approved' : 'pending';
-
-    club.members.push({
-      user: req.user._id,
-      fullName: resolvedFullName,
-      department: resolvedDepartment,
-      year: resolvedYear,
-      background: background.trim(),
-      role: 'member',
-      status: memberStatus,
-      joinedAt: new Date(),
-      ...(isAutoApprove ? { approvedAt: new Date() } : {})
-    });
-
-    await club.save();
-
-    if (isAutoApprove) {
-      // Automatically add club to user's joinedClubs
-      await User.findByIdAndUpdate(req.user._id, {
-        $addToSet: { joinedClubs: club._id }
-      });
-
-      // Send confirmation email asynchronously
-      try {
-        if (req.user.email) {
-          await sendMemberApprovalEmail(req.user.email, resolvedFullName, club.name);
-        }
-      } catch (emailErr) {
-        console.warn('Auto-approval email dispatch failed:', emailErr.message);
-      }
-
-      return res.json({
-        success: true,
-        autoApproved: true,
-        message: `Welcome to ${club.name}! Auto-approval is enabled, you have joined immediately.`
-      });
-    }
-
-    res.json({
-      success: true,
-      autoApproved: false,
-      message: 'Join request submitted successfully. Waiting for admin approval.'
-    });
+    const result = await clubService.joinClub(req.params.id, req.user, req.body);
+    
+    // The service returns the appropriate status code in result.statusCode
+    // We strip it from the JSON payload being returned.
+    const { statusCode, ...payload } = result;
+    
+    return res.status(statusCode).json(payload);
   } catch (error) {
-    console.error('Join club error:', error);
+    console.error('Error joining club:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error joining club',
-      error: error.message
+      message: 'Server error while joining club'
     });
   }
 });
