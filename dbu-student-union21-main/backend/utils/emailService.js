@@ -12,6 +12,9 @@ const transporter = nodemailer.createTransport({
     tls: {
         rejectUnauthorized: false, // allow self-signed certs in dev
     },
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 5000,
 });
 
 // Verify SMTP connection on startup
@@ -26,6 +29,9 @@ transporter.verify((error, success) => {
 
 const sendEmail = async (options) => {
     try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+            throw new Error("SMTP credentials (EMAIL_USER/EMAIL_PASSWORD) are not configured. Cannot send email.");
+        }
         const info = await transporter.sendMail({
             from: `"DBU Student Council" <${process.env.EMAIL_USER}>`,
             to: options.to,

@@ -622,23 +622,12 @@ router.post("/forgot-password", async (req, res) => {
 		} catch (emailError) {
 			console.error('❌ Reset email failed:', emailError.message);
 
-			// In dev mode — always return the reset link directly so students are never blocked
-			if (isDev) {
-				return res.status(200).json({
-					success: true,
-					message: 'Email delivery failed. Use the direct link below to reset your password.',
-					resetUrl,
-					devNote: 'SMTP failed — click the button below to reset directly',
-				});
-			}
-
-			// In production — clear the token and return error
-			user.resetPasswordToken = undefined;
-			user.resetPasswordExpire = undefined;
-			await user.save({ validateBeforeSave: false });
-			return res.status(500).json({
-				success: false,
-				message: 'Failed to send reset email. Please contact the administrator.',
+			// Fallback: always return the reset link directly so students/testers are never blocked if SMTP fails
+			return res.status(200).json({
+				success: true,
+				message: 'Email delivery failed (SMTP not configured). Use the direct link below to reset your password.',
+				resetUrl,
+				devNote: 'SMTP failed — click the button below to reset directly',
 			});
 		}
 
