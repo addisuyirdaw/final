@@ -52,6 +52,24 @@ const attendanceSessionSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
+    },
+    startedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    closedAt: {
+      type: Date,
+      default: null,
+    },
+    closedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    challengeSecret: {
+      type: String,
+      default: null,
     },
   },
   {

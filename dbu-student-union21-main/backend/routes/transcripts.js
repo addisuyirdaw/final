@@ -72,6 +72,8 @@ async function compileStudentTranscript(studentId) {
     hours: att.hoursCredit || 1,
     status: att.status,
     verificationMethod: att.verificationMethod,
+    isOfficialEvent: Boolean(att.eventId),
+    type: att.eventId ? 'OFFICIAL_EVENT' : 'LEGACY_ACTIVITY',
   }));
 
   // 3. Gather certificates if any

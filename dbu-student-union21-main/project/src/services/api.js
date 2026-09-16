@@ -182,6 +182,27 @@ class ApiService {
 
   // ── Co-Curricular Transcript & QR Attendance ───────────────────────────────────
 
+  async getClubAttendanceEvents(clubId) {
+    return this.request(`/attendance/events/${clubId}`);
+  }
+
+  async startEventAttendance(clubId, eventId, options = {}) {
+    return this.request(`/attendance/events/${clubId}/${eventId}/start`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+  }
+
+  async closeAttendanceSession(sessionToken) {
+    return this.request(`/attendance/sessions/${sessionToken}/close`, {
+      method: 'POST',
+    });
+  }
+
+  async getAttendanceSummary(sessionToken) {
+    return this.request(`/attendance/sessions/${sessionToken}/summary`);
+  }
+
   async generateAttendanceQR(sessionData) {
     return this.request('/attendance/generate-qr', {
       method: 'POST',
@@ -201,7 +222,7 @@ class ApiService {
   }
 
   async getAttendanceRoster(sessionToken) {
-    return this.request(`/attendance/roster/${sessionToken}`);
+    return this.request(`/attendance/sessions/${sessionToken}/roster`);
   }
 
   async getStudentTranscript(studentId) {

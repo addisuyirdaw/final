@@ -7,16 +7,18 @@ const attendanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       refPath: 'eventModel',
       default: null,
+      index: true,
     },
     eventModel: {
       type: String,
       enum: ['JointEvent', 'ClubEvent', 'Event'],
-      default: 'JointEvent',
+      default: 'ClubEvent',
     },
     clubId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Club',
       default: null,
+      index: true,
     },
     studentId: {
       type: mongoose.Schema.Types.ObjectId,

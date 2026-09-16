@@ -2,95 +2,333 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const Attendance = require('../models/Attendance');
 const AttendanceSession = require('../models/AttendanceSession');
 const Club = require('../models/Club');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
-// In-memory cache for active QR attendance sessions
-const activeQRSessions = new Map();
+// Rate limiting for scan endpoint (60 requests per minute per IP)
+const scanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many attendance check-in attempts. Please wait a moment and try again.',
+  },
+});
 
-// Helper: purge expired in-memory sessions periodically
-setInterval(() => {
+// Rotating QR Challenge configuration: 20-second time-step
+const CHALLENGE_STEP_MS = 20 * 1000;
+
+/**
+ * Generate a rotating HMAC-SHA256 challenge token for a given session and timestamp
+ */
+function generateChallengeForSession(challengeSecret, timestamp = Date.now()) {
+  if (!challengeSecret) return '';
+  const step = Math.floor(timestamp / CHALLENGE_STEP_MS);
+  return crypto
+    .createHmac('sha256', challengeSecret)
+    .update(String(step))
+    .digest('hex')
+    .substring(0, 16);
+}
+
+/**
+ * Safely compare two strings in constant time
+ */
+function safeCompare(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Validate a rotating challenge token against the current and previous time step
+ * (Provides a 1-step grace window for network transmission delay)
+ */
+function isChallengeValid(challengeSecret, providedChallenge) {
+  if (!challengeSecret || !providedChallenge) return false;
   const now = Date.now();
-  for (const [token, session] of activeQRSessions.entries()) {
-    if (session.expiresAt && now > new Date(session.expiresAt).getTime() + 60 * 60 * 1000) {
-      activeQRSessions.delete(token);
-    }
-  }
-}, 5 * 60 * 1000);
+  const currentStep = Math.floor(now / CHALLENGE_STEP_MS);
+  const prevStep = currentStep - 1;
 
-// @desc    Generate dynamic QR code session for club event / meeting
+  const validCurrent = crypto
+    .createHmac('sha256', challengeSecret)
+    .update(String(currentStep))
+    .digest('hex')
+    .substring(0, 16);
+
+  const validPrev = crypto
+    .createHmac('sha256', challengeSecret)
+    .update(String(prevStep))
+    .digest('hex')
+    .substring(0, 16);
+
+  return safeCompare(providedChallenge, validCurrent) || safeCompare(providedChallenge, validPrev);
+}
+
+/**
+ * Check if a user is authorized to manage attendance for a club
+ */
+function isUserAuthorizedForClub(user, club) {
+  if (!user) return false;
+  if (user.isAdmin) return true;
+  const specialRoles = ['admin', 'superadmin', 'clubs_coordinator', 'academic_affairs', 'system_admin'];
+  if (specialRoles.includes(user.role)) return true;
+
+  if (!club) return false;
+  const userIdStr = user._id.toString();
+
+  const isPresident = club.leadership?.president?.toString() === userIdStr;
+  const isVP = club.leadership?.vicePresident?.toString() === userIdStr;
+  const isSecretary = club.leadership?.secretary?.toString() === userIdStr;
+  const isTreasurer = club.leadership?.treasurer?.toString() === userIdStr;
+
+  const isApprovedOfficer = club.members?.some(
+    (m) =>
+      m.user?.toString() === userIdStr &&
+      ['president', 'vice_president', 'officer', 'secretary', 'treasurer'].includes(m.role) &&
+      m.status === 'approved'
+  );
+
+  return isPresident || isVP || isSecretary || isTreasurer || isApprovedOfficer;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORGANIZER ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// @desc    Get attendance-eligible events for a club
+// @route   GET /api/attendance/events/:clubId
+// @access  Private (Club Leader / Admin / Coordinator)
+router.get('/events/:clubId', protect, async (req, res) => {
+  try {
+    const { clubId } = req.params;
+    const club = await Club.findById(clubId);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    if (!isUserAuthorizedForClub(req.user, club)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You are not authorized to manage attendance for this club',
+      });
+    }
+
+    // Filter events that are approved, planned, or ongoing
+    const eligibleEvents = (club.events || [])
+      .filter((ev) => ['approved', 'planned', 'ongoing'].includes(ev.status))
+      .map((ev) => ({
+        _id: ev._id,
+        title: ev.title,
+        description: ev.description,
+        date: ev.date,
+        location: ev.location,
+        startTime: ev.startTime,
+        endTime: ev.endTime,
+        status: ev.status,
+        activeCheckIn: ev.activeCheckIn,
+        attendanceCode: ev.attendanceCode,
+        attendeesCount: ev.attendees ? ev.attendees.length : 0,
+      }));
+
+    res.json({
+      success: true,
+      clubName: club.name,
+      events: eligibleEvents,
+    });
+  } catch (error) {
+    console.error('Fetch club events for attendance error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching events', error: error.message });
+  }
+});
+
+// @desc    Start an official event-linked attendance session
+// @route   POST /api/attendance/events/:clubId/:eventId/start
+// @access  Private (Club Leader / Admin / Coordinator)
+router.post('/events/:clubId/:eventId/start', protect, async (req, res) => {
+  try {
+    const { clubId, eventId } = req.params;
+    const { validMinutes = 30 } = req.body;
+
+    const club = await Club.findById(clubId);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    if (!isUserAuthorizedForClub(req.user, club)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only authorized club leaders or administrators can start attendance',
+      });
+    }
+
+    const event = club.events.id(eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found in the specified club' });
+    }
+
+    if (!['approved', 'planned', 'ongoing'].includes(event.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot start attendance for event with status "${event.status}". Event must be approved or planned.`,
+      });
+    }
+
+    // Derive hours credit strictly from event duration or default to 1.0
+    let derivedHours = 1;
+    if (event.startTime && event.endTime) {
+      const diffMs = new Date(event.endTime).getTime() - new Date(event.startTime).getTime();
+      if (diffMs > 0) {
+        const rawHours = diffMs / (1000 * 60 * 60);
+        derivedHours = Math.min(8, Math.max(0.5, Math.round(rawHours * 2) / 2));
+      }
+    }
+
+    // Idempotency: Check if an active, unexpired session already exists for this exact event
+    let session = await AttendanceSession.findOne({
+      clubId: club._id,
+      eventId: event._id,
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!session) {
+      // Create fresh session with secure cryptographic challenge material
+      const sessionToken = crypto.randomUUID();
+      const shortCode = crypto.randomBytes(3).toString('hex').toUpperCase(); // 6 secure hex chars
+      const challengeSecret = crypto.randomBytes(16).toString('hex');
+      const durationMinutes = Math.min(240, Math.max(5, parseInt(validMinutes, 10) || 30));
+      const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+
+      session = await AttendanceSession.create({
+        sessionToken,
+        shortCode,
+        clubId: club._id,
+        eventId: event._id,
+        eventTitle: event.title,
+        clubName: club.name,
+        hoursCredit: derivedHours,
+        expiresAt,
+        startedAt: new Date(),
+        createdBy: req.user._id,
+        isActive: true,
+        challengeSecret,
+      });
+
+      // Synchronize with embedded club event
+      event.activeCheckIn = true;
+      event.attendanceCode = shortCode;
+      event.status = 'ongoing';
+      await club.save();
+    } else if (!session.challengeSecret) {
+      // Upgrade existing legacy session if secret was missing
+      session.challengeSecret = crypto.randomBytes(16).toString('hex');
+      await session.save();
+    }
+
+    const currentChallenge = generateChallengeForSession(session.challengeSecret);
+    const challengeExpiresIn = Math.ceil((CHALLENGE_STEP_MS - (Date.now() % CHALLENGE_STEP_MS)) / 1000);
+
+    res.json({
+      success: true,
+      message: `Attendance session active for "${session.eventTitle}"`,
+      session: {
+        sessionToken: session.sessionToken,
+        shortCode: session.shortCode,
+        eventTitle: session.eventTitle,
+        clubName: session.clubName,
+        hoursCredit: session.hoursCredit,
+        expiresAt: session.expiresAt.toISOString(),
+        isActive: session.isActive,
+        currentChallenge,
+        challengeExpiresIn,
+      },
+    });
+  } catch (error) {
+    console.error('Start event attendance error:', error);
+    res.status(500).json({ success: false, message: 'Server error starting attendance', error: error.message });
+  }
+});
+
+// @desc    Generate/Start generic QR session (with strict authorization guard)
 // @route   POST /api/attendance/generate-qr
-// @access  Private (Club Leader, Admin, Coordinator, Officer)
+// @access  Private (Club Leader / Admin / Coordinator)
 router.post('/generate-qr', protect, async (req, res) => {
   try {
     const { clubId, eventId, eventTitle, validMinutes = 30, hoursCredit = 1 } = req.body;
 
-    // Validate authorized roles
     const isSpecialRole =
       req.user.isAdmin ||
-      ['admin', 'superadmin', 'clubs_coordinator', 'academic_affairs'].includes(req.user.role);
+      ['admin', 'superadmin', 'clubs_coordinator', 'academic_affairs', 'system_admin'].includes(req.user.role);
 
     let clubName = 'DBU Student Activity';
     let targetClub = null;
 
     if (clubId) {
       targetClub = await Club.findById(clubId);
-      if (targetClub) {
-        clubName = targetClub.name;
-        if (!isSpecialRole) {
-          const isPresident = targetClub.leadership?.president?.toString() === req.user._id.toString();
-          const isVP = targetClub.leadership?.vicePresident?.toString() === req.user._id.toString();
-          const isOfficer = targetClub.members?.some(
-            (m) =>
-              m.user?.toString() === req.user._id.toString() &&
-              ['president', 'vice_president', 'officer', 'secretary'].includes(m.role) &&
-              m.status === 'approved'
-          );
-          if (!isPresident && !isVP && !isOfficer) {
-            return res.status(403).json({
-              success: false,
-              message: 'Access denied: Only club leaders or administrators can generate attendance QR codes',
-            });
-          }
-        }
+      if (!targetClub) {
+        return res.status(404).json({ success: false, message: 'Club not found' });
+      }
+      if (!isSpecialRole && !isUserAuthorizedForClub(req.user, targetClub)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Only club leaders or administrators can generate attendance QR codes',
+        });
+      }
+      clubName = targetClub.name;
+    } else {
+      // Security Guard: Prevent arbitrary unprivileged students from creating institutional sessions
+      if (!isSpecialRole) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Institutional attendance sessions require administrator or club leader privileges',
+        });
+      }
+    }
+
+    let resolvedTitle = eventTitle?.trim();
+    let finalEventId = null;
+
+    if (targetClub && eventId) {
+      const ev = targetClub.events.id(eventId);
+      if (ev) {
+        resolvedTitle = ev.title;
+        finalEventId = ev._id;
       }
     }
 
     const sessionToken = crypto.randomUUID();
-    const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const expiresAt = new Date(Date.now() + Math.max(5, parseInt(validMinutes, 10)) * 60 * 1000);
-    const finalTitle = eventTitle?.trim() || (targetClub ? `${targetClub.name} General Meeting` : 'Campus Leadership Event');
+    const shortCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const challengeSecret = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date(Date.now() + Math.max(5, parseInt(validMinutes, 10) || 30) * 60 * 1000);
+    const finalTitle = resolvedTitle || (targetClub ? `${targetClub.name} Activity Session` : 'DBU Campus Event');
 
-    const sessionData = {
+    const session = await AttendanceSession.create({
       sessionToken,
       shortCode,
       clubId: clubId || null,
-      eventId: eventId || null,
+      eventId: finalEventId,
       eventTitle: finalTitle,
       clubName,
       hoursCredit: parseFloat(hoursCredit) || 1,
       expiresAt,
+      startedAt: new Date(),
       createdBy: req.user._id,
       isActive: true,
-    };
+      challengeSecret,
+    });
 
-    // 1. Persist to MongoDB so restarts and cloud clusters never drop the session
-    await AttendanceSession.findOneAndUpdate(
-      { sessionToken },
-      sessionData,
-      { upsert: true, new: true }
-    );
-
-    // 2. Cache in memory
-    activeQRSessions.set(sessionToken, sessionData);
-
-    // 3. Link with club's ongoing event check-in if provided
-    if (targetClub && eventId) {
+    if (targetClub && finalEventId) {
       try {
-        const ev = targetClub.events?.id(eventId);
+        const ev = targetClub.events.id(finalEventId);
         if (ev) {
           ev.activeCheckIn = true;
           ev.attendanceCode = shortCode;
@@ -98,191 +336,354 @@ router.post('/generate-qr', protect, async (req, res) => {
           await targetClub.save();
         }
       } catch (err) {
-        console.warn('Could not link to club event subdoc:', err.message);
+        console.warn('Could not link event subdoc:', err.message);
       }
     }
 
-    const qrPayload = JSON.stringify({
-      protocol: 'DBU_ATTENDANCE_V1',
-      token: sessionToken,
-      code: shortCode,
-      title: finalTitle,
-      club: clubName,
-      hours: sessionData.hoursCredit,
-      exp: expiresAt.getTime(),
-    });
+    const currentChallenge = generateChallengeForSession(challengeSecret);
+    const challengeExpiresIn = Math.ceil((CHALLENGE_STEP_MS - (Date.now() % CHALLENGE_STEP_MS)) / 1000);
 
     res.json({
       success: true,
-      message: 'Dynamic QR attendance session generated successfully',
+      message: 'Attendance QR session launched successfully',
       session: {
         sessionToken,
         shortCode,
-        qrPayload,
         eventTitle: finalTitle,
         clubName,
-        hoursCredit: sessionData.hoursCredit,
-        validMinutes: parseInt(validMinutes, 10),
+        hoursCredit: session.hoursCredit,
         expiresAt: expiresAt.toISOString(),
+        isActive: true,
+        currentChallenge,
+        challengeExpiresIn,
       },
     });
   } catch (error) {
     console.error('Generate QR error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error generating attendance QR code',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: 'Server error generating attendance session', error: error.message });
   }
 });
 
-// @desc    Scan and record attendance using QR payload, full URL, or shortCode
-// @route   POST /api/attendance/scan
-// @access  Private (Any authenticated student)
-router.post('/scan', protect, async (req, res) => {
+// @desc    End/Close an attendance session early
+// @route   POST /api/attendance/sessions/:sessionToken/close
+// @access  Private (Session Creator / Club Leader / Admin)
+router.post('/sessions/:sessionToken/close', protect, async (req, res) => {
   try {
-    const { qrPayload, sessionToken, code, eventTitle, clubName, hoursCredit } = req.body;
+    const { sessionToken } = req.params;
+    const session = await AttendanceSession.findOne({ sessionToken });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Attendance session not found' });
+    }
+
+    let targetClub = null;
+    if (session.clubId) {
+      targetClub = await Club.findById(session.clubId);
+    }
+
+    const isCreator = session.createdBy?.toString() === req.user._id.toString();
+    const isAuthorized = isCreator || isUserAuthorizedForClub(req.user, targetClub);
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You are not authorized to close this attendance session',
+      });
+    }
+
+    session.isActive = false;
+    session.closedAt = new Date();
+    session.closedBy = req.user._id;
+    await session.save();
+
+    // Deactivate check-in on the club event
+    if (targetClub && session.eventId) {
+      try {
+        const ev = targetClub.events.id(session.eventId);
+        if (ev) {
+          ev.activeCheckIn = false;
+          await targetClub.save();
+        }
+      } catch (err) {
+        console.warn('Club event check-in close sync note:', err.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Attendance session has been closed successfully. No further check-ins will be accepted.',
+      sessionToken: session.sessionToken,
+      closedAt: session.closedAt,
+    });
+  } catch (error) {
+    console.error('Close attendance session error:', error);
+    res.status(500).json({ success: false, message: 'Server error closing attendance session', error: error.message });
+  }
+});
+
+// @desc    Lightweight polling endpoint for organizer UI (counts, rotating challenge, recent check-ins)
+// @route   GET /api/attendance/sessions/:sessionToken/summary
+// @access  Private (Session Creator / Club Leader / Admin)
+router.get('/sessions/:sessionToken/summary', protect, async (req, res) => {
+  try {
+    const { sessionToken } = req.params;
+    const session = await AttendanceSession.findOne({ sessionToken }).lean();
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+
+    let targetClub = null;
+    if (session.clubId) {
+      targetClub = await Club.findById(session.clubId).lean();
+    }
+
+    const isCreator = session.createdBy?.toString() === req.user._id.toString();
+    const isAuthorized = isCreator || isUserAuthorizedForClub(req.user, targetClub);
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You are not authorized to view this session summary',
+      });
+    }
+
+    const isExpired = Date.now() > new Date(session.expiresAt).getTime();
+    const isCurrentlyActive = session.isActive && !isExpired;
+
+    const presentCount = await Attendance.countDocuments({ sessionToken });
+
+    // Last 5 check-ins for the live feed
+    const recentCheckins = await Attendance.find({ sessionToken })
+      .sort({ scannedAt: -1 })
+      .limit(5)
+      .populate('studentId', 'name username profileImage')
+      .lean();
+
+    const currentChallenge = session.challengeSecret
+      ? generateChallengeForSession(session.challengeSecret)
+      : '';
+    const challengeExpiresIn = Math.ceil((CHALLENGE_STEP_MS - (Date.now() % CHALLENGE_STEP_MS)) / 1000);
+
+    res.json({
+      success: true,
+      sessionToken: session.sessionToken,
+      eventTitle: session.eventTitle,
+      clubName: session.clubName,
+      hoursCredit: session.hoursCredit,
+      isActive: isCurrentlyActive,
+      expiresAt: session.expiresAt,
+      presentCount,
+      currentChallenge,
+      challengeExpiresIn,
+      recentCheckins: recentCheckins.map((rc) => ({
+        id: rc._id,
+        name: rc.studentId?.name || 'Student',
+        studentId: rc.studentId?.username || '',
+        scannedAt: rc.scannedAt,
+        hours: rc.hoursCredit,
+      })),
+    });
+  } catch (error) {
+    console.error('Fetch session summary error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching session summary', error: error.message });
+  }
+});
+
+// @desc    Full Attendee Roster (Present and Not-Yet members)
+// @route   GET /api/attendance/sessions/:sessionToken/roster
+// @access  Private (Session Creator / Club Leader / Admin Only — Privacy Protected)
+router.get('/sessions/:sessionToken/roster', protect, async (req, res) => {
+  try {
+    const { sessionToken } = req.params;
+    const session = await AttendanceSession.findOne({ sessionToken }).lean();
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+
+    let targetClub = null;
+    if (session.clubId) {
+      targetClub = await Club.findById(session.clubId).lean();
+    }
+
+    const isCreator = session.createdBy?.toString() === req.user._id.toString();
+    const isAuthorized = isCreator || isUserAuthorizedForClub(req.user, targetClub);
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You are not authorized to view the attendee roster',
+      });
+    }
+
+    const attendees = await Attendance.find({ sessionToken })
+      .populate('studentId', 'name username department year email profileImage')
+      .sort({ scannedAt: -1 })
+      .lean();
+
+    // Compute "Not Yet" roster from club membership
+    let notYet = [];
+    if (targetClub && targetClub.members) {
+      const attendedUserIds = new Set(
+        attendees.map((a) => a.studentId?._id?.toString() || a.studentId?.toString())
+      );
+
+      notYet = targetClub.members
+        .filter(
+          (m) =>
+            m.user &&
+            !attendedUserIds.has(m.user.toString()) &&
+            ['approved', 'restricted', 'Inactive_Ghost'].includes(m.status)
+        )
+        .map((m) => ({
+          userId: m.user,
+          fullName: m.fullName || 'Member',
+          department: m.department || '',
+          year: m.year || '',
+          status: 'NOT_YET',
+        }));
+    }
+
+    res.json({
+      success: true,
+      sessionToken,
+      eventTitle: session.eventTitle,
+      presentCount: attendees.length,
+      notYetCount: notYet.length,
+      attendees,
+      notYet,
+    });
+  } catch (error) {
+    console.error('Fetch roster error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching roster', error: error.message });
+  }
+});
+
+// Legacy backward-compatibility route for roster
+router.get('/roster/:sessionToken', protect, async (req, res) => {
+  req.url = `/sessions/${req.params.sessionToken}/roster`;
+  return router.handle(req, res);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDENT CHECK-IN ENDPOINT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// @desc    Scan and record attendance using rotating QR challenge or backup shortCode
+// @route   POST /api/attendance/scan
+// @access  Private (Any active authenticated student)
+router.post('/scan', protect, scanLimiter, async (req, res) => {
+  try {
+    const { qrPayload, sessionToken, challengeToken, code } = req.body;
     const studentId = req.user._id;
 
     let targetToken = sessionToken;
-    let targetCode = code?.trim().toUpperCase();
-    let targetTitle = eventTitle;
-    let targetClub = clubName;
-    let targetHours = hoursCredit;
-    let targetExp = null;
+    let targetChallenge = challengeToken;
+    let targetCode = code ? String(code).trim().toUpperCase() : null;
 
-    // Parse JSON QR payload, URL, or raw string
+    // Parse URL or payload parameters if qrPayload provided
     if (qrPayload) {
       const str = String(qrPayload).trim();
-
-      // 1. Check if qrPayload is a URL (e.g. https://.../attendance?token=...&code=...)
-      if (str.includes('token=') || str.includes('code=') || str.includes('?') || str.startsWith('http')) {
+      if (str.includes('token=') || str.includes('c=') || str.includes('code=') || str.includes('?')) {
         try {
           const parsedUrl = new URL(
             str.startsWith('http') ? str : `http://localhost${str.startsWith('/') ? '' : '/'}${str}`
           );
           if (parsedUrl.searchParams.get('token')) targetToken = parsedUrl.searchParams.get('token');
+          if (parsedUrl.searchParams.get('c')) targetChallenge = parsedUrl.searchParams.get('c');
           if (parsedUrl.searchParams.get('code')) targetCode = parsedUrl.searchParams.get('code').toUpperCase();
-          if (parsedUrl.searchParams.get('title')) targetTitle = parsedUrl.searchParams.get('title');
-          if (parsedUrl.searchParams.get('club')) targetClub = parsedUrl.searchParams.get('club');
-          if (parsedUrl.searchParams.get('hours')) targetHours = parseFloat(parsedUrl.searchParams.get('hours'));
-          if (parsedUrl.searchParams.get('exp')) targetExp = parseInt(parsedUrl.searchParams.get('exp'), 10);
         } catch (_) {
           const matchToken = str.match(/token=([a-zA-Z0-9-]+)/i);
+          const matchChallenge = str.match(/c=([a-zA-Z0-9]+)/i);
           const matchCode = str.match(/code=([a-zA-Z0-9]+)/i);
-          if (matchToken && matchToken[1]) targetToken = matchToken[1];
-          if (matchCode && matchCode[1]) targetCode = matchCode[1].toUpperCase();
+          if (matchToken) targetToken = matchToken[1];
+          if (matchChallenge) targetChallenge = matchChallenge[1];
+          if (matchCode) targetCode = matchCode[1].toUpperCase();
         }
-      }
-
-      // 2. Check if qrPayload is JSON
-      if (!targetToken && !targetCode) {
+      } else if (str.startsWith('{')) {
         try {
-          const parsed = typeof qrPayload === 'string' ? JSON.parse(qrPayload) : qrPayload;
-          if (parsed.token) targetToken = parsed.token;
-          if (parsed.code) targetCode = parsed.code.toUpperCase();
-          if (parsed.title) targetTitle = parsed.title;
-          if (parsed.club) targetClub = parsed.club;
-          if (parsed.hours) targetHours = parsed.hours;
-          if (parsed.exp) targetExp = parsed.exp;
-        } catch (_) {
-          if (str.length > 20) {
-            targetToken = str;
-          } else {
-            targetCode = str.toUpperCase();
-          }
-        }
+          const json = JSON.parse(str);
+          if (json.token) targetToken = json.token;
+          if (json.c) targetChallenge = json.c;
+          if (json.code) targetCode = json.code.toUpperCase();
+        } catch (_) {}
+      } else if (str.length === 36 && str.includes('-')) {
+        targetToken = str;
+      } else if (str.length <= 8) {
+        targetCode = str.toUpperCase();
       }
     }
 
     if (!targetToken && !targetCode) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide either a valid QR scan or a 6-character check-in code',
+        message: 'Please scan the live QR code or enter the event check-in code.',
       });
     }
 
-    // 4-Tier Session Resolution
+    // Lookup session in MongoDB
     let session = null;
-
-    // Tier 1: Search MongoDB AttendanceSession collection
     if (targetToken) {
-      session = await AttendanceSession.findOne({ sessionToken: targetToken }).lean();
+      session = await AttendanceSession.findOne({ sessionToken: targetToken });
     }
     if (!session && targetCode) {
-      session = await AttendanceSession.findOne({ shortCode: targetCode }).lean();
+      session = await AttendanceSession.findOne({ shortCode: targetCode });
     }
 
-    // Tier 2: Search in-memory activeQRSessions
-    if (!session && targetToken && activeQRSessions.has(targetToken)) {
-      session = activeQRSessions.get(targetToken);
-    } else if (!session && targetCode) {
-      for (const s of activeQRSessions.values()) {
-        if (s.shortCode === targetCode) {
-          session = s;
-          break;
-        }
-      }
-    }
-
-    // Tier 3: Search Club ongoing events
-    if (!session && targetCode) {
-      const clubWithEvent = await Club.findOne({
-        'events.attendanceCode': targetCode,
-        'events.activeCheckIn': true,
-      });
-
-      if (clubWithEvent) {
-        const ev = clubWithEvent.events.find(
-          (e) => e.activeCheckIn === true && e.attendanceCode === targetCode
-        );
-        if (ev) {
-          session = {
-            sessionToken: `legacy-${clubWithEvent._id}-${ev._id}-${targetCode}`,
-            shortCode: targetCode,
-            clubId: clubWithEvent._id,
-            eventId: ev._id,
-            eventTitle: ev.title,
-            clubName: clubWithEvent.name,
-            hoursCredit: 1,
-            expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
-          };
-        }
-      }
-    }
-
-    // Tier 4: Self-Healing Fallback for verified dynamic tokens
-    if (!session && targetToken && (targetCode || targetTitle)) {
-      session = {
-        sessionToken: targetToken,
-        shortCode: targetCode || targetToken.substring(0, 6).toUpperCase(),
-        eventTitle: targetTitle || 'Verified Campus Session',
-        clubName: targetClub || 'DBU Student Activity',
-        hoursCredit: targetHours || 1,
-        expiresAt: targetExp ? new Date(targetExp) : new Date(Date.now() + 60 * 60 * 1000),
-      };
-      try {
-        await AttendanceSession.create(session);
-      } catch (_) {}
-    }
-
+    // STRICT ARCHITECTURE RULE: No Tier-4 on-the-fly session generation!
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Invalid attendance session or code. Please check with your club coordinator.',
+        message: 'Attendance session not found. Please verify with your event coordinator.',
       });
     }
 
-    // Check expiration
+    // 1. Check Session State (isActive)
+    if (session.isActive === false) {
+      return res.status(400).json({
+        success: false,
+        message: 'Attendance has ended for this event.',
+      });
+    }
+
+    // 2. Check Expiration
     const expiryTime = session.expiresAt ? new Date(session.expiresAt).getTime() : 0;
     if (expiryTime && Date.now() > expiryTime) {
       return res.status(400).json({
         success: false,
-        message: 'This attendance session has expired. Please ask the organizer for a refreshed code.',
+        message: 'This attendance session has expired. Please ask the organizer for an active session.',
       });
     }
 
-    // Check duplicate attendance
+    // 3. Check Rotating QR Challenge or Fallback Code
+    let verificationMethod = 'QR_SCAN';
+
+    if (targetChallenge && session.challengeSecret) {
+      const isValid = isChallengeValid(session.challengeSecret, targetChallenge);
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'This QR code is no longer valid or has refreshed. Please scan the current code on screen.',
+        });
+      }
+      verificationMethod = 'QR_SCAN';
+    } else if (targetCode && session.shortCode) {
+      if (targetCode !== session.shortCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid check-in code. Please verify the code displayed on screen.',
+        });
+      }
+      verificationMethod = 'MANUAL_CODE';
+    } else if (!session.challengeSecret && targetToken) {
+      // Graceful support for pre-existing legacy sessions without challenge secrets
+      verificationMethod = 'QR_SCAN';
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid QR challenge or check-in code required.',
+      });
+    }
+
+    // 4. Duplicate Check (Idempotent success)
     const existing = await Attendance.findOne({
       studentId,
       sessionToken: session.sessionToken,
@@ -292,16 +693,17 @@ router.post('/scan', protect, async (req, res) => {
       return res.status(200).json({
         success: true,
         alreadyRecorded: true,
-        message: `You have already confirmed your attendance for "${session.eventTitle}".`,
+        message: `You are already marked Present for "${session.eventTitle}".`,
         attendance: existing,
       });
     }
 
-    // Record attendance
+    // 5. Create Standalone Verified Attendance Record
     const newAttendance = await Attendance.create({
       studentId,
       clubId: session.clubId || null,
       eventId: session.eventId || null,
+      eventModel: 'ClubEvent',
       sessionToken: session.sessionToken,
       shortCode: session.shortCode,
       eventTitle: session.eventTitle,
@@ -309,40 +711,42 @@ router.post('/scan', protect, async (req, res) => {
       hoursCredit: session.hoursCredit || 1,
       status: 'PRESENT',
       scannedAt: new Date(),
-      verificationMethod: qrPayload ? 'QR_SCAN' : 'MANUAL_CODE',
+      verificationMethod,
     });
 
-    // Update club member attendance count and reset ghost status
+    // 6. Concurrency-Safe Atomic Club Counters Update (No whole-document version collisions)
     if (session.clubId) {
       try {
-        const club = await Club.findById(session.clubId);
-        if (club) {
-          const member = club.members.find((m) => m.user.toString() === studentId.toString());
-          if (member) {
-            member.attendanceCount = (member.attendanceCount || 0) + 1;
-            member.absentStreak = 0;
-            if (member.status === 'Inactive_Ghost') {
-              member.status = 'approved';
-            }
-            await club.save();
+        // Increment attendanceCount and reset absentStreak atomically
+        await Club.updateOne(
+          { _id: session.clubId, 'members.user': studentId },
+          {
+            $inc: { 'members.$.attendanceCount': 1 },
+            $set: { 'members.$.absentStreak': 0 },
           }
+        );
 
-          if (session.eventId) {
-            const ev = club.events?.id(session.eventId);
-            if (ev && !ev.attendees.includes(studentId)) {
-              ev.attendees.push(studentId);
-              await club.save();
-            }
-          }
+        // Restore ghost status if applicable
+        await Club.updateOne(
+          { _id: session.clubId, 'members.user': studentId, 'members.status': 'Inactive_Ghost' },
+          { $set: { 'members.$.status': 'approved' } }
+        );
+
+        // Add to event attendees list atomically
+        if (session.eventId) {
+          await Club.updateOne(
+            { _id: session.clubId, 'events._id': session.eventId },
+            { $addToSet: { 'events.$.attendees': studentId } }
+          );
         }
-      } catch (clubErr) {
-        console.warn('Attendance club update sync warning:', clubErr.message);
+      } catch (syncErr) {
+        console.warn('Atomic club update sync note:', syncErr.message);
       }
     }
 
     res.status(201).json({
       success: true,
-      message: `✅ Attendance recorded successfully for "${session.eventTitle}"!`,
+      message: `✓ Attendance recorded — Present for "${session.eventTitle}"!`,
       hoursEarned: session.hoursCredit || 1,
       attendance: newAttendance,
     });
@@ -352,7 +756,7 @@ router.post('/scan', protect, async (req, res) => {
       return res.status(200).json({
         success: true,
         alreadyRecorded: true,
-        message: 'Attendance was already confirmed for this session.',
+        message: 'You are already marked Present for this session.',
       });
     }
     res.status(500).json({
@@ -363,9 +767,9 @@ router.post('/scan', protect, async (req, res) => {
   }
 });
 
-// @desc    Get current student's attendance records
+// @desc    Get current student's personal attendance history
 // @route   GET /api/attendance/my-attendance
-// @access  Private
+// @access  Private (Logged-in student)
 router.get('/my-attendance', protect, async (req, res) => {
   try {
     const records = await Attendance.find({ studentId: req.user._id })
@@ -386,33 +790,6 @@ router.get('/my-attendance', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch attendance history',
-      error: error.message,
-    });
-  }
-});
-
-// @desc    Get live attendee roster for a session
-// @route   GET /api/attendance/roster/:sessionToken
-// @access  Private
-router.get('/roster/:sessionToken', protect, async (req, res) => {
-  try {
-    const { sessionToken } = req.params;
-
-    const attendees = await Attendance.find({ sessionToken })
-      .populate('studentId', 'name username department year email profileImage')
-      .sort({ scannedAt: -1 })
-      .lean();
-
-    res.json({
-      success: true,
-      count: attendees.length,
-      attendees,
-    });
-  } catch (error) {
-    console.error('Fetch session roster error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch attendance roster',
       error: error.message,
     });
   }

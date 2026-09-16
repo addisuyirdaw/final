@@ -25,6 +25,7 @@ export function AttendanceScanner() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const urlToken = searchParams.get('token');
+  const urlChallenge = searchParams.get('c');
   const urlCode = searchParams.get('code');
 
   const [activeTab, setActiveTab] = useState(urlCode || urlToken ? 'code' : 'camera');
@@ -62,7 +63,7 @@ export function AttendanceScanner() {
     fetchHistory();
   }, []);
 
-  // Fix: Auto-checkin if opened via phone camera scanning action URL (?token=...&code=...)
+  // Fix: Auto-checkin if opened via phone camera scanning action URL (?token=...&c=...)
   useEffect(() => {
     if ((urlToken || urlCode) && user && !autoCheckedRef.current) {
       autoCheckedRef.current = true;
@@ -73,6 +74,7 @@ export function AttendanceScanner() {
           setSubmitting(true);
           const res = await apiService.scanAttendance({
             sessionToken: urlToken || undefined,
+            challengeToken: urlChallenge || undefined,
             code: urlCode ? urlCode.toUpperCase() : undefined,
           });
 
@@ -93,7 +95,7 @@ export function AttendanceScanner() {
 
       autoVerify();
     }
-  }, [urlToken, urlCode, user]);
+  }, [urlToken, urlChallenge, urlCode, user]);
 
   // Mobile Camera Scanner via Html5Qrcode
   const stopScanner = async () => {
@@ -173,22 +175,18 @@ export function AttendanceScanner() {
       const str = String(qrPayload || '').trim();
 
       let tokenToPass = null;
+      let challengeToPass = null;
       let codeToPass = null;
-      let titleToPass = null;
-      let clubToPass = null;
-      let hoursToPass = null;
 
       // Extract from URL query params
-      if (str.includes('token=') || str.includes('code=') || str.includes('?') || str.startsWith('http')) {
+      if (str.includes('token=') || str.includes('c=') || str.includes('code=') || str.includes('?') || str.startsWith('http')) {
         try {
           const parsed = new URL(
             str.startsWith('http') ? str : `http://localhost${str.startsWith('/') ? '' : '/'}${str}`
           );
           tokenToPass = parsed.searchParams.get('token');
+          challengeToPass = parsed.searchParams.get('c');
           codeToPass = parsed.searchParams.get('code');
-          titleToPass = parsed.searchParams.get('title');
-          clubToPass = parsed.searchParams.get('club');
-          hoursToPass = parsed.searchParams.get('hours');
         } catch (_) {}
       }
 
@@ -196,6 +194,10 @@ export function AttendanceScanner() {
       if (!tokenToPass) {
         const mToken = str.match(/token=([a-zA-Z0-9-]+)/i);
         if (mToken) tokenToPass = mToken[1];
+      }
+      if (!challengeToPass) {
+        const mChallenge = str.match(/c=([a-zA-Z0-9]+)/i);
+        if (mChallenge) challengeToPass = mChallenge[1];
       }
       if (!codeToPass) {
         const mCode = str.match(/code=([a-zA-Z0-9]+)/i);
@@ -207,20 +209,16 @@ export function AttendanceScanner() {
         try {
           const json = JSON.parse(str);
           tokenToPass = json.token;
+          challengeToPass = json.c;
           codeToPass = json.code;
-          titleToPass = json.title;
-          clubToPass = json.club;
-          hoursToPass = json.hours;
         } catch (_) {}
       }
 
       const res = await apiService.scanAttendance({
         qrPayload: str,
         sessionToken: tokenToPass || undefined,
+        challengeToken: challengeToPass || undefined,
         code: codeToPass ? codeToPass.toUpperCase() : undefined,
-        eventTitle: titleToPass || undefined,
-        clubName: clubToPass || undefined,
-        hoursCredit: hoursToPass ? parseFloat(hoursToPass) : undefined,
       });
 
       if (res.success) {
@@ -350,12 +348,24 @@ export function AttendanceScanner() {
 
           {/* Success Banner if just checked in */}
           {lastCheckIn && (
-            <div className="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 flex items-start gap-3">
+            <div className="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 flex items-start gap-3.5 shadow-sm">
               <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1 text-sm">
-                <p className="font-bold text-base">{lastCheckIn.message || 'Check-in Verified!'}</p>
-                <p className="text-xs text-emerald-700 mt-1">
-                  Credit: +{lastCheckIn.hoursEarned || 1} hr added to your co-curricular record.
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 bg-emerald-600 text-white rounded-full text-[10px] uppercase font-black tracking-wider">
+                    Present
+                  </span>
+                  <p className="font-bold text-base text-emerald-950">
+                    {lastCheckIn.message || 'Attendance Recorded!'}
+                  </p>
+                </div>
+                <p className="text-xs text-emerald-800 mt-1 font-medium">
+                  {lastCheckIn.attendance?.eventTitle && (
+                    <span className="block text-emerald-900 font-bold mb-0.5">
+                      Event: {lastCheckIn.attendance.eventTitle}
+                    </span>
+                  )}
+                  Credit: +{lastCheckIn.hoursEarned || 1} co-curricular hour added to your official transcript.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link
@@ -368,7 +378,7 @@ export function AttendanceScanner() {
                     onClick={() => setLastCheckIn(null)}
                     className="text-xs text-emerald-800 underline hover:text-emerald-900 font-semibold"
                   >
-                    Check In Another Session
+                    Scan Another Event
                   </button>
                 </div>
               </div>

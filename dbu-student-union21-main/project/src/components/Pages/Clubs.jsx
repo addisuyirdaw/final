@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign } from "lucide-react";
@@ -293,15 +293,21 @@ export function Clubs() {
 
   const handleCheckIn = async (e) => {
     e.preventDefault();
-    if (!checkInCode || checkInCode.trim().length !== 4) {
-      toast.error("Please enter a valid 4-digit check-in code.");
+    const clean = checkInCode ? checkInCode.trim().toUpperCase() : "";
+    if (!clean || clean.length < 4) {
+      toast.error("Please enter a valid check-in code.");
       return;
     }
     setCheckingIn(true);
     try {
       const clubId = selectedClubDetails._id || selectedClubDetails.id;
-      const res = await apiService.checkInClub({ clubId, sessionCode: checkInCode.trim() });
-      if (res.success) {
+      let res;
+      try {
+        res = await apiService.scanAttendance({ code: clean });
+      } catch (_) {
+        res = await apiService.checkInClub({ clubId, sessionCode: clean });
+      }
+      if (res && res.success) {
         toast.success(res.message || "Successfully checked in!");
         setCheckInCode("");
         // Refresh club details to get updated attendanceCount/attendees list
@@ -310,7 +316,7 @@ export function Clubs() {
         // Refresh eligibility data
         fetchEligibility(clubId);
       } else {
-        toast.error(res.message || "Invalid check-in code.");
+        toast.error(res?.message || "Invalid check-in code.");
       }
     } catch (err) {
       toast.error(err.message || "Check-in failed. Please try again.");

@@ -10,6 +10,9 @@ const ClubRenewal = require('../models/ClubRenewal');
 const Resource = require('../models/Resource');
 const Reservation = require('../models/Reservation');
 const SystemConfig = require('../models/SystemConfig');
+const Attendance = require('../models/Attendance');
+const AttendanceSession = require('../models/AttendanceSession');
+const crypto = require('crypto');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
@@ -1410,7 +1413,7 @@ router.post('/checkin', protect, async (req, res) => {
       return res.status(200).json({ success: true, message: 'Already checked in successfully!', club });
     }
 
-    // Record attendance
+    // Record attendance in Club model
     activeEvent.attendees.push(userId);
     member.attendanceCount = (member.attendanceCount || 0) + 1;
     member.absentStreak = 0;
@@ -1421,6 +1424,8 @@ router.post('/checkin', protect, async (req, res) => {
     }
 
     await club.save();
+
+    // Legacy attendance creation removed: official attendance is now strictly managed by /api/attendance/scan
 
     res.json({
       success: true,
@@ -1767,10 +1772,37 @@ router.post('/:id/events/:eventId/checkin/start', protect, clubLeader, async (re
       return res.status(400).json({ success: false, message: 'Only approved or planned events can start check-in' });
     }
 
-    // Generate unique 4-digit code
-    const sessionCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate secure 6-char short code and challenge secret for unified AttendanceSession
+    const sessionCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const challengeSecret = crypto.randomBytes(16).toString('hex');
+    const sessionToken = crypto.randomUUID();
 
-    event.attendanceCode = sessionCode;
+    // Upsert AttendanceSession
+    let session = await AttendanceSession.findOne({
+      clubId: club._id,
+      eventId: event._id,
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!session) {
+      session = await AttendanceSession.create({
+        sessionToken,
+        shortCode: sessionCode,
+        clubId: club._id,
+        eventId: event._id,
+        eventTitle: event.title,
+        clubName: club.name,
+        hoursCredit: 1,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        startedAt: new Date(),
+        createdBy: req.user._id,
+        isActive: true,
+        challengeSecret,
+      });
+    }
+
+    event.attendanceCode = session.shortCode;
     event.activeCheckIn = true;
     event.status = 'ongoing';
 
@@ -1779,7 +1811,8 @@ router.post('/:id/events/:eventId/checkin/start', protect, clubLeader, async (re
     res.json({
       success: true,
       message: 'Check-in session started successfully',
-      code: sessionCode,
+      code: session.shortCode,
+      sessionToken: session.sessionToken,
       event,
       club
     });
@@ -1810,6 +1843,16 @@ router.post('/:id/events/:eventId/checkin/end', protect, clubLeader, async (req,
 
     event.activeCheckIn = false;
     event.status = 'completed';
+
+    // Synchronize closure with any active AttendanceSession for this event
+    try {
+      await AttendanceSession.updateMany(
+        { clubId: club._id, eventId: event._id, isActive: true },
+        { $set: { isActive: false, closedAt: new Date(), closedBy: req.user._id } }
+      );
+    } catch (sessionErr) {
+      console.warn('AttendanceSession closure sync note:', sessionErr.message);
+    }
 
     // Increment club-wide completed events held
     club.totalEventsHeld = (club.totalEventsHeld || 0) + 1;
