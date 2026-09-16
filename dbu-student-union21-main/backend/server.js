@@ -72,10 +72,12 @@ app.use(
 
       // Allow any Vercel deployment URL (covers all preview and production deployments)
       const isVercelUrl = /^https:\/\/.*\.vercel\.app$/.test(origin);
+      // Allow Cloudflare Quick Tunnels for easy public testing
+      const isCloudflareUrl = /^https:\/\/.*\.trycloudflare\.com$/.test(origin);
       // Allow exact matches
       const isAllowed = allowedOrigins.includes(origin);
 
-      if (isVercelUrl || isAllowed) {
+      if (isVercelUrl || isCloudflareUrl || isAllowed) {
         callback(null, true);
       } else {
         console.warn(`CORS blocked origin: ${origin}`);
