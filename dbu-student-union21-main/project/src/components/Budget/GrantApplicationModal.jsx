@@ -259,7 +259,7 @@ export function GrantApplicationModal({ isOpen, onClose, onSuccess }) {
               >
                 <option value="">Independent Student Project</option>
                 {clubs.map((c) => (
-                  <option key={c._id} value={c._id}>
+                  <option key={c.id || c._id} value={c.id || c._id}>
                     {c.name}
                   </option>
                 ))}

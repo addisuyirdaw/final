@@ -5,7 +5,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD
     ? 'https://dbu-student-portal-2.onrender.com/api'
-    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:5000/api`);
+    : '/api');
 
 class ApiService {
   constructor() {
@@ -40,7 +40,21 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+      const text = await response.text();
+      
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (err) {
+          // If response is not ok, we can just treat the raw text as the error message
+          if (!response.ok) {
+            data = { message: text || `HTTP error! status: ${response.status}` };
+          } else {
+            throw new Error(`Server returned invalid data: ${text.substring(0, 50)}...`);
+          }
+        }
+      }
 
       if (!response.ok) {
         let msg = data.message || `HTTP error! status: ${response.status}`;
@@ -219,6 +233,10 @@ class ApiService {
 
   async getMyAttendance() {
     return this.request('/attendance/my-attendance');
+  }
+
+  async getHostedSessions() {
+    return this.request('/attendance/hosted-sessions');
   }
 
   async getAttendanceRoster(sessionToken) {

@@ -23,6 +23,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { DailyAttendanceRegister } from './DailyAttendanceRegister';
 
 export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
   const { user } = useAuth();
@@ -49,7 +50,7 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
   // Detailed Roster Modal
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [rosterTab, setRosterTab] = useState('present'); // 'present' | 'not_yet'
-  const [rosterData, setRosterData] = useState({ attendees: [], notYet: [] });
+  const [rosterData, setRosterData] = useState({ attendees: [], absentees: [], notYet: [] });
   const [loadingRoster, setLoadingRoster] = useState(false);
   const [rosterSearch, setRosterSearch] = useState('');
 
@@ -228,6 +229,7 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
       if (res.success) {
         setRosterData({
           attendees: res.attendees || [],
+          absentees: res.absentees || [],
           notYet: res.notYet || [],
         });
       }
@@ -272,6 +274,7 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
     : '';
 
   return (
+    <>
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-sky-800 via-blue-700 to-indigo-900 text-white p-6">
@@ -707,11 +710,11 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
                   onClick={() => setRosterTab('not_yet')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                     rosterTab === 'not_yet'
-                      ? 'bg-amber-100 text-amber-800'
+                      ? (session?.isActive ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800')
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  Not Yet ({rosterData.notYet.length})
+                  {session?.isActive ? `Not Yet (${rosterData.notYet.length})` : `Absent (${rosterData.absentees.length})`}
                 </button>
               </div>
 
@@ -769,29 +772,29 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
                       </div>
                     ))
                 )
-              ) : rosterData.notYet.length === 0 ? (
+              ) : (session?.isActive ? rosterData.notYet : rosterData.absentees).length === 0 ? (
                 <p className="text-center py-10 text-gray-400 italic">
-                  All eligible members have recorded attendance.
+                  {session?.isActive ? "All eligible members have recorded attendance." : "No members were absent."}
                 </p>
               ) : (
-                rosterData.notYet
+                (session?.isActive ? rosterData.notYet : rosterData.absentees)
                   .filter((m) => {
-                    const name = m.fullName || '';
+                    const name = session?.isActive ? (m.fullName || '') : (m.studentId?.name || '');
                     return name.toLowerCase().includes(rosterSearch.toLowerCase());
                   })
                   .map((m, idx) => (
-                    <div key={m.userId || idx} className="py-2.5 flex items-center justify-between">
+                    <div key={session?.isActive ? m.userId : (m._id || idx)} className="py-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+                        <span className={`w-2 h-2 rounded-full ${session?.isActive ? 'bg-amber-400' : 'bg-red-500'}`}></span>
                         <div>
-                          <p className="font-semibold text-gray-800">{m.fullName}</p>
-                          <p className="text-[11px] text-gray-400">
-                            {m.department} • {m.year}
+                          <p className="font-semibold text-gray-800">{session?.isActive ? m.fullName : (m.studentId?.name || 'Member')}</p>
+                          <p className="text-[11px] text-gray-400 font-mono">
+                            {session?.isActive ? `${m.department} • ${m.year}` : `${m.studentId?.username?.toUpperCase()} • ${m.studentId?.department || 'DBU'}`}
                           </p>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded">
-                        Not Yet
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${session?.isActive ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>
+                        {session?.isActive ? 'Not Yet' : 'Absent'}
                       </span>
                     </div>
                   ))
@@ -812,5 +815,8 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
         </div>
       )}
     </div>
+    
+    <DailyAttendanceRegister selectedClubId={selectedClubId} />
+    </>
   );
 }

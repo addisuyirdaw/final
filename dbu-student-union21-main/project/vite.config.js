@@ -7,6 +7,7 @@ export default defineConfig({
 
   // Dev server: proxy /api and /uploads through to the backend so images load correctly
   server: {
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

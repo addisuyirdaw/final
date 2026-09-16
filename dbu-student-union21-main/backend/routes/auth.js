@@ -580,7 +580,8 @@ router.post("/forgot-password", async (req, res) => {
 		await user.save({ validateBeforeSave: false });
 
 		// Build reset URL
-		const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+		const clientOrigin = req.headers.origin || 'http://localhost:5173';
+		const resetUrl = `${clientOrigin}/reset-password/${resetToken}`;
 		const isDev = process.env.NODE_ENV !== 'production';
 
 		// Build HTML email

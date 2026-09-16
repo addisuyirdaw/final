@@ -18,6 +18,7 @@ import {
   AlertCircle,
   VideoOff,
   ExternalLink,
+  XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -41,16 +42,29 @@ export function AttendanceScanner() {
 
   // Student recent attendance history
   const [recentAttendance, setRecentAttendance] = useState([]);
+  const [hostedSessions, setHostedSessions] = useState([]);
   const [totalHours, setTotalHours] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [historyTab, setHistoryTab] = useState('student'); // 'student' | 'hosted'
 
   const fetchHistory = async () => {
     try {
       setLoadingHistory(true);
-      const res = await apiService.getMyAttendance();
-      if (res.success) {
-        setRecentAttendance(res.records || []);
-        setTotalHours(res.totalHours || 0);
+      const [resStudent, resHosted] = await Promise.all([
+        apiService.getMyAttendance().catch(() => ({ success: false })),
+        apiService.getHostedSessions().catch(() => ({ success: false }))
+      ]);
+      
+      if (resStudent.success) {
+        setRecentAttendance(resStudent.records || []);
+        setTotalHours(resStudent.totalHours || 0);
+      }
+      
+      if (resHosted.success) {
+        setHostedSessions(resHosted.sessions || []);
+        if (resHosted.sessions && resHosted.sessions.length > 0 && (!resStudent.records || resStudent.records.length === 0)) {
+           setHistoryTab('hosted');
+        }
       }
     } catch (err) {
       console.warn('Failed to load attendance history:', err.message);
@@ -472,11 +486,19 @@ export function AttendanceScanner() {
         </div>
 
         {/* Attendance History Column */}
-        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col h-full">
           <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
             <div>
-              <h3 className="text-base font-bold text-gray-900">Your Activity History</h3>
-              <p className="text-xs text-gray-500">Verified co-curricular check-ins</p>
+              <h3 className="text-base font-bold text-gray-900">
+                {hostedSessions.length > 0 || user?.isAdmin || ['admin', 'superadmin', 'clubs_coordinator'].includes(user?.role)
+                  ? 'Hosted Events Roster'
+                  : 'Your Activity History'}
+              </h3>
+              <p className="text-xs text-gray-500">
+                {hostedSessions.length > 0 || user?.isAdmin || ['admin', 'superadmin', 'clubs_coordinator'].includes(user?.role)
+                  ? 'Attendance records for your hosted events'
+                  : 'Verified co-curricular check-ins'}
+              </p>
             </div>
             <button
               onClick={fetchHistory}
@@ -487,37 +509,91 @@ export function AttendanceScanner() {
             </button>
           </div>
 
-          {recentAttendance.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
-              <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-semibold">No attendance logged yet</p>
-              <p className="text-xs mt-1 text-gray-400">
-                Check in at your next club meeting to start building your transcript!
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-              {recentAttendance.map((rec) => (
-                <div
-                  key={rec._id}
-                  className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-sky-200 transition-all text-xs"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="font-bold text-gray-900">{rec.eventTitle}</h4>
-                      <p className="text-gray-500 text-[11px] mt-0.5">{rec.clubName}</p>
+          {hostedSessions.length > 0 || user?.isAdmin || ['admin', 'superadmin', 'clubs_coordinator'].includes(user?.role) ? (
+            hostedSessions.length === 0 ? (
+              <div className="py-12 text-center text-gray-400">
+                <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm font-semibold">No hosted events yet</p>
+                <p className="text-xs mt-1 text-gray-400">
+                  You haven't hosted any active attendance sessions yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                {hostedSessions.map((sess) => (
+                  <div key={sess._id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-gray-50 p-3.5 border-b border-gray-200 flex items-start justify-between">
+                      <div>
+                        <h4 className="font-bold text-gray-900">{sess.eventTitle}</h4>
+                        <p className="text-gray-500 text-[11px] mt-0.5">{sess.clubName} • {new Date(sess.startedAt).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-0.5 font-bold rounded text-[10px] ${sess.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'}`}>
+                        {sess.isActive ? 'Active' : 'Closed'}
+                      </span>
                     </div>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-100 text-sky-800 font-bold rounded text-[10px]">
-                      <Award className="w-3 h-3 text-sky-600" />+{rec.hoursCredit} hr
-                    </span>
+                    {sess.roster && sess.roster.length > 0 ? (
+                      <div className="divide-y divide-gray-100 bg-white max-h-[200px] overflow-y-auto">
+                        {sess.roster.map(student => (
+                          <div key={student.id} className="px-3.5 py-2 flex items-center justify-between text-xs hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${student.status === 'PRESENT' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                              <div>
+                                <p className="font-semibold text-gray-800">{student.name}</p>
+                                <p className="text-[10px] text-gray-400 font-mono">{student.username.toUpperCase()}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-bold ${student.status === 'PRESENT' ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {student.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-xs text-gray-400 bg-white">
+                        No attendees recorded yet.
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-200/50">
-                    <span>{new Date(rec.scannedAt).toLocaleDateString()}</span>
-                    <span className="text-emerald-600 font-semibold uppercase">{rec.status}</span>
+                ))}
+              </div>
+            )
+          ) : (
+            recentAttendance.length === 0 ? (
+              <div className="py-12 text-center text-gray-400">
+                <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm font-semibold">No attendance logged yet</p>
+                <p className="text-xs mt-1 text-gray-400">
+                  Check in at your next club meeting to start building your transcript!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                {recentAttendance.map((rec) => (
+                  <div
+                    key={rec._id}
+                    className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-sky-200 transition-all text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-gray-900">{rec.eventTitle}</h4>
+                        <p className="text-gray-500 text-[11px] mt-0.5">{rec.clubName}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 font-bold rounded text-[10px] ${rec.status === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'}`}>
+                        {rec.status === 'ABSENT' ? (
+                          <><XCircle className="w-3 h-3 text-red-600" />Missed</>
+                        ) : (
+                          <><Award className="w-3 h-3 text-sky-600" />+{rec.hoursCredit} hr</>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-200/50">
+                      <span>{new Date(rec.scannedAt).toLocaleDateString()}</span>
+                      <span className={`font-semibold uppercase ${rec.status === 'ABSENT' ? 'text-red-600' : 'text-emerald-600'}`}>{rec.status}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           )}
         </div>
       </div>

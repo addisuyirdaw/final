@@ -89,15 +89,16 @@ function isUserAuthorizedForClub(user, club) {
   const isVP = club.leadership?.vicePresident?.toString() === userIdStr;
   const isSecretary = club.leadership?.secretary?.toString() === userIdStr;
   const isTreasurer = club.leadership?.treasurer?.toString() === userIdStr;
+  const isCreator = club.creator?.toString() === userIdStr;
 
   const isApprovedOfficer = club.members?.some(
     (m) =>
       m.user?.toString() === userIdStr &&
-      ['president', 'vice_president', 'officer', 'secretary', 'treasurer'].includes(m.role) &&
+      ['president', 'vice_president', 'officer', 'secretary', 'treasurer', 'representative', 'leader', 'coordinator'].includes(m.role) &&
       m.status === 'approved'
   );
 
-  return isPresident || isVP || isSecretary || isTreasurer || isApprovedOfficer;
+  return isPresident || isVP || isSecretary || isTreasurer || isCreator || isApprovedOfficer;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,7 +287,23 @@ router.post('/generate-qr', protect, async (req, res) => {
       clubName = targetClub.name;
     } else {
       // Security Guard: Prevent arbitrary unprivileged students from creating institutional sessions
-      if (!isSpecialRole) {
+      let hasLeaderPrivileges = isSpecialRole;
+      if (!hasLeaderPrivileges) {
+        // Check if they are a leader for ANY club (via members array OR direct leadership fields)
+        const userClubs = await Club.find({
+          $or: [
+            { 'members.user': req.user._id, 'members.status': 'approved' },
+            { 'leadership.president': req.user._id },
+            { 'leadership.vicePresident': req.user._id },
+            { 'leadership.secretary': req.user._id },
+            { 'leadership.treasurer': req.user._id },
+            { 'creator': req.user._id }
+          ]
+        });
+        hasLeaderPrivileges = userClubs.some(club => isUserAuthorizedForClub(req.user, club));
+      }
+
+      if (!hasLeaderPrivileges) {
         return res.status(403).json({
           success: false,
           message: 'Access denied: Institutional attendance sessions require administrator or club leader privileges',
@@ -395,13 +412,59 @@ router.post('/sessions/:sessionToken/close', protect, async (req, res) => {
     session.closedBy = req.user._id;
     await session.save();
 
-    // Deactivate check-in on the club event
+    // Deactivate check-in on the club event and process absentees
     if (targetClub && session.eventId) {
       try {
         const ev = targetClub.events.id(session.eventId);
         if (ev) {
           ev.activeCheckIn = false;
-          await targetClub.save();
+        }
+
+        // Process absentees and ghosting rules
+        const attendees = await Attendance.find({ sessionToken }).select('studentId').lean();
+        const attendedUserIds = new Set(attendees.map(a => a.studentId.toString()));
+        let ghostedCount = 0;
+        let absentRecordsToCreate = [];
+
+        targetClub.members.forEach((member) => {
+          if (['approved', 'restricted', 'Inactive_Ghost'].includes(member.status)) {
+            const memberIdStr = member.user.toString();
+            const isPresent = attendedUserIds.has(memberIdStr);
+            
+            if (!isPresent) {
+              member.absentStreak = (member.absentStreak || 0) + 1;
+              if (member.absentStreak >= 3) {
+                member.status = 'Inactive_Ghost';
+                ghostedCount++;
+              }
+              
+              // Prepare ABSENT record
+              absentRecordsToCreate.push({
+                studentId: member.user,
+                clubId: session.clubId,
+                eventId: session.eventId,
+                eventModel: 'ClubEvent',
+                sessionToken: session.sessionToken,
+                shortCode: session.shortCode,
+                eventTitle: session.eventTitle,
+                clubName: session.clubName,
+                hoursCredit: 0,
+                status: 'ABSENT',
+                scannedAt: new Date(),
+                verificationMethod: 'SYSTEM_GENERATED',
+              });
+            } else {
+              member.absentStreak = 0;
+            }
+          }
+        });
+
+        await targetClub.save();
+
+        if (absentRecordsToCreate.length > 0) {
+          await Attendance.insertMany(absentRecordsToCreate, { ordered: false }).catch(err => {
+            console.warn('Batch insert ABSENT records note:', err.message);
+          });
         }
       } catch (err) {
         console.warn('Club event check-in close sync note:', err.message);
@@ -514,14 +577,17 @@ router.get('/sessions/:sessionToken/roster', protect, async (req, res) => {
       });
     }
 
-    const attendees = await Attendance.find({ sessionToken })
+    const allAttendees = await Attendance.find({ sessionToken })
       .populate('studentId', 'name username department year email profileImage')
       .sort({ scannedAt: -1 })
       .lean();
 
+    const attendees = allAttendees.filter(a => a.status === 'PRESENT');
+    const absentees = allAttendees.filter(a => a.status === 'ABSENT');
+
     // Compute "Not Yet" roster from club membership
     let notYet = [];
-    if (targetClub && targetClub.members) {
+    if (session.isActive && targetClub && targetClub.members) {
       const attendedUserIds = new Set(
         attendees.map((a) => a.studentId?._id?.toString() || a.studentId?.toString())
       );
@@ -547,8 +613,10 @@ router.get('/sessions/:sessionToken/roster', protect, async (req, res) => {
       sessionToken,
       eventTitle: session.eventTitle,
       presentCount: attendees.length,
+      absentCount: absentees.length,
       notYetCount: notYet.length,
       attendees,
+      absentees,
       notYet,
     });
   } catch (error) {
@@ -792,6 +860,153 @@ router.get('/my-attendance', protect, async (req, res) => {
       message: 'Failed to fetch attendance history',
       error: error.message,
     });
+  }
+});
+
+// @desc    Get attendance sessions hosted by the current user
+// @route   GET /api/attendance/hosted-sessions
+// @access  Private (Club Leader / Admin)
+router.get('/hosted-sessions', protect, async (req, res) => {
+  try {
+    const isSpecialRole =
+      req.user.isAdmin ||
+      ['admin', 'superadmin', 'clubs_coordinator', 'academic_affairs', 'system_admin'].includes(req.user.role);
+
+    // Let them see sessions they created
+    const sessions = await AttendanceSession.find({ createdBy: req.user._id })
+      .sort({ startedAt: -1 })
+      .lean();
+
+    // Attach detailed attendance rosters to each session
+    const sessionsWithRosters = await Promise.all(
+      sessions.map(async (session) => {
+        const records = await Attendance.find({ sessionToken: session.sessionToken })
+          .populate('studentId', 'name username department')
+          .sort({ status: -1, scannedAt: -1 }) // PRESENT first, then ABSENT
+          .lean();
+        return {
+          ...session,
+          roster: records.map(r => ({
+            id: r._id,
+            name: r.studentId?.name || 'Unknown',
+            username: r.studentId?.username || '',
+            status: r.status,
+            scannedAt: r.scannedAt
+          }))
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      count: sessionsWithRosters.length,
+      sessions: sessionsWithRosters,
+    });
+  } catch (error) {
+    console.error('Fetch hosted sessions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch hosted sessions',
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get daily attendance register for a club
+// @route   GET /api/attendance/club/:clubId/daily
+// @access  Private (Club Leader / Admin / Coordinator)
+router.get('/club/:clubId/daily', protect, async (req, res) => {
+  try {
+    const { clubId } = req.params;
+    const { date } = req.query;
+
+    const club = await Club.findById(clubId).populate('members.user', 'name username email avatar');
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    if (!isUserAuthorizedForClub(req.user, club)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only authorized club leaders or administrators can view attendance register',
+      });
+    }
+
+    // Parse date window
+    let targetDate = new Date();
+    if (date) {
+      targetDate = new Date(date);
+    }
+    
+    // Set to start and end of the day in UTC
+    const startOfDay = new Date(targetDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const attendanceRecords = await Attendance.find({
+      clubId: club._id,
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    }).lean();
+
+    // Map by student ID
+    const attendanceMap = new Map();
+    attendanceRecords.forEach(record => {
+      attendanceMap.set(record.studentId.toString(), record);
+    });
+
+    const register = [];
+    let presentCount = 0;
+    let absentCount = 0;
+
+    // Filter to approved members only
+    const activeMembers = club.members.filter(m => m.status === 'approved' && m.user);
+
+    activeMembers.forEach(member => {
+      const studentIdStr = member.user._id.toString();
+      const record = attendanceMap.get(studentIdStr);
+      
+      if (record && record.status === 'PRESENT') {
+        presentCount++;
+        register.push({
+          studentId: member.user.username,
+          name: member.user.name || member.fullName,
+          status: 'PRESENT',
+          checkInTime: record.createdAt || record.scannedAt,
+          hours: record.hoursCredit || 0
+        });
+      } else {
+        absentCount++;
+        register.push({
+          studentId: member.user.username,
+          name: member.user.name || member.fullName,
+          status: 'ABSENT',
+          checkInTime: null,
+          hours: 0
+        });
+      }
+    });
+
+    const totalMembers = activeMembers.length;
+    const attendanceRate = totalMembers > 0 ? Math.round((presentCount / totalMembers) * 100) + '%' : '0%';
+
+    res.json({
+      success: true,
+      date: startOfDay.toISOString().split('T')[0],
+      clubId: club._id,
+      stats: {
+        totalMembers,
+        presentCount,
+        absentCount,
+        attendanceRate
+      },
+      register
+    });
+
+  } catch (error) {
+    console.error('Fetch daily register error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching daily register', error: error.message });
   }
 });
 
