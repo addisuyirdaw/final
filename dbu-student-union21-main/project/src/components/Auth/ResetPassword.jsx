@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+import { useNavigate, Link, useParams } from 'react-router-dom';
+import { apiService } from '../../services/api';
+import toast from 'react-hot-toast';
 
 export function ResetPassword() {
     const [password, setPassword] = useState("");
@@ -44,25 +45,19 @@ export function ResetPassword() {
         }
 
         try {
-            const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "/api")).replace(/\/api$/, "");
-            const response = await fetch(`${API_BASE}/api/auth/reset-password/${resetToken}`, {
+            const data = await apiService.request(`/auth/reset-password/${resetToken}`, {
                 method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({ password }),
             });
 
-            const data = await response.json();
-
             if (data.success) {
-                toast.success(data.message);
+                toast.success(data.message || "Password updated successfully");
                 navigate("/login");
             } else {
                 toast.error(data.message || "Error resetting password");
             }
         } catch (error) {
-            toast.error("Server connection failed");
+            toast.error(error.message || "Server connection failed");
         } finally {
             setIsLoading(false);
         }

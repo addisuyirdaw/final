@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, ArrowLeft, Link2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
+import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export function ForgotPassword() {
@@ -19,14 +20,10 @@ export function ForgotPassword() {
         setDevNote(null);
 
         try {
-            const API_BASE = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://dbu-student-portal-2.onrender.com/api" : "/api")).replace(/\/api$/, "");
-            const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+            const data = await apiService.request('/auth/forgot-password', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ identifier }),
             });
-
-            const data = await response.json();
 
             if (data.success) {
                 setSent(true);
@@ -39,7 +36,7 @@ export function ForgotPassword() {
                 toast.error(data.message || 'Error sending reset email');
             }
         } catch (error) {
-            toast.error('Server connection failed');
+            toast.error(error.message || 'Server connection failed');
         } finally {
             setIsLoading(false);
         }
