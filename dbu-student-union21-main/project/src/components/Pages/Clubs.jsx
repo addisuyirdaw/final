@@ -874,7 +874,7 @@ export function Clubs() {
         // Proceed with certificate generation
         const updatedData = { ...missingAmharicNamePrompt.data, nameAm: missingAmharicNameInput.trim() };
         setMissingAmharicNamePrompt(null);
-        handleIssueCertificate(updatedData);
+        handleDownloadCertificate(updatedData);
       } else {
         throw new Error(res.message || "Failed to update user");
       }
