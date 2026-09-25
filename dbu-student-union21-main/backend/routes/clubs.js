@@ -42,7 +42,7 @@ const checkIsClubAuthorized = (club, user) => {
   const isElevated =
     user.isAdmin === true ||
     privilegedRoles.includes(user.role) ||
-    user.username === 'dbu10101040' ||
+    user.role === 'admin' ||
     user.username === 'dbu10101030' ||
     isExecutive;
 
@@ -320,7 +320,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       (club.leadership?.secretary?._id || club.leadership?.secretary)?.toString() === req.user?._id?.toString() ||
       req.user?.role === 'president' ||
       req.user?.role === 'clubs_coordinator' ||
-      req.user?.username === 'dbu10101040' ||
+      req.user?.role === 'admin' ||
 
       req.user?.role === 'admin';
 
@@ -745,7 +745,7 @@ router.patch('/:id/members/:memberId/restrict', protect, clubLeader, async (req,
       });
     }
 
-    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.role === 'admin';
     const isTargetCoordinator = targetUser.role === 'clubs_coordinator' || targetUser.username === 'dbu10101040';
     const isTargetRep = targetUser.role === 'president';
 
@@ -841,7 +841,7 @@ router.delete('/:id/members/:memberId', protect, clubLeader, async (req, res) =>
     }
 
     // 1. POWER HIERARCHY SECURITY
-    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.role === 'admin';
     const isTargetCoordinator = targetUser.role === 'clubs_coordinator' || targetUser.username === 'dbu10101040';
     const isTargetRep = targetUser.role === 'president';
 
@@ -1189,7 +1189,7 @@ router.patch('/:id/assign-leader', protect, async (req, res) => {
     const { userId } = req.body;
 
     // Only allow for systemic admin (dbu10101040) or explicit coordinator role
-    const isMainCoordinator = req.user.username === 'dbu10101040' ||
+    const isMainCoordinator = req.user.role === 'admin' ||
       req.user.role === 'clubs_coordinator';
 
     if (!isMainCoordinator) {
@@ -1854,7 +1854,7 @@ router.get('/:clubId/certificate/verify', protect, async (req, res) => {
     // ── DEMO BYPASS: Club Admin and coordinator get automatic full eligibility ─
     const isDemoPrivileged =
       req.user.username === 'dbu10175692' ||
-      req.user.username === 'dbu10101040' ||
+      req.user.role === 'admin' ||
       req.user.role === 'clubs_coordinator' ||
       req.user.role === 'clubAdmin' ||
       req.user.role === 'club_admin';
@@ -1981,7 +1981,7 @@ router.get('/:clubId/certificate/verify', protect, async (req, res) => {
 router.post('/:id/toggle-certificates', protect, async (req, res) => {
   try {
     // Global coordinator / admin check
-    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.role === 'clubs_coordinator' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin' || req.user.role === 'admin';
 
     // Allow rep (dbu10175692) or the actual president of the club being toggled
     const isDemoRep = req.user.username === 'dbu10175692';

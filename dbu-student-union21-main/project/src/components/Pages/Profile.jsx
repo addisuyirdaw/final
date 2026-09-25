@@ -57,6 +57,7 @@ export function Profile() {
 
   const [formData, setFormData] = useState({
     name: "",
+    nameAm: "",
     email: "",
     phoneNumber: "",
     department: "",
@@ -84,6 +85,7 @@ export function Profile() {
       if (res.success && res.user) {
         setFormData({
           name: res.user.name || "",
+          nameAm: res.user.nameAm || "",
           email: res.user.email || "",
           phoneNumber: res.user.phoneNumber || "",
           department: res.user.department || "",
@@ -329,6 +331,23 @@ export function Profile() {
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-shadow outline-none text-gray-800"
                         required
                         placeholder="Gizew Fetene"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Amharic Name Input */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1">
+                      Amharic Name (Optional)
+                    </label>
+                    <div className="relative">
+                      <User className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={formData.nameAm || ""}
+                        onChange={(e) => setFormData({ ...formData, nameAm: e.target.value })}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-shadow outline-none text-gray-800 font-amharic"
+                        placeholder="ጊዘው ፈጠነ"
                       />
                     </div>
                   </div>

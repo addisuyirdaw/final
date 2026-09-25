@@ -49,7 +49,7 @@ async function runTests() {
     const adminToken = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // Find or create a student user for joining
-    let studentUser = await User.findOne({ role: 'student', username: { $regex: /^dbu\d{8}$/i } });
+    let studentUser = await User.findOne({ role: 'student', username: { $regex: /^dbu\d{6,8}$/i } });
     if (!studentUser) {
       studentUser = await User.findOne({ _id: { $ne: adminUser._id } });
     }

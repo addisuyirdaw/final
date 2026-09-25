@@ -30,7 +30,7 @@ const sanitizeAuthorName = (name) => {
 export function Complaints() {
 	const { user } = useAuth();
 	const navigate = useNavigate();
-	const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin' || user?.role === 'clubs_coordinator';
+	const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin' || user?.role === 'clubs_coordinator';
 	const isAcademicAdmin = user?.role === 'academic_affairs';
 	const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
 	const { markAsSeen } = useNotifications();

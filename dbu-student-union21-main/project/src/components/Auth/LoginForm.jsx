@@ -27,7 +27,7 @@ export function LoginForm() {
   const { login, register } = useAuth();
 
   const validateUsername = (username) => {
-    const regex = /^dbu\d{8}$/i;
+    const regex = /^dbu\d{6,8}$/i;
     return regex.test(username);
   };
 

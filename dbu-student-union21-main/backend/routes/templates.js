@@ -73,7 +73,7 @@ router.get('/', protect, async (req, res) => {
 // @access  Private/Admin or Clubs Coordinator
 router.post('/upload', protect, (req, res, next) => {
   // Allow clubs_coordinator role and the systemic coordinator account
-  const isCoordinator = req.user?.role === 'clubs_coordinator' || req.user?.username === 'dbu10101040';
+  const isCoordinator = req.user?.role === 'clubs_coordinator' || req.user?.role === 'admin';
   if (req.user?.isAdmin || isCoordinator) return next();
   return adminOnly(req, res, next);
 }, upload.single('file'), async (req, res) => {

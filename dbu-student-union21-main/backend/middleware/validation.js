@@ -23,7 +23,7 @@ const validateUserRegistration = [
     .isLength({ min: 2, max: 50 })
     .withMessage('Name must be between 2 and 50 characters'),
   body('username')
-    .matches(/^dbu\d{8}$/i)
+    .matches(/^dbu\d{6,8}$/i)
     .withMessage('Username must start with dbu followed by 8 digits'),
   body('email')
     .optional()
@@ -45,7 +45,7 @@ const validateUserRegistration = [
 
 const validateUserLogin = [
   body('username')
-    .matches(/^dbu\d{8}$/i)
+    .matches(/^dbu\d{6,8}$/i)
     .withMessage('Username must start with dbu followed by 8 digits'),
   body('password')
     .notEmpty()

@@ -195,7 +195,7 @@ router.patch('/:id/status', protect, adminOnly, async (req, res) => {
     }
 
     // Restricted Admin Check
-    const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'club_admin';
+    const isClubAdmin = req.user.role === 'admin' || req.user.role === 'club_admin';
     const isAcademicAdmin = req.user.role === 'academic_affairs';
 
     if (isClubAdmin && complaint.category !== 'club_related' && complaint.branch !== 'club_related') {
@@ -255,7 +255,7 @@ router.post('/:id/responses', protect, adminOnly, async (req, res) => {
     }
 
     // Restricted Admin Check
-    const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'club_admin';
+    const isClubAdmin = req.user.role === 'admin' || req.user.role === 'club_admin';
     const isAcademicAdmin = req.user.role === 'academic_affairs';
 
     if (isClubAdmin && complaint.category !== 'club_related' && complaint.branch !== 'club_related') {
@@ -317,7 +317,7 @@ router.patch('/:id/assign', protect, adminOnly, async (req, res) => {
     }
 
     // Restricted Admin Check
-    const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'club_admin';
+    const isClubAdmin = req.user.role === 'admin' || req.user.role === 'club_admin';
     const isAcademicAdmin = req.user.role === 'academic_affairs';
 
     if (isClubAdmin && complaint.category !== 'club_related' && complaint.branch !== 'club_related') {
@@ -441,7 +441,7 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
     }
 
     // Restricted Admin Check
-    const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'club_admin';
+    const isClubAdmin = req.user.role === 'admin' || req.user.role === 'club_admin';
     const isAcademicAdmin = req.user.role === 'academic_affairs';
 
     if (isClubAdmin && complaint.category !== 'club_related' && complaint.branch !== 'club_related') {

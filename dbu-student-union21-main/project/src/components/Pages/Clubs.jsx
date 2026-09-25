@@ -37,8 +37,8 @@ export function Clubs() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isAcademicAdmin = user?.role === 'academic_affairs';
-  const isCoordinator = user?.role === 'clubs_coordinator' || user?.username === 'dbu10101040';
-  const loginMatch = user?.username === 'dbu10101040' || user?.username === 'dbu101010ro' || user?.username === 'dbu10101020';
+  const isCoordinator = user?.role === 'clubs_coordinator' || user?.role === 'admin';
+  const loginMatch = user?.role === 'admin' || user?.username === 'dbu101010ro' || user?.username === 'dbu10101020';
   // isLeader is derived from the currently open club details — safe to use in render
   const { markAsSeen } = useNotifications();
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -47,6 +47,9 @@ export function Clubs() {
   const [loading, setLoading] = useState(true);
   const [showNewClubForm, setShowNewClubForm] = useState(false);
   const [activeCertificateData, setActiveCertificateData] = useState(null);
+  const [missingAmharicNamePrompt, setMissingAmharicNamePrompt] = useState(null);
+  const [missingAmharicNameInput, setMissingAmharicNameInput] = useState("");
+  const [missingAmharicNameLoading, setMissingAmharicNameLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingClubId, setEditingClubId] = useState(null);
   const [newClub, setNewClub] = useState({
@@ -530,7 +533,7 @@ export function Clubs() {
     // DEMO BYPASS: Club Rep (10175692) and Global Admin (10101040) always get a certificate.
     const isDemoPrivileged =
       user?.username === 'dbu10175692' ||
-      user?.username === 'dbu10101040' ||
+      user?.role === 'admin' ||
       user?.role === 'clubs_coordinator' ||
       user?.role === 'clubAdmin' ||
       user?.role === 'club_admin';
@@ -796,8 +799,10 @@ export function Clubs() {
 
     const recipientEnName = data.studentName || data.name || user?.name || '_______________';
     let recipientAmName = data.studentNameAm || data.nameAm || user?.nameAm;
-    if (!recipientAmName || /[a-zA-Z]/.test(recipientAmName)) {
-      recipientAmName = recipientEnName;
+    if (!recipientAmName || !/[ሀ-ፐ]/.test(recipientAmName)) {
+      setMissingAmharicNamePrompt({ data, userId: data.userId || user?._id || user?.id });
+      setMissingAmharicNameInput("");
+      return;
     }
 
     const certPayload = {
@@ -843,6 +848,42 @@ export function Clubs() {
 
     // Show the CertificateTemplate in a full-screen portal overlay
     setActiveCertificateData(certPayload);
+  };
+
+  const handleSaveMissingAmharicName = async () => {
+    if (!missingAmharicNameInput.trim()) {
+      toast.error("Please enter the Amharic name.");
+      return;
+    }
+    
+    try {
+      setMissingAmharicNameLoading(true);
+      const userId = missingAmharicNamePrompt.userId;
+      const currentUserId = user?._id || user?.id;
+      if (!userId) throw new Error("User ID not found to update.");
+
+      let res;
+      if (userId === currentUserId) {
+        res = await apiService.updateProfile({ nameAm: missingAmharicNameInput.trim() });
+      } else {
+        res = await apiService.updateUser(userId, { nameAm: missingAmharicNameInput.trim() });
+      }
+
+      if (res.success) {
+        toast.success("Amharic name saved successfully.");
+        // Proceed with certificate generation
+        const updatedData = { ...missingAmharicNamePrompt.data, nameAm: missingAmharicNameInput.trim() };
+        setMissingAmharicNamePrompt(null);
+        handleIssueCertificate(updatedData);
+      } else {
+        throw new Error(res.message || "Failed to update user");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to save Amharic name");
+      console.error(err);
+    } finally {
+      setMissingAmharicNameLoading(false);
+    }
   };
 
   const handleDownloadRepCertificate = async (memberUserId, memberName) => {
@@ -2641,10 +2682,8 @@ export function Clubs() {
                         </div>
                       )}
 
-                      {/* Club Rep / Member Actions */}
-                      {user && (
-                        ((String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId)) ||
-                          (Array.isArray(club?.members) && club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'))) && (
+                      {/* Club Rep / Leader Actions */}
+                      {user && (isLeader || user?.role === 'admin' || isCoordinator) && (
                           <div className="absolute top-2 left-2 flex space-x-1.5 z-10">
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelectedClub(club); setShowReportModal(true); }}
@@ -2653,7 +2692,6 @@ export function Clubs() {
                               <FileText className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                        )
                       )}
                     </div>
 
@@ -4475,7 +4513,7 @@ export function Clubs() {
                                   {(() => {
                                     const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president);
                                     const isMemberRep = String(member.user?._id || member.user) === presidentId;
-                                    const isMemberCoordinator = member.user?.role === 'clubs_coordinator' || member.user?.username === 'dbu10101040';
+                                    const isMemberCoordinator = member.user?.role === 'clubs_coordinator' || member.user?.role === 'admin';
                                     const canManage = isCoordinator || (isLeader && !isMemberRep && !isMemberCoordinator);
                                     if (!canManage) return <span className="text-gray-300 italic text-[10px]">Read Only</span>;
                                     return (
@@ -6539,6 +6577,46 @@ export function Clubs() {
             data={activeCertificateData}
             onDispose={() => setActiveCertificateData(null)}
           />
+        </div>,
+        document.body
+      )}
+
+      {/* Missing Amharic Name Modal */}
+      {missingAmharicNamePrompt && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl relative border border-slate-100">
+            <h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2">
+              <AlertTriangle className="text-amber-500 w-5 h-5" />
+              Amharic Name Required
+            </h3>
+            <p className="text-sm text-slate-600 mb-4 font-medium leading-relaxed">
+              Amharic name is required to generate the bilingual certificate. Please enter the student's Amharic name below.
+            </p>
+            <input
+              type="text"
+              value={missingAmharicNameInput}
+              onChange={(e) => setMissingAmharicNameInput(e.target.value)}
+              placeholder="e.g. ጊዘው ፈጠነ"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl mb-4 font-amharic outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all text-slate-900"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setMissingAmharicNamePrompt(null)}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                disabled={missingAmharicNameLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveMissingAmharicName}
+                disabled={missingAmharicNameLoading}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-sky-600 hover:bg-sky-700 text-white transition-colors flex items-center gap-2 shadow-md shadow-sky-600/20"
+              >
+                {missingAmharicNameLoading ? <Loader className="w-4 h-4 animate-spin" /> : "Save & Continue"}
+              </button>
+            </div>
+          </div>
         </div>,
         document.body
       )}

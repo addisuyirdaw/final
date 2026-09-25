@@ -6,7 +6,7 @@ const { protect } = require('../middleware/auth');
 
 // Helper to check if user is an admin or coordinator
 const isSystemAdmin = (user) => {
-  return user.isAdmin || user.role === 'clubs_coordinator' || user.username === 'dbu10101040';
+  return user.isAdmin || user.role === 'clubs_coordinator' || user.role === 'admin';
 };
 
 // Helper to check if user is the active president

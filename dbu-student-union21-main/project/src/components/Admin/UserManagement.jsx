@@ -55,6 +55,7 @@ export function UserManagement() {
   // Forms state
   const [createForm, setCreateForm] = useState({
     name: "",
+    nameAm: "",
     username: "",
     email: "",
     password: "",
@@ -68,6 +69,7 @@ export function UserManagement() {
 
   const [editForm, setEditForm] = useState({
     name: "",
+    nameAm: "",
     email: "",
     role: "student",
     department: "",
@@ -175,6 +177,7 @@ export function UserManagement() {
         setShowCreateModal(false);
         setCreateForm({
           name: "",
+          nameAm: "",
           username: "",
           email: "",
           password: "",
@@ -200,6 +203,7 @@ export function UserManagement() {
     setSelectedUser(user);
     setEditForm({
       name: user.name || "",
+      nameAm: user.nameAm || "",
       email: user.email || "",
       role: user.role || "student",
       department: user.department || "",
@@ -677,7 +681,17 @@ export function UserManagement() {
                       placeholder="e.g. Gizew Fetene"
                     />
                   </div>
-                  
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Amharic Name (Optional)</label>
+                    <input
+                      type="text"
+                      value={createForm.nameAm || ""}
+                      onChange={(e) => setCreateForm({ ...createForm, nameAm: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none text-gray-800 font-amharic"
+                      placeholder="e.g. ጊዘው ፈጠነ"
+                    />
+                  </div>
                   {/* Student ID / Username */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Student ID (Username) *</label>
@@ -879,6 +893,15 @@ export function UserManagement() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Amharic Name (Optional)</label>
+                    <input
+                      type="text"
+                      value={editForm.nameAm || ""}
+                      onChange={(e) => setEditForm({ ...editForm, nameAm: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none text-gray-800 font-amharic"
+                    />
+                  </div>
                   {/* Username (Locked/Display) */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Student ID (Username - Locked)</label>

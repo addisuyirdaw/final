@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema(
 			trim: true,
 			maxlength: [50, "Name cannot be more than 50 characters"],
 		},
+		nameAm: {
+			type: String,
+			trim: true,
+		},
 		username: {
 			type: String,
 			required: [true, "Please provide a username"],
@@ -17,8 +21,8 @@ const userSchema = new mongoose.Schema(
 			trim: true,
 			lowercase: true,
 			match: [
-				/^dbu\d{8}$/i,
-				"Username must start with dbu followed by 8 digits",
+				/^dbu\d{6,8}$/i,
+				"Username must start with dbu followed by 7 or 8 digits",
 			],
 		},
 		email: {

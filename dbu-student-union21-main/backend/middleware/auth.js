@@ -240,7 +240,7 @@ const clubLeader = async (req, res, next) => {
 		if (
 			req.user.isAdmin ||
 			privilegedRoles.includes(req.user.role) ||
-			req.user.username === 'dbu10101040' ||
+			req.user.role === 'admin' ||
 			req.user.username === 'dbu10101030' ||
 			isExecutive
 		) {

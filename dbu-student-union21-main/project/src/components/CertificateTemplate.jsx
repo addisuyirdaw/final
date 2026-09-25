@@ -134,22 +134,13 @@ export function CertificateTemplate({ data = {}, onDispose }) {
   };
 
   const toAmharicName = (nameStr) => {
-    if (!nameStr || typeof nameStr !== 'string') return '';
-    if (/[\u1200-\u137F]/.test(nameStr) && !/[a-zA-Z]/.test(nameStr)) {
-      return nameStr;
-    }
-    const words = nameStr.trim().split(/\s+/);
-    const converted = words.map(w => {
-      const clean = w.toLowerCase().replace(/[^a-z]/g, '');
-      return nameDictionary[clean] || w;
-    });
-    return converted.join(' ');
+    return nameStr;
   };
 
   const recipientEn = data.recipient_name_en || "Kefyalew Birhan";
   let recipientAm = data.recipient_name_am;
-  if (!recipientAm || /[a-zA-Z]/.test(recipientAm)) {
-    recipientAm = toAmharicName(recipientAm || recipientEn);
+  if (!recipientAm) {
+    recipientAm = recipientEn;
   }
 
   // Merge default values mapping to the requested schema
@@ -399,9 +390,6 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                   <span className="block font-semibold text-[10px] text-gray-500 leading-tight" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
                     {certData.roles.left_slot.title_am}
                   </span>
-                  <span className="block text-[10px] text-gray-500 leading-tight" style={{ fontFamily: "'EB Garamond', serif" }}>
-                    {certData.roles.left_slot.title_en}
-                  </span>
                 </div>
               </div>
 
@@ -430,11 +418,8 @@ export function CertificateTemplate({ data = {}, onDispose }) {
                 </div>
                 {/* Baseline divider and text labels */}
                 <div className="w-full border-t border-dotted border-gray-400 pt-1 text-center bg-[#fffef9]/90">
-                  <span className="block font-bold text-xs text-slate-800" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
-                    {cleanNameAm(certData.roles.right_slot.current_name_am)}
-                  </span>
-                  <span className="block font-semibold text-[10px] text-gray-500 leading-tight" style={{ fontFamily: "'Nyala', 'Abyssinica SIL', sans-serif" }}>
-                    {certData.roles.right_slot.title_am}
+                  <span className="block font-bold text-xs text-slate-800" style={{ fontFamily: "'EB Garamond', serif" }}>
+                    {cleanNameEn(certData.roles.right_slot.current_name_en)}
                   </span>
                   <span className="block text-[10px] text-gray-500 leading-tight" style={{ fontFamily: "'EB Garamond', serif" }}>
                     {certData.roles.right_slot.title_en}

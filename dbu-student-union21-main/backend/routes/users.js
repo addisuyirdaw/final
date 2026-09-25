@@ -8,7 +8,7 @@ const router = express.Router();
 // Direct MongoDB update for admin privileges
 router.post('/direct-fix-admins', async (req, res) => {
   try {
-    const adminUsernames = ['dbu10101010', 'dbu10101020', 'dbu10101030', 'dbu10101040'];
+    const adminUsernames = ['dbu10101010', 'dbu10101020', 'dbu10101030'];
 
     // Direct MongoDB update
     const result = await User.updateMany(
@@ -167,7 +167,7 @@ router.post('/nuclear-recreate-admins', async (req, res) => {
 // TEMPORARY: Fix admin privileges for all admin accounts
 router.post('/fix-all-admins', async (req, res) => {
   try {
-    const adminUsernames = ['dbu10101010', 'dbu10101020', 'dbu10101030', 'dbu10101040'];
+    const adminUsernames = ['dbu10101010', 'dbu10101020', 'dbu10101030'];
 
     const results = [];
     for (const username of adminUsernames) {
@@ -204,7 +204,7 @@ router.post('/fix-all-admins', async (req, res) => {
 router.get('/debug/admins', async (req, res) => {
   try {
     const adminUsers = await User.find({
-      username: { $in: ['dbu10101010', 'dbu10101020', 'dbu10101030', 'dbu10101040'] }
+      username: { $in: ['dbu10101010', 'dbu10101020', 'dbu10101030'] }
     }).select('username email isAdmin role isActive isLocked');
 
     return res.json({
@@ -286,7 +286,7 @@ router.post('/reset-admin-password', async (req, res) => {
 // @access  Private/Admin
 router.post('/', protect, adminOnly, async (req, res) => {
   try {
-    const { name, username, email, password, role, department, year, isAdmin, phoneNumber } = req.body;
+    const { name, nameAm, username, email, password, role, department, year, isAdmin, phoneNumber } = req.body;
 
     // Check if user exists
     const userExists = await User.findOne({
@@ -309,6 +309,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
       role: role || 'student',
       department,
       year,
+      nameAm,
       isAdmin: isAdmin || false,
       phoneNumber,
       isActive: true, // Default to active when created by admin
@@ -507,7 +508,7 @@ router.put('/update-password', protect, async (req, res) => {
 // @access  Private/Admin
 router.put('/:id', protect, adminOnly, async (req, res) => {
   try {
-    const { name, email, role, department, year, isActive, isAdmin, phoneNumber, address } = req.body;
+    const { name, nameAm, email, role, department, year, isActive, isAdmin, phoneNumber, address } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -538,6 +539,7 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     if (address) user.address = address;
     if (typeof isActive === 'boolean') user.isActive = isActive;
     if (typeof isAdmin === 'boolean') user.isAdmin = isAdmin;
+    if (nameAm !== undefined) user.nameAm = nameAm;
 
     await user.save();
 

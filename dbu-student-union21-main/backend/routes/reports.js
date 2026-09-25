@@ -89,7 +89,7 @@ router.post('/club/:clubId', protect, upload.single('file'), async (req, res) =>
 
     const isLeader = (club.leadership?.president?.toString() === req.user._id?.toString()) ||
       (club.leadership?.vicePresident?.toString() === req.user._id?.toString()) ||
-      req.user.role === 'president' || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040' || req.user.isAdmin;
+      req.user.role === 'president' || req.user.role === 'clubs_coordinator' || req.user.role === 'admin' || req.user.isAdmin;
 
     const isMember = club.members?.find(m => m.user?.toString() === req.user._id?.toString() && m.status === 'approved');
 
@@ -183,7 +183,7 @@ router.get('/club/:clubId/pending-manager', protect, async (req, res) => {
     const isLeader = (club.leadership?.president?.toString() === req.user._id.toString()) || 
                      req.user.isAdmin || 
                      req.user.role === 'clubs_coordinator' || 
-                     req.user.username === 'dbu10101040' || 
+                     req.user.role === 'admin' || 
                      req.user.role === 'president';
     if (!isLeader) return res.status(403).json({ success: false, message: 'Not authorized' });
 
@@ -213,7 +213,7 @@ router.get('/club/:clubId', protect, async (req, res) => {
       (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
       req.user.role === 'president' ||
       req.user.role === 'clubs_coordinator' ||
-      req.user.username === 'dbu10101040' ||
+      req.user.role === 'admin' ||
       req.user.isAdmin;
 
     let query = { club: req.params.clubId };
@@ -253,7 +253,7 @@ router.get('/club/:clubId', protect, async (req, res) => {
 router.get('/pending', protect, async (req, res) => {
   try {
     // Only admins or clubs coordinators
-    if (!req.user.isAdmin && req.user.role !== 'clubs_coordinator' && req.user.username !== 'dbu10101040') {
+    if (!req.user.isAdmin && req.user.role !== 'clubs_coordinator' && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized to view reports' });
     }
 
@@ -285,7 +285,7 @@ router.patch('/:id/review', protect, async (req, res) => {
     }
 
     const club = report.club;
-    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.role === 'admin';
     const isLeader = club && (
       (club.leadership?.president?.toString() === req.user._id.toString()) ||
       (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
@@ -328,7 +328,7 @@ router.put('/:id/approve', protect, async (req, res) => {
     }
 
     const club = report.club;
-    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.role === 'admin';
     const isLeader = club && (
       (club.leadership?.president?.toString() === req.user._id.toString()) ||
       (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
@@ -369,7 +369,7 @@ router.put('/:id/return', protect, async (req, res) => {
     }
 
     const club = report.club;
-    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.role === 'admin';
     const isLeader = club && (
       (club.leadership?.president?.toString() === req.user._id.toString()) ||
       (club.leadership?.vicePresident?.toString() === req.user._id.toString()) ||
@@ -404,7 +404,7 @@ router.put('/:id/return', protect, async (req, res) => {
 // @access  Private/Coordinator
 router.get('/inbox', protect, async (req, res) => {
   try {
-    if (!req.user.isAdmin && req.user.role !== 'clubs_coordinator' && req.user.username !== 'dbu10101040') {
+    if (!req.user.isAdmin && req.user.role !== 'clubs_coordinator' && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized for inbox' });
     }
     const reports = await ActivityReport.find()
@@ -537,7 +537,7 @@ router.delete('/:id', protect, async (req, res) => {
     }
 
     const club = report.club;
-    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.username === 'dbu10101040';
+    const isCoordinator = req.user.isAdmin || req.user.role === 'clubs_coordinator' || req.user.role === 'admin';
     const isLeader = club && (
       (club.leadership?.president?.toString() === req.user._id?.toString()) ||
       (club.leadership?.vicePresident?.toString() === req.user._id?.toString()) ||

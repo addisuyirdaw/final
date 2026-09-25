@@ -96,6 +96,7 @@ router.post("/register", validateUserRegistration, async (req, res) => {
 			user: {
 				id: user._id,
 				name: user.name,
+				nameAm: user.nameAm,
 				username: user.username,
 				email: user.email,
 				department: user.department,
@@ -228,6 +229,7 @@ router.post("/login", validateUserLogin, async (req, res) => {
 			user: {
 				id: user._id,
 				name: user.name,
+				nameAm: user.nameAm,
 				username: user.username,
 				email: user.email,
 				department: user.department,
@@ -346,6 +348,7 @@ router.post("/admin-login", async (req, res) => {
 			user: {
 				id: admin._id,
 				name: admin.name,
+				nameAm: admin.nameAm,
 				username: admin.username,
 				email: admin.email,
 				role: admin.role,
@@ -394,7 +397,7 @@ router.put("/profile", protect, (req, res, next) => {
 		}
 
 		try {
-			const { name, department, year, phoneNumber, address, email } = req.body;
+			const { name, nameAm, department, year, phoneNumber, address, email } = req.body;
 
 			const user = await User.findById(req.user.id);
 			if (!user) {
@@ -410,6 +413,7 @@ router.put("/profile", protect, (req, res, next) => {
 			if (year) user.year = year;
 			if (phoneNumber) user.phoneNumber = phoneNumber;
 			if (address) user.address = address;
+			if (nameAm !== undefined) user.nameAm = nameAm;
 			if (email) user.email = email;
 
 			// If a new avatar was uploaded, delete the old file and save the new URL
@@ -439,6 +443,7 @@ router.put("/profile", protect, (req, res, next) => {
 				user: {
 					id: user._id,
 					name: user.name,
+					nameAm: user.nameAm,
 					email: user.email,
 					username: user.username,
 					department: user.department,
@@ -680,6 +685,7 @@ router.put("/reset-password/:resetToken", async (req, res) => {
 			user: {
 				id: user._id,
 				name: user.name,
+				nameAm: user.nameAm,
 				username: user.username,
 				email: user.email,
 				role: user.role,

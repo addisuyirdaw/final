@@ -295,7 +295,7 @@ router.post('/:id/vote', protect, async (req, res) => {
     if (!candidateId) return res.status(400).json({ success: false, message: 'Candidate ID is required' });
 
     if ((req.user.isAdmin || req.user.role === 'admin') &&
-      req.user.username !== 'dbu10101040' &&
+      req.user.role !== 'admin' &&
       req.user.username !== 'dbu10101021')
       return res.status(403).json({ success: false, message: 'Administrators cannot vote' });
 

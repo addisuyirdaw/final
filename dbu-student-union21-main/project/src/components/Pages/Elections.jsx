@@ -118,7 +118,7 @@ const CountdownTimer = ({ election, onFinish }) => {
 
 export function Elections() {
   const { user } = useAuth();
-  const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin' || user?.role === 'clubs_coordinator';
+  const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin' || user?.role === 'clubs_coordinator';
   const isAcademicAdmin = user?.role === 'academic_affairs';
   const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
   const isElectionAdmin = user?.role === 'president';
@@ -180,7 +180,7 @@ export function Elections() {
 
       // Check which elections the user has voted in
       if (user) {
-        const isClubAdmin = user.username === 'dbu10101040' || user.role === 'club_admin';
+        const isClubAdmin = user.role === 'admin' || user.role === 'club_admin';
         const isAcademicAdmin = user.role === 'academic_affairs';
         const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
         if (!user.isAdmin || isSpecialAdmin) {
@@ -281,7 +281,7 @@ export function Elections() {
   const handleUpdateElection = async (e) => {
     e.preventDefault();
 
-    const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin';
+    const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin';
     const isAcademicAdmin = user?.role === 'academic_affairs';
     const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
     const isElectionAdmin = user?.role === 'president';
@@ -344,7 +344,7 @@ export function Elections() {
   const handleCreateElection = async (e) => {
     e.preventDefault();
 
-    const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin';
+    const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin';
     const isAcademicAdmin = user?.role === 'academic_affairs';
     const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
     const isElectionAdmin = user?.role === 'president';
@@ -417,7 +417,7 @@ export function Elections() {
     }
 
     // Council level roles (excluding clubs coordinator who is a student role usually) cannot vote
-    const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin';
+    const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin';
     const isAcademicAdmin = user?.role === 'academic_affairs';
     const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
     const isGlobalAdmin = (user.isAdmin || user.role === 'admin' || user.role === 'council_president') && !isSpecialAdmin;
@@ -451,7 +451,7 @@ export function Elections() {
   };
 
   const handleDeleteElection = async (electionId) => {
-    const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin';
+    const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin';
     const isAcademicAdmin = user?.role === 'academic_affairs';
     const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
     const canDelete = (user?.isAdmin || user?.role === 'president') && !isSpecialAdmin;
@@ -475,7 +475,7 @@ export function Elections() {
   };
 
   const announceResults = async (electionId) => {
-    const isClubAdmin = user?.username === 'dbu10101040' || user?.role === 'club_admin';
+    const isClubAdmin = user?.role === 'admin' || user?.role === 'club_admin';
     const isAcademicAdmin = user?.role === 'academic_affairs';
     const isSpecialAdmin = isClubAdmin || isAcademicAdmin;
     const isElectionAdmin = user?.role === 'president';

@@ -36,7 +36,7 @@ router.get('/ledger', optionalAuth, async (req, res) => {
     // Data Scoping for Club Reps
     if (req.user) {
       const isClubRep = req.user.role === 'CLUB_REP' || req.user.role === 'club_rep';
-      const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'CLUB_ADMIN' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin';
+      const isClubAdmin = req.user.role === 'admin' || req.user.role === 'CLUB_ADMIN' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin';
 
       if (isClubRep && !isClubAdmin) {
         const userClubIds = req.user.joinedClubs || [];
@@ -137,7 +137,7 @@ router.get('/ledger', optionalAuth, async (req, res) => {
 router.post('/transactions', protect, async (req, res) => {
   try {
     const isPrivileged =
-      req.user.username === 'dbu10101040' ||
+      req.user.role === 'admin' ||
       ['CLUB_ADMIN', 'clubAdmin', 'club_admin', 'admin', 'superadmin', 'audit_finance', 'clubs_coordinator', 'academic_affairs', 'president'].includes(
         req.user.role
       ) || req.user.isAdmin;
@@ -302,7 +302,7 @@ router.post('/request-funds', protect, async (req, res) => {
 // @access  Private (Club Admin)
 router.patch('/transactions/:id/status', protect, async (req, res) => {
   try {
-    const isClubAdmin = req.user.username === 'dbu10101040' || req.user.role === 'CLUB_ADMIN' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin';
+    const isClubAdmin = req.user.role === 'admin' || req.user.role === 'CLUB_ADMIN' || req.user.role === 'clubAdmin' || req.user.role === 'club_admin';
     
     if (!isClubAdmin) {
       return res.status(403).json({

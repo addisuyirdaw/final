@@ -42,7 +42,7 @@ const isClubAuthorized = (club, user) => {
   const isElevated =
     user.isAdmin === true ||
     privilegedRoles.includes(user.role) ||
-    user.username === 'dbu10101040' ||
+    user.role === 'admin' ||
     user.username === 'dbu10101030' ||
     isExecutive;
 

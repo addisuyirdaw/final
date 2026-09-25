@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
 router.post('/toggle-election', protect, async (req, res) => {
   try {
     // Only Club Admin (dbu10101040) may change this
-    const hasPermission = req.user.username === 'dbu10101040' ||
+    const hasPermission = req.user.role === 'admin' ||
                           req.user.role === 'CLUB_ADMIN' ||
                           req.user.role === 'clubAdmin' ||
                           req.user.role === 'club_admin';
@@ -105,7 +105,7 @@ router.post('/toggle/:key', protect, async (req, res) => {
     }
 
     // Only Club Admin (dbu10101040) may change this
-    const hasPermission = req.user.username === 'dbu10101040' ||
+    const hasPermission = req.user.role === 'admin' ||
                           req.user.role === 'CLUB_ADMIN' ||
                           req.user.role === 'clubAdmin' ||
                           req.user.role === 'club_admin';
@@ -150,7 +150,7 @@ router.post('/toggle-cert-rule/:key', protect, async (req, res) => {
 
     // Only Club Admin (dbu10101040) or coordinator role may change cert rules
     const isClubAdmin =
-      req.user.username === 'dbu10101040' ||
+      req.user.role === 'admin' ||
       req.user.role === 'clubs_coordinator' ||
       req.user.role === 'clubAdmin' ||
       req.user.role === 'club_admin';

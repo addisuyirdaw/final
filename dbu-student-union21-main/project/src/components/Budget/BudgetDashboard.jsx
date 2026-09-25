@@ -61,7 +61,7 @@ export const BudgetDashboard = () => {
   const { user } = useAuth();
   const isAdmin =
     user &&
-    (user.username === 'dbu10101040' ||
+    (user.role === 'admin' ||
       user.role === 'CLUB_ADMIN' || user.role === 'clubAdmin' || user.role === 'club_admin');
 
   const isClubRep = user && (user.role === 'CLUB_REP' || user.role === 'club_rep');
