@@ -43,9 +43,14 @@ class ErrorBoundary extends React.Component {
                             Something went wrong
                         </h1>
                         <p className="text-gray-600 mb-6">
-                            An unexpected error occurred. Please click the button below to
-                            return to the home page.
+                            An unexpected error occurred.
                         </p>
+                        {this.state.error && (
+                            <div className="text-left bg-red-50 text-red-800 p-4 rounded-lg mb-6 overflow-auto text-sm max-h-64">
+                                <p className="font-bold">{this.state.error.toString()}</p>
+                                <pre className="mt-2 whitespace-pre-wrap">{this.state.error.stack}</pre>
+                            </div>
+                        )}
                         <button
                             onClick={this.handleReset}
                             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
