@@ -70,7 +70,7 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
         const clubList = res.clubs || res.data || (Array.isArray(res) ? res : []);
         setClubs(clubList);
         if (!selectedClubId && clubList.length > 0) {
-          setSelectedClubId(clubList[0]._id);
+          setSelectedClubId(clubList[0].id || clubList[0]._id);
         }
       } catch (err) {
         console.warn('Could not load clubs for QR manager:', err.message);
@@ -333,7 +333,7 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
                 >
                   <option value="">General DBU Event / University Body</option>
                   {clubs.map((c) => (
-                    <option key={c._id} value={c._id}>
+                    <option key={c.id || c._id} value={c.id || c._id}>
                       {c.name} ({c.category})
                     </option>
                   ))}
