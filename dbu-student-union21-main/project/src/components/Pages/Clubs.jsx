@@ -937,7 +937,7 @@ export function Clubs() {
     if (showClubDetails && selectedClubDetails) {
       const clubId = selectedClubDetails._id || selectedClubDetails.id;
       const userId = user?._id || user?.id;
-      const isApprovedMember = selectedClubDetails.members?.some(
+      const isApprovedMember = Array.isArray(selectedClubDetails.members) && selectedClubDetails.members.some(
         m => String(m.user?._id || m.user) === String(userId) && m.status === 'approved'
       );
       if (isApprovedMember || isLeader || isCoordinator) {
