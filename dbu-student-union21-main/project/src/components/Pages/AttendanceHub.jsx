@@ -4,11 +4,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { AttendanceScanner } from '../Attendance/AttendanceScanner';
 import { QRCodeManager } from '../Attendance/QRCodeManager';
 import { QrCode, Camera, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 export function AttendanceHub() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('scanner'); // 'scanner' | 'manager'
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('autoStart') === 'true' ? 'manager' : 'scanner';
+  const [activeTab, setActiveTab] = useState(initialTab); // 'scanner' | 'manager'
 
   const canManageSessions =
     user?.isAdmin ||

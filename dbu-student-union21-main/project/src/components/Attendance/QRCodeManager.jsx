@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import {
   QrCode,
   Clock,
@@ -27,10 +28,15 @@ import { DailyAttendanceRegister } from './DailyAttendanceRegister';
 
 export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const autoStart = searchParams.get('autoStart') === 'true';
+  const urlClubId = searchParams.get('clubId');
+  const urlEventId = searchParams.get('eventId');
+
   const [clubs, setClubs] = useState([]);
-  const [selectedClubId, setSelectedClubId] = useState(defaultClubId || '');
+  const [selectedClubId, setSelectedClubId] = useState(urlClubId || defaultClubId || '');
   const [clubEvents, setClubEvents] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState(defaultEventId || '');
+  const [selectedEventId, setSelectedEventId] = useState(urlEventId || defaultEventId || '');
   const [customTitle, setCustomTitle] = useState('');
   const [validMinutes, setValidMinutes] = useState(30);
   const [hoursCredit, setHoursCredit] = useState(1);
@@ -158,6 +164,12 @@ export function QRCodeManager({ defaultClubId = null, defaultEventId = null }) {
 
     return () => clearInterval(timer);
   }, [session?.isActive]);
+
+  useEffect(() => {
+    if (autoStart && selectedClubId && selectedEventId && !session && !generating) {
+      handleLaunchAttendance();
+    }
+  }, [autoStart, selectedClubId, selectedEventId, session, generating]);
 
   // Launch / Start Attendance
   const handleLaunchAttendance = async (e) => {

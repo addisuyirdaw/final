@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Loader, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
@@ -3583,20 +3583,27 @@ export function Clubs() {
                                     </p>
                                   </div>
                                 </div>
-                                <form onSubmit={handleCheckIn} className="flex gap-2 w-full md:w-auto">
+                                <form onSubmit={handleCheckIn} className="flex gap-2 w-full md:w-auto items-center">
+                                  <Link
+                                    to="/attendance"
+                                    className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl font-bold shadow-md transition-all text-xs flex items-center justify-center h-full"
+                                  >
+                                    📷 Scan QR
+                                  </Link>
+                                  <span className="text-emerald-800 font-bold text-xs mx-1">OR</span>
                                   <input
                                     type="text"
-                                    maxLength="4"
+                                    maxLength="6"
                                     placeholder="Code"
                                     value={checkInCode}
-                                    onChange={(e) => setCheckInCode(e.target.value.replace(/[^0-9]/g, ""))}
+                                    onChange={(e) => setCheckInCode(e.target.value.replace(/[^0-9a-zA-Z]/g, "").toUpperCase())}
                                     disabled={checkingIn}
-                                    className="px-4 py-2 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-center font-mono font-bold w-32 tracking-widest text-emerald-900 bg-white"
+                                    className="px-4 py-2 border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-center font-mono font-bold w-24 tracking-widest text-emerald-900 bg-white uppercase"
                                   />
                                   <button
                                     type="submit"
-                                    disabled={checkingIn || checkInCode.length !== 4}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-md transition-all text-xs disabled:opacity-50"
+                                    disabled={checkingIn || checkInCode.length < 4}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-md transition-all text-xs disabled:opacity-50 h-full"
                                   >
                                     {checkingIn ? "Checking..." : "Submit"}
                                   </button>
@@ -4164,14 +4171,24 @@ export function Clubs() {
                                                 </p>
                                               </div>
                                             )}
-                                            <button
-                                              type="button"
-                                              onClick={() => handleEndSession(event._id)}
-                                              disabled={endingSessionEventId === event._id}
-                                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
-                                            >
-                                              {endingSessionEventId === event._id ? "Ending..." : "End & Close Check-In"}
-                                            </button>
+                                            <div className="flex gap-2 ml-auto">
+                                              <Link
+                                                to={`/attendance?clubId=${selectedClubDetails._id || selectedClubDetails.id}&eventId=${event._id}&autoStart=true`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm flex items-center justify-center"
+                                              >
+                                                Show Live QR
+                                              </Link>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleEndSession(event._id)}
+                                                disabled={endingSessionEventId === event._id}
+                                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                                              >
+                                                {endingSessionEventId === event._id ? "Ending..." : "End & Close Check-In"}
+                                              </button>
+                                            </div>
                                           </div>
                                         )}
 

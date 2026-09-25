@@ -13,6 +13,7 @@ const SystemConfig = require('../models/SystemConfig');
 const Attendance = require('../models/Attendance');
 const AttendanceSession = require('../models/AttendanceSession');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
 const { protect, adminOnly, optionalAuth, clubLeader } = require('../middleware/auth');
 const { validateClub } = require('../middleware/validation');
@@ -1283,10 +1284,20 @@ router.patch('/:id/assign-leader', protect, async (req, res) => {
 // CLUB ATTENDANCE, LIVE CHECK-IN & CERTIFICATE GATEKEEPER ENDPOINTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+const manualCheckinLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user ? req.user._id.toString() : req.ip,
+  message: {
+    success: false,
+    message: 'Too many check-in attempts. Please wait a few minutes and try again.',
+  },
+});
+
 // @desc    Self-service check-in using a 4-digit code
 // @route   POST /api/clubs/checkin
 // @access  Private
-router.post('/checkin', protect, async (req, res) => {
+router.post('/checkin', protect, manualCheckinLimiter, async (req, res) => {
   try {
     const { clubId, sessionCode } = req.body;
     const userId = req.user._id;
@@ -1318,25 +1329,62 @@ router.post('/checkin', protect, async (req, res) => {
       return res.status(200).json({ success: true, message: 'Already checked in successfully!', club });
     }
 
-    // Record attendance in Club model
-    activeEvent.attendees.push(userId);
-    member.attendanceCount = (member.attendanceCount || 0) + 1;
-    member.absentStreak = 0;
-
-    // Automatically restore ghost status back to approved
+    // Prepare dynamic sets for atomic update
+    const setFields = { 'members.$[mem].absentStreak': 0 };
     if (member.status === 'Inactive_Ghost') {
-      member.status = 'approved';
+      setFields['members.$[mem].status'] = 'approved';
     }
 
-    await club.save();
+    // Atomic update: only add to attendees if not already there, and only increment count once.
+    const updateResult = await Club.updateOne(
+      {
+        _id: club._id,
+        events: {
+          $elemMatch: {
+            _id: activeEvent._id,
+            attendees: { $ne: userId } // Critical condition to prevent duplicates
+          }
+        }
+      },
+      {
+        $addToSet: { 'events.$.attendees': userId }, // $ refers to the matched event
+        $inc: { 'members.$[mem].attendanceCount': 1 },
+        $set: setFields
+      },
+      {
+        arrayFilters: [{ 'mem.user': userId }] // $[mem] refers to the specific member
+      }
+    );
 
+    if (updateResult.matchedCount === 0) {
+      // The update failed to match a document.
+      // Since we already validated club, event, and member, the only remaining 
+      // reason the query fails is because `attendees: { $ne: userId }` evaluated to false.
+      // This means a concurrent request just successfully checked this student in.
+      
+      const verifyClub = await Club.findById(clubId, { 'events': { $elemMatch: { _id: activeEvent._id } } });
+      const isActuallyCheckedIn = verifyClub?.events?.[0]?.attendees?.some(attId => attId.toString() === userId.toString());
+      
+      if (isActuallyCheckedIn) {
+         // Fetch the full club to return to frontend exactly like original logic
+         const finalClub = await Club.findById(clubId);
+         return res.status(200).json({ success: true, message: 'Already checked in successfully!', club: finalClub });
+      } else {
+         return res.status(400).json({ success: false, message: 'Check-in failed due to event status change' });
+      }
+    }
+    
+    // Fetch the updated document to send back the accurate state
+    const updatedClub = await Club.findById(clubId);
+    const updatedMember = updatedClub.members.find(m => m.user.toString() === userId.toString());
+    
     // Legacy attendance creation removed: official attendance is now strictly managed by /api/attendance/scan
 
     res.json({
       success: true,
       message: 'Successfully checked in!',
-      attendanceCount: member.attendanceCount,
-      club
+      attendanceCount: updatedMember ? updatedMember.attendanceCount : (member.attendanceCount || 0) + 1,
+      club: updatedClub
     });
   } catch (error) {
     console.error('Checkin error:', error);
