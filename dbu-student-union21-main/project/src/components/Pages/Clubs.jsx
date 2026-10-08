@@ -486,7 +486,8 @@ export function Clubs() {
     try {
       const clubId = selectedClubDetails._id || selectedClubDetails.id;
       const formData = new FormData();
-      formData.append("title", `Outcome Report: ${selectedClubDetails.events.find(ev => ev._id === outcomeFormEventId)?.title}`);
+      const targetEv = Array.isArray(selectedClubDetails?.events) ? selectedClubDetails.events.find(ev => ev._id === outcomeFormEventId) : null;
+    formData.append("title", `Outcome Report: ${targetEv?.title || "Event"}`);
       formData.append("eventId", outcomeFormEventId);
       formData.append("status", "DRAFT");
       
@@ -1089,7 +1090,7 @@ export function Clubs() {
   };
 
   useEffect(() => {
-    if (selectedClubDetails?.events) {
+    if (Array.isArray(selectedClubDetails?.events)) {
       const activeEvent = selectedClubDetails.events.find(e => e.activeCheckIn === true);
       if (activeEvent) {
         const elapsedSec = Math.floor((Date.now() - new Date(activeEvent.updatedAt).getTime()) / 1000);
@@ -1107,7 +1108,7 @@ export function Clubs() {
     if (checkInTimeLeft === null) return;
 
     if (checkInTimeLeft <= 0) {
-      const activeEvent = selectedClubDetails?.events?.find(e => e.activeCheckIn === true);
+      const activeEvent = Array.isArray(selectedClubDetails?.events) ? selectedClubDetails.events.find(e => e.activeCheckIn === true) : null;
       if (activeEvent) {
         const clubId = selectedClubDetails._id || selectedClubDetails.id;
         toast.error("Check-in session has expired and locked automatically.");
@@ -3577,7 +3578,7 @@ export function Clubs() {
                         <>
                           {/* Live Check-In Alert */}
                           {(() => {
-                            const activeEvent = selectedClubDetails.events?.find(e => e.activeCheckIn === true);
+                            const activeEvent = Array.isArray(selectedClubDetails?.events) ? selectedClubDetails.events.find(e => e.activeCheckIn === true) : null;
                             if (!activeEvent) return null;
                             return (
                               <div className="mb-6 p-5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 animate-pulse">
@@ -4053,7 +4054,7 @@ export function Clubs() {
 
                           {/* Events List */}
                           <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                            {!selectedClubDetails.events || selectedClubDetails.events.length === 0 ? (
+                            {!Array.isArray(selectedClubDetails?.events) || selectedClubDetails.events.length === 0 ? (
                               <div className="text-center py-8 text-gray-400 italic text-sm">No events scheduled yet.</div>
                             ) : (
                               [...selectedClubDetails.events]
@@ -4890,7 +4891,7 @@ export function Clubs() {
                             <div className="flex flex-wrap gap-2 mb-4">
                               {announcement.relatedEvent && (
                                 <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md font-medium">
-                                  📅 {selectedClubDetails?.events?.find(e => e._id === announcement.relatedEvent)?.title || 'Linked Event'}
+                                  📅 {(Array.isArray(selectedClubDetails?.events) ? selectedClubDetails.events.find(e => e._id === announcement.relatedEvent)?.title : null) || 'Linked Event'}
                                 </span>
                               )}
                               {announcement.relatedProject && (
@@ -5116,7 +5117,7 @@ export function Clubs() {
                                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Active Projects</span>
                                   </div>
                                   <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
-                                    <span className="text-2xl font-black text-gray-800">{selectedClubDetails?.events?.filter(e => e.status === 'approved' || e.status === 'ongoing').length || 0}</span>
+                                    <span className="text-2xl font-black text-gray-800">{Array.isArray(selectedClubDetails?.events) ? selectedClubDetails.events.filter(e => e.status === 'approved' || e.status === 'ongoing').length : 0}</span>
                                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Upcoming Events</span>
                                   </div>
                                   <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
@@ -5285,7 +5286,7 @@ export function Clubs() {
                                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total Projects</span>
                                   </div>
                                   <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
-                                    <span className="text-2xl font-black text-gray-800">{selectedClubDetails?.events?.length || 0}</span>
+                                    <span className="text-2xl font-black text-gray-800">{Array.isArray(selectedClubDetails?.events) ? selectedClubDetails.events.length : (typeof selectedClubDetails?.events === 'number' ? selectedClubDetails.events : 0)}</span>
                                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total Events</span>
                                   </div>
                                   <div className="min-w-[140px] bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col items-center justify-center text-center">
