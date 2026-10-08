@@ -591,8 +591,8 @@ const DEFAULT_CAROUSEL_SLIDES = [
 											<h3 className="text-xl font-bold text-gray-900 mb-2">{dir.title}</h3>
 											<p className="text-gray-600 mb-6 flex-grow whitespace-pre-line">{dir.content}</p>
 											<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-												<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-												<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+												<button onClick={() => navigate('/latest')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+												<button onClick={() => user ? navigate('/latest') : navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
 													<MessageSquare className="w-4 h-4" /> Save / Acknowledge
 												</button>
 											</div>
@@ -616,8 +616,8 @@ const DEFAULT_CAROUSEL_SLIDES = [
 										<h3 className="text-xl font-bold text-gray-900 mb-2">Guidance Workshop on the 3rd Floor this Friday.</h3>
 										<p className="text-gray-600 mb-6 flex-grow">All students are invited to attend our mental health and guidance workshop to discuss student wellbeing and resources available on campus.</p>
 										<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-											<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-											<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+											<button onClick={() => navigate('/latest')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+											<button onClick={() => user ? navigate('/latest') : navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
 												<MessageSquare className="w-4 h-4" /> Save / Acknowledge
 											</button>
 										</div>
@@ -638,8 +638,8 @@ const DEFAULT_CAROUSEL_SLIDES = [
 										<h3 className="text-xl font-bold text-gray-900 mb-2">Dormitory Registration for 2nd Year Students is now open.</h3>
 										<p className="text-gray-600 mb-6 flex-grow">Please ensure all required documents are submitted to the housing office before the end of the week. Late submissions will face penalties.</p>
 										<div className="flex items-center justify-between pt-4 border-t border-gray-50">
-											<button onClick={() => !user && navigate('/login')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
-											<button onClick={() => !user && navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
+											<button onClick={() => navigate('/latest')} className="text-red-700 font-medium text-sm hover:underline flex items-center gap-1">Read More <ArrowRight className="w-4 h-4" /></button>
+											<button onClick={() => user ? navigate('/latest') : navigate('/login')} className="text-gray-500 hover:text-blue-600 text-sm flex items-center gap-1">
 												<MessageSquare className="w-4 h-4" /> Save / Acknowledge
 											</button>
 										</div>
@@ -756,9 +756,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 									<span>📍 Block 42 Lab</span>
 								</div>
 								<p className="text-gray-600 mb-6 flex-grow text-sm">Join us for a 24-hour coding sprint to build innovative solutions for campus problems. Top 3 teams win incubation space!</p>
-								<button onClick={() => !user && navigate('/login')} className="w-full border-2 border-blue-600 text-blue-600 font-bold py-2.5 rounded-lg hover:bg-blue-50 transition-colors mt-auto">
-									Register Now
-								</button>
+								<button onClick={() => navigate('/events')} className="w-full border-2 border-blue-600 text-blue-600 font-bold py-2.5 rounded-lg hover:bg-blue-50 transition-colors mt-auto">Explore Events</button>
 							</div>
 						</div>
 					</div>

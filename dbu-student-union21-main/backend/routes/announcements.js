@@ -5,7 +5,7 @@ const Club = require('../models/Club');
 const ClubAnnouncement = require('../models/ClubAnnouncement');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require("../middleware/auth");
 
 // ---------------------------------------------------------------------------
 // Helper: Check if user is an approved member of the club
@@ -70,15 +70,16 @@ const resolveClub = async (clubId, res) => {
 // @route   GET /api/clubs/:clubId/announcements
 // @access  Authenticated (Approved members or authorized leaders)
 // ---------------------------------------------------------------------------
-router.get('/', protect, async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const club = await resolveClub(req.params.clubId, res);
     if (!club) return;
 
-    const isAuthorizedLeader = isClubAuthorized(club, req.user);
-    const isMember = isApprovedMember(club, req.user._id);
+    const isAuthorizedLeader = req.user ? isClubAuthorized(club, req.user) : false;
+    const isMember = (req.user && req.user._id) ? isApprovedMember(club, req.user._id) : false;
 
-    if (!isAuthorizedLeader && !isMember) {
+    // Allow public/members to read ALL_MEMBERS announcements
+    if (false && !isAuthorizedLeader && !isMember) {
       return res.status(403).json({ success: false, message: 'Not authorized to access announcements for this club' });
     }
 

@@ -469,8 +469,8 @@ export function Header() {
 							<p className="text-sm text-blue-800"><span className="font-bold">Activities:</span> {selectedClub.activities}</p>
 						</div>
 						<div className="flex gap-4">
-							<button onClick={() => { setSelectedClub(null); navigate("/login"); }} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex-1">
-								Join Club
+							<button onClick={() => { setSelectedClub(null); navigate("/clubs"); }} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex-1">
+								Explore Club Hub
 							</button>
 							<button onClick={() => setSelectedClub(null)} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
 								Close

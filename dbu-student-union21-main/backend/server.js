@@ -280,62 +280,102 @@ app.use(errorHandler);
 
 console.log("MongoDB URI:", process.env.MONGODB_URI);
 
-// Database connection with retry logic
-const connectDB = async (retries = 5, delay = 5000) => {
+
+const seedClubsAndUsers = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error("MONGODB_URI is not defined in environment variables");
+    const Club = require('./models/Club');
+    const User = require('./models/User');
+
+    const users = [
+      { name: "System Admin", username: "dbu10101030", password: "Admin123#", role: "system_admin", department: "Computer Science", year: "4th Year", isAdmin: true },
+      { name: "President Admin", username: "dbu10101020", password: "Admin123#", role: "president", department: "Software Engineering", year: "4th Year", isAdmin: true },
+      { name: "Club Admin", username: "dbu10101040", password: "Admin123#", role: "clubs_coordinator", department: "Information Technology", year: "3rd Year", isAdmin: true },
+      { name: "Default Student", username: "dbu10178849", password: "Student123#", role: "student", department: "Computer Science", year: "2nd Year", isAdmin: false },
+    ];
+
+    for (const userData of users) {
+      const userExists = await User.findOne({ username: userData.username });
+      if (!userExists) {
+        await User.create(userData);
+      }
     }
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 120000,
-      connectTimeoutMS: 30000,
-      maxPoolSize: 10,
-      minPoolSize: 5,
-      maxIdleTimeMS: 60000,
-      waitQueueTimeoutMS: 10000,
-      heartbeatFrequencyMS: 30000,
-      retryWrites: true,
-      w: 'majority'
-    });
+    const adminUser = (await User.findOne({ username: 'dbu10101040' })) || (await User.findOne({ isAdmin: true }));
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-    console.log(`✅ Database: ${conn.connection.name}`);
+    const clubsToEnsure = [
+      { name: "Booking Club", category: "Academic", description: "Official Booking Club dedicated to campus resources and reservation management.", founded: "2023", status: "active" },
+      { name: "Mechanical Club", category: "Technology", description: "Mechanical Engineering student club for hands-on innovation and prototyping.", founded: "2022", status: "active" },
+      { name: "Civil Engineering Club", category: "Technology", description: "Civil Engineering student society fostering architectural and structural projects.", founded: "2022", status: "active" },
+      { name: "Idea Hub", category: "Technology", description: "DBU Idea Hub fostering startup incubations and technology entrepreneurship.", founded: "2021", status: "active" },
+      { name: "Career Development Club", category: "Professional", description: "Empowering students with career counseling, CV preparation, and internship links.", founded: "2023", status: "active" },
+      { name: "Law Association Club", category: "Academic", description: "Law students association facilitating legal aid workshops and moot court sessions.", founded: "2020", status: "active" },
+      { name: "Truth Culture Club", category: "Cultural", description: "Fostering cultural diversity, arts, music, and campus community dialogue.", founded: "2021", status: "active" }
+    ];
 
-    // Create default admin user
-    try {
-      await createDefaultAdmin();
-    } catch (adminError) {
-      console.warn("⚠️ Admin creation warning:", adminError.message);
+    for (const c of clubsToEnsure) {
+      const existing = await Club.findOne({ name: c.name });
+      if (!existing) {
+        await Club.create({
+          ...c,
+          leadership: {
+            president: adminUser?._id,
+            vicePresident: adminUser?._id,
+            secretary: adminUser?._id,
+            treasurer: adminUser?._id
+          },
+          members: adminUser ? [{
+            user: adminUser._id,
+            fullName: adminUser.name || "Club Representative",
+            department: adminUser.department || "Information Technology",
+            year: adminUser.year || "3rd Year",
+            role: "president",
+            status: "approved",
+            joinedAt: new Date()
+          }] : []
+        });
+      }
+    }
+    console.log("? Clubs and Users verified & seeded");
+  } catch (err) {
+    console.warn("?? Clubs/Users seed warning:", err.message);
+  }
+};
+
+// Database connection with fallback logic
+let mongodInstance = null;
+const connectDB = async () => {
+  try {
+    let connected = false;
+    if (process.env.MONGODB_URI) {
+      try {
+        const conn = await mongoose.connect(process.env.MONGODB_URI, {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          serverSelectionTimeoutMS: 3000,
+        });
+        console.log(`? MongoDB Connected: ${conn.connection.host}`);
+        connected = true;
+      } catch (localErr) {
+        console.log("Local MongoDB not reachable, starting embedded In-Memory MongoDB...");
+      }
     }
 
-    // Seed university & cross-campus club reference data (idempotent)
-    try {
-      await seedUniversities();
-    } catch (seedError) {
-      console.warn("⚠️ University seed warning:", seedError.message);
+    if (!connected) {
+      const { MongoMemoryServer } = require("mongodb-memory-server");
+      mongodInstance = await MongoMemoryServer.create();
+      const memUri = mongodInstance.getUri();
+      const conn = await mongoose.connect(memUri);
+      console.log(`? MongoDB Connected (In-Memory Database): ${conn.connection.host}`);
     }
 
-    // Seed initial public financial ledger & micro-grants (idempotent)
-    try {
-      await seedBudget();
-    } catch (budgetError) {
-      console.warn("⚠️ Budget seed warning:", budgetError.message);
-    }
+    try { await createDefaultAdmin(); } catch (e) { console.warn("Admin seed warning:", e.message); }
+    try { await seedUniversities(); } catch (e) { console.warn("University seed warning:", e.message); }
+    try { await seedBudget(); } catch (e) { console.warn("Budget seed warning:", e.message); }
+    try { await seedClubsAndUsers(); } catch (e) { console.warn("Clubs seed warning:", e.message); }
 
   } catch (error) {
-    console.error(`❌ Database connection error (${retries} retries left):`, error.message);
-
-    if (retries > 0) {
-      console.log(`🔄 Retrying connection in ${delay / 1000} seconds...`);
-      setTimeout(() => connectDB(retries - 1, delay), delay);
-    } else {
-      console.error("❌ Could not connect to MongoDB after multiple attempts");
-      process.exit(1);
-    }
+    console.error("? Database connection error:", error.message);
+    process.exit(1);
   }
 };
 

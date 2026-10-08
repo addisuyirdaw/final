@@ -58,7 +58,7 @@ const resolveClub = async (clubId, res) => {
 // @route   GET /api/clubs/:clubId/projects
 // @access  Authenticated (any logged-in user)
 // ---------------------------------------------------------------------------
-router.get('/', protect, async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const club = await resolveClub(req.params.clubId, res);
     if (!club) return;
@@ -89,7 +89,7 @@ router.get('/', protect, async (req, res) => {
 // @route   GET /api/clubs/:clubId/projects/:projectId
 // @access  Authenticated
 // ---------------------------------------------------------------------------
-router.get('/:projectId', protect, async (req, res) => {
+router.get('/:projectId', optionalAuth, async (req, res) => {
   try {
     const club = await resolveClub(req.params.clubId, res);
     if (!club) return;

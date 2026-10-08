@@ -184,6 +184,10 @@ export function AttendanceScanner() {
   }, [activeTab]);
 
   const handleProcessScan = async (qrPayload) => {
+    if (!user) {
+      toast.error('Please login to verify your attendance');
+      return;
+    }
     try {
       setSubmitting(true);
       const str = String(qrPayload || '').trim();
@@ -252,6 +256,10 @@ export function AttendanceScanner() {
 
   const handleManualSubmit = async (e) => {
     e?.preventDefault();
+    if (!user) {
+      toast.error('Please login to record attendance');
+      return;
+    }
     const cleanCode = manualCode.trim().toUpperCase();
     if (!cleanCode || cleanCode.length < 4) {
       toast.error('Please enter a valid check-in code');

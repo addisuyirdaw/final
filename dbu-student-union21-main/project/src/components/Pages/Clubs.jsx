@@ -79,12 +79,20 @@ export function Clubs() {
   const [selectedClubDetails, setSelectedClubDetails] = useState(null);
   const [showClubDetails, setShowClubDetails] = useState(false);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('overview');
-  // Component-level isLeader: true when the logged-in user is the president of the currently open club
+  // Component-level isLeader: true when the logged-in user is a club leader (president, VP, secretary, treasurer)
   const isLeader = (() => {
     const userId = user?._id || user?.id;
     if (!userId || !selectedClubDetails) return false;
-    const presidentId = String(selectedClubDetails?.leadership?.president?._id || selectedClubDetails?.leadership?.president || '');
-    return presidentId !== '' && String(userId) === presidentId;
+    const getLeaderId = (leader) => {
+      if (!leader) return '';
+      return String(leader._id || leader);
+    };
+    const presidentId = getLeaderId(selectedClubDetails?.leadership?.president);
+    const vpId = getLeaderId(selectedClubDetails?.leadership?.vicePresident);
+    const secId = getLeaderId(selectedClubDetails?.leadership?.secretary);
+    const tresId = getLeaderId(selectedClubDetails?.leadership?.treasurer);
+    const uid = String(userId);
+    return uid === presidentId || uid === vpId || uid === secId || uid === tresId;
   })();
 
   // Report states
@@ -342,11 +350,26 @@ export function Clubs() {
         toast.success("Event created successfully!");
         setEventForm({ title: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
         setShowCreateEvent(false);
-        // Refresh club details to get updated event list
-        const updatedDetails = await apiService.getClub(clubId);
-        setSelectedClubDetails(updatedDetails);
-        // ── Instant carousel sync: update the matching club card in the clubs list ──
-        setClubs(prev => prev.map(c => (String(c._id || c.id) === String(clubId) ? { ...c, events: updatedDetails.events } : c)));
+        // FIX: Use the club returned directly from the create response instead of a
+        // separate getClub() call that can fail auth and store a non-club object.
+        // (Root cause of React Error #31 - object rendered as React child)
+        const freshClub = res.club || null;
+        if (freshClub && freshClub._id) {
+          setSelectedClubDetails(freshClub);
+          setClubs(prev => prev.map(c => (String(c._id || c.id) === String(clubId) ? { ...c, events: Array.isArray(freshClub.events) ? freshClub.events.length : (freshClub.events || 0) } : c)));
+        } else {
+          try {
+            const updatedDetails = await apiService.getClub(clubId);
+            const clubObj = (updatedDetails && updatedDetails._id) ? updatedDetails
+              : (updatedDetails && updatedDetails.club && updatedDetails.club._id ? updatedDetails.club : null);
+            if (clubObj) {
+              setSelectedClubDetails(clubObj);
+              setClubs(prev => prev.map(c => (String(c._id || c.id) === String(clubId) ? { ...c, events: Array.isArray(clubObj.events) ? clubObj.events.length : (clubObj.events || 0) } : c)));
+            }
+          } catch (_) { /* event created; UI refreshes on next navigation */ }
+        }
+      } else {
+        toast.error(res.message || "Failed to create event");
       }
     } catch (err) {
       toast.error(err.message || "Failed to create event");
@@ -2743,7 +2766,7 @@ export function Clubs() {
                         </div>
                         <div className="flex items-center">
                           <Calendar className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                          <span>{club.events || 0} events</span>
+                          <span>{Array.isArray(club.events) ? club.events.length : (club.events || 0)} events</span>
                         </div>
                       </div>
 
@@ -3880,27 +3903,29 @@ export function Clubs() {
                         );
                       })()}
 
-                      {/* Club Leader / Coordinator / System Admin View */}
-                      {activeWorkspaceTab === 'events' && (isLeader || isCoordinator || user?.isAdmin) && (
+                      {/* Club Events & Attendance View (Public & Member Access) */}
+                      {activeWorkspaceTab === 'events' && (
                         <div className="mb-8 p-6 bg-white rounded-3xl border border-gray-100 shadow-md">
                           <div className="flex justify-between items-center mb-6">
                             <div>
                               <h3 className="font-extrabold text-gray-900 flex items-center gap-2">
-                                <Calendar className="w-5 h-5 text-indigo-600" /> Event & Attendance Manager
+                                <Calendar className="w-5 h-5 text-indigo-600" /> Club Events & Workshops
                               </h3>
-                              <p className="text-xs text-gray-400 mt-0.5">Create sessions and manage live student check-ins</p>
+                              <p className="text-xs text-gray-400 mt-0.5">Explore scheduled meetings, workshops, and verified sessions</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setShowCreateEvent(!showCreateEvent)}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
-                            >
-                              <Plus className="w-4 h-4" /> {showCreateEvent ? "Cancel" : "Create Event"}
-                            </button>
+                            {(isLeader || isCoordinator || user?.isAdmin) && (
+                              <button
+                                type="button"
+                                onClick={() => setShowCreateEvent(!showCreateEvent)}
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
+                              >
+                                <Plus className="w-4 h-4" /> {showCreateEvent ? "Cancel" : "Create Event"}
+                              </button>
+                            )}
                           </div>
 
-                          {/* Create Event Inline Form */}
-                          {showCreateEvent && (
+                          {/* Create Event Inline Form (Authorized Officers Only) */}
+                          {(isLeader || isCoordinator || user?.isAdmin) && showCreateEvent && (
                             <form onSubmit={handleCreateEvent} className="mb-6 p-5 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
                               <h4 className="font-bold text-sm text-gray-800">Add New Event</h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
