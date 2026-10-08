@@ -112,12 +112,61 @@ router.get('/public-stats', protect, async (req, res) => {
 });
 
 /* ===========================
+   @desc    Election statistics
+   @route   GET /api/elections/stats/overview
+   @access  Private/Admin
+=========================== */
+router.get('/stats/overview', protect, adminOnly, async (req, res) => {
+  try {
+    const totalElections = await Election.countDocuments();
+    const activeElections = await Election.countDocuments({ status: 'active' });
+    const upcomingElections = await Election.countDocuments({ status: 'upcoming' });
+    const completedElections = await Election.countDocuments({ status: 'completed' });
+
+    const electionsByType = await Election.aggregate([
+      { $group: { _id: '$electionType', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    const voteStats = await Election.aggregate([
+      { $group: { _id: null, totalVotes: { $sum: '$totalVotes' }, avgTurnout: { $avg: '$turnoutPercentage' } } }
+    ]);
+
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const recentElections = await Election.countDocuments({ createdAt: { $gte: ninetyDaysAgo } });
+
+    res.json({
+      success: true,
+      stats: {
+        totalElections,
+        activeElections,
+        upcomingElections,
+        completedElections,
+        recentElections,
+        totalVotes: voteStats[0]?.totalVotes || 0,
+        avgTurnout: Math.round(voteStats[0]?.avgTurnout || 0),
+        electionsByType
+      }
+    });
+  } catch (error) {
+    console.error('Get election stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching election statistics' });
+  }
+});
+
+/* ===========================
    @desc    Get single election
    @route   GET /api/elections/:id
    @access  Public
 =========================== */
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Election not found' });
+    }
+
     const election = await Election.findById(req.params.id)
       .populate('createdBy', 'name email role')
       .populate('voters.user', 'name email studentId');
@@ -372,51 +421,6 @@ router.post('/:id/announce', protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error('Announce results error:', error);
     res.status(500).json({ success: false, message: 'Server error announcing results' });
-  }
-});
-
-/* ===========================
-   @desc    Election statistics
-   @route   GET /api/elections/stats/overview
-   @access  Private/Admin
-=========================== */
-router.get('/stats/overview', protect, adminOnly, async (req, res) => {
-  try {
-    const totalElections = await Election.countDocuments();
-    const activeElections = await Election.countDocuments({ status: 'active' });
-    const upcomingElections = await Election.countDocuments({ status: 'upcoming' });
-    const completedElections = await Election.countDocuments({ status: 'completed' });
-
-    const electionsByType = await Election.aggregate([
-      { $group: { _id: '$electionType', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    const voteStats = await Election.aggregate([
-      { $group: { _id: null, totalVotes: { $sum: '$totalVotes' }, avgTurnout: { $avg: '$turnoutPercentage' } } }
-    ]);
-
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    const recentElections = await Election.countDocuments({ createdAt: { $gte: ninetyDaysAgo } });
-
-    res.json({
-      success: true,
-      stats: {
-        totalElections,
-        activeElections,
-        upcomingElections,
-        completedElections,
-        recentElections,
-        totalVotes: voteStats[0]?.totalVotes || 0,
-        avgTurnout: Math.round(voteStats[0]?.avgTurnout || 0),
-        electionsByType
-      }
-    });
-  } catch (error) {
-    console.error('Get election stats error:', error);
-    res.status(500).json({ success: false, message: 'Server error fetching election statistics' });
   }
 });
 

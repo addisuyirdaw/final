@@ -295,18 +295,234 @@ router.get('/events/my-upcoming', protect, async (req, res) => {
   }
 });
 
+// @desc    Get club statistics
+// @route   GET /api/clubs/stats/overview
+// @access  Private/Admin
+router.get('/stats/overview', protect, adminOnly, async (req, res) => {
+  try {
+    const totalClubs = await Club.countDocuments();
+    const activeClubs = await Club.countDocuments({ status: 'active' });
+    const pendingClubs = await Club.countDocuments({ status: 'pending' });
+    const inactiveClubs = await Club.countDocuments({ status: 'inactive' });
+
+    // Clubs by category
+    const clubsByCategory = await Club.aggregate([
+      { $match: { category: { $exists: true, $ne: null } } },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Total members across all clubs
+    const memberStats = await Club.aggregate([
+      { $project: { memberCount: { $size: '$members' } } },
+      { $group: { _id: null, totalMembers: { $sum: '$memberCount' }, avgMembers: { $avg: '$memberCount' } } }
+    ]);
+
+    // Most popular clubs
+    const popularClubs = await Club.aggregate([
+      { $project: { name: 1, memberCount: { $size: '$members' } } },
+      { $sort: { memberCount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalClubs,
+        activeClubs,
+        pendingClubs,
+        inactiveClubs,
+        totalMembers: memberStats[0]?.totalMembers || 0,
+        avgMembers: Math.round(memberStats[0]?.avgMembers || 0),
+        clubsByCategory,
+        popularClubs
+      }
+    });
+  } catch (error) {
+    console.error('Get club stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching club statistics'
+    });
+  }
+});
+
+// @desc    Get institutional club performance insights
+// @route   GET /api/clubs/performance
+// @access  Private/Admin
+router.get('/performance', protect, adminOnly, async (req, res) => {
+  try {
+    const clubStats = await Club.aggregate([
+      { $match: { status: { $in: ['active', 'pending'] } } },
+      {
+        $project: {
+          name: 1,
+          category: 1,
+          status: 1,
+          memberCount: {
+            $size: {
+              $filter: {
+                input: { $ifNull: ["$members", []] },
+                as: "member",
+                cond: { $eq: ["$$member.status", "approved"] }
+              }
+            }
+          },
+          validEvents: {
+            $filter: {
+              input: { $ifNull: ["$events", []] },
+              as: "event",
+              cond: { $in: ["$$event.status", ["completed", "approved", "ongoing", "planned"]] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          category: 1,
+          status: 1,
+          memberCount: 1,
+          eventCount: { $size: "$validEvents" },
+          latestEventDate: { $max: "$validEvents.date" }
+        }
+      },
+      { $sort: { name: 1 } }
+    ]);
+
+    const [projects, tasks, reports, renewals] = await Promise.all([
+      Project.aggregate([
+        { $group: { 
+            _id: '$clubId', 
+            activeProjects: { $sum: { $cond: [{ $in: ['$status', ['planning', 'active']] }, 1, 0] } }, 
+            completedProjects: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } } 
+        } }
+      ]),
+      Task.aggregate([
+        { $group: { 
+            _id: '$clubId', 
+            completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } }, 
+            pendingTasks: { $sum: { $cond: [{ $in: ['$status', ['todo', 'in_progress']] }, 1, 0] } } 
+        } }
+      ]),
+      ActivityReport.aggregate([
+        { $sort: { createdAt: -1 } },
+        { $group: { 
+            _id: '$club', 
+            latestReportDate: { $first: '$createdAt' }, 
+            totalReports: { $sum: 1 }, 
+            pendingReports: { $sum: { $cond: [{ $eq: ['$status', 'PENDING_REVIEW'] }, 1, 0] } } 
+        } }
+      ]),
+      ClubRenewal.aggregate([
+        { $sort: { createdAt: -1 } },
+        { $group: { 
+            _id: '$club', 
+            latestStatus: { $first: '$status' }, 
+            academicYear: { $first: '$academicYear' } 
+        } }
+      ])
+    ]);
+
+    const projMap = Object.fromEntries(projects.map(p => [p._id.toString(), p]));
+    const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
+    const repMap = Object.fromEntries(reports.map(r => [r._id.toString(), r]));
+    const renMap = Object.fromEntries(renewals.map(r => [r._id.toString(), r]));
+
+    const performanceData = clubStats.map(club => {
+      const p = projMap[club._id.toString()] || { activeProjects: 0, completedProjects: 0 };
+      const t = taskMap[club._id.toString()] || { pendingTasks: 0, completedTasks: 0 };
+      const r = repMap[club._id.toString()] || { totalReports: 0, pendingReports: 0, latestReportDate: null };
+      const ren = renMap[club._id.toString()] || { latestStatus: 'NOT_STARTED' };
+
+      let signal = 'Active';
+      if (ren.latestStatus === 'RETURNED' || ren.latestStatus === 'SUBMITTED') {
+        signal = `Renewal ${ren.latestStatus === 'SUBMITTED' ? 'Pending' : 'Returned'}`;
+      } else if (r.pendingReports > 0) {
+        signal = 'Report Pending Review';
+      } else if (club.status === 'pending') {
+        signal = 'Club Approval Pending';
+      } else {
+        const lastActivity = club.latestEventDate ? new Date(club.latestEventDate) : null;
+        if (!lastActivity && p.activeProjects === 0) {
+          signal = 'No Recent Activity';
+        }
+      }
+
+      return {
+        id: club._id,
+        name: club.name,
+        category: club.category,
+        status: club.status,
+        memberCount: club.memberCount,
+        eventCount: club.eventCount,
+        latestEventDate: club.latestEventDate,
+        activeProjects: p.activeProjects,
+        completedProjects: p.completedProjects,
+        pendingTasks: t.pendingTasks,
+        completedTasks: t.completedTasks,
+        totalReports: r.totalReports,
+        pendingReports: r.pendingReports,
+        latestReportDate: r.latestReportDate,
+        renewalStatus: ren.latestStatus,
+        supportSignal: signal
+      };
+    });
+
+    const summary = {
+      totalClubs: performanceData.length,
+      activeProjects: performanceData.reduce((acc, curr) => acc + curr.activeProjects, 0),
+      totalActivities: performanceData.reduce((acc, curr) => acc + curr.eventCount, 0),
+      attentionRequired: performanceData.filter(c => c.supportSignal !== 'Active').length
+    };
+
+    res.json({
+      success: true,
+      summary,
+      performance: performanceData
+    });
+  } catch (error) {
+    console.error('Get club performance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching club performance'
+    });
+  }
+});
+
 // @desc    Get single club
 // @route   GET /api/clubs/:id
 // @access  Public
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const club = await Club.findById(req.params.id)
-      .populate('members.user', 'name username email studentId department year profileImage')
-      .populate('leadership.president', 'name email studentId profileImage')
-      .populate('leadership.vicePresident', 'name email studentId profileImage')
-      .populate('leadership.secretary', 'name email studentId profileImage')
-      .populate('leadership.treasurer', 'name email studentId profileImage')
-      .populate('events.attendees', 'name email profileImage');
+    const { id } = req.params;
+    let club = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      club = await Club.findById(id)
+        .populate('members.user', 'name username email studentId department year profileImage')
+        .populate('leadership.president', 'name email studentId profileImage')
+        .populate('leadership.vicePresident', 'name email studentId profileImage')
+        .populate('leadership.secretary', 'name email studentId profileImage')
+        .populate('leadership.treasurer', 'name email studentId profileImage')
+        .populate('events.attendees', 'name email profileImage');
+    }
+
+    if (!club) {
+      const slugPattern = new RegExp('^' + id.replace(/[-_]/g, '[ -_]?'), 'i');
+      club = await Club.findOne({
+        $or: [
+          { name: { $regex: slugPattern } },
+          { category: { $regex: slugPattern } }
+        ]
+      })
+        .populate('members.user', 'name username email studentId department year profileImage')
+        .populate('leadership.president', 'name email studentId profileImage')
+        .populate('leadership.vicePresident', 'name email studentId profileImage')
+        .populate('leadership.secretary', 'name email studentId profileImage')
+        .populate('leadership.treasurer', 'name email studentId profileImage')
+        .populate('events.attendees', 'name email profileImage');
+    }
 
     if (!club) {
       return res.status(404).json({
@@ -316,14 +532,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     }
 
     // Check permissions for non-active clubs
-    const isLeader = (club.leadership?.president?._id || club.leadership?.president)?.toString() === req.user?._id?.toString() ||
-      (club.leadership?.vicePresident?._id || club.leadership?.vicePresident)?.toString() === req.user?._id?.toString() ||
-      (club.leadership?.secretary?._id || club.leadership?.secretary)?.toString() === req.user?._id?.toString() ||
-      req.user?.role === 'president' ||
-      req.user?.role === 'clubs_coordinator' ||
-      req.user?.role === 'admin' ||
-
-      req.user?.role === 'admin';
+    const isLeader = checkIsClubAuthorized(club, req.user);
 
     if (club.status !== 'active' && !req.user?.isAdmin && !isLeader) {
       return res.status(404).json({
@@ -987,200 +1196,6 @@ router.post('/:id/leave', protect, async (req, res) => {
   }
 });
 
-// @desc    Get club statistics
-// @route   GET /api/clubs/stats/overview
-// @access  Private/Admin
-router.get('/stats/overview', protect, adminOnly, async (req, res) => {
-  try {
-    const totalClubs = await Club.countDocuments();
-    const activeClubs = await Club.countDocuments({ status: 'active' });
-    const pendingClubs = await Club.countDocuments({ status: 'pending' });
-    const inactiveClubs = await Club.countDocuments({ status: 'inactive' });
-
-    // Clubs by category
-    const clubsByCategory = await Club.aggregate([
-      { $match: { category: { $exists: true, $ne: null } } },
-      { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Total members across all clubs
-    const memberStats = await Club.aggregate([
-      { $project: { memberCount: { $size: '$members' } } },
-      { $group: { _id: null, totalMembers: { $sum: '$memberCount' }, avgMembers: { $avg: '$memberCount' } } }
-    ]);
-
-    // Most popular clubs
-    const popularClubs = await Club.aggregate([
-      { $project: { name: 1, memberCount: { $size: '$members' } } },
-      { $sort: { memberCount: -1 } },
-      { $limit: 5 }
-    ]);
-
-    res.json({
-      success: true,
-      stats: {
-        totalClubs,
-        activeClubs,
-        pendingClubs,
-        inactiveClubs,
-        totalMembers: memberStats[0]?.totalMembers || 0,
-        avgMembers: Math.round(memberStats[0]?.avgMembers || 0),
-        clubsByCategory,
-        popularClubs
-      }
-    });
-  } catch (error) {
-    console.error('Get club stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching club statistics'
-    });
-  }
-});
-
-// @desc    Get institutional club performance insights
-// @route   GET /api/clubs/performance
-// @access  Private/Admin
-router.get('/performance', protect, adminOnly, async (req, res) => {
-  try {
-    const clubStats = await Club.aggregate([
-      { $match: { status: { $in: ['active', 'pending'] } } },
-      {
-        $project: {
-          name: 1,
-          category: 1,
-          status: 1,
-          memberCount: {
-            $size: {
-              $filter: {
-                input: { $ifNull: ["$members", []] },
-                as: "member",
-                cond: { $eq: ["$$member.status", "approved"] }
-              }
-            }
-          },
-          validEvents: {
-            $filter: {
-              input: { $ifNull: ["$events", []] },
-              as: "event",
-              cond: { $in: ["$$event.status", ["completed", "approved", "ongoing", "planned"]] }
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          name: 1,
-          category: 1,
-          status: 1,
-          memberCount: 1,
-          eventCount: { $size: "$validEvents" },
-          latestEventDate: { $max: "$validEvents.date" }
-        }
-      },
-      { $sort: { name: 1 } }
-    ]);
-
-    const [projects, tasks, reports, renewals] = await Promise.all([
-      Project.aggregate([
-        { $group: { 
-            _id: '$clubId', 
-            activeProjects: { $sum: { $cond: [{ $in: ['$status', ['planning', 'active']] }, 1, 0] } }, 
-            completedProjects: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } } 
-        } }
-      ]),
-      Task.aggregate([
-        { $group: { 
-            _id: '$clubId', 
-            completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } }, 
-            pendingTasks: { $sum: { $cond: [{ $in: ['$status', ['todo', 'in_progress']] }, 1, 0] } } 
-        } }
-      ]),
-      ActivityReport.aggregate([
-        { $sort: { createdAt: -1 } },
-        { $group: { 
-            _id: '$club', 
-            latestReportDate: { $first: '$createdAt' }, 
-            totalReports: { $sum: 1 }, 
-            pendingReports: { $sum: { $cond: [{ $eq: ['$status', 'PENDING_REVIEW'] }, 1, 0] } } 
-        } }
-      ]),
-      ClubRenewal.aggregate([
-        { $sort: { createdAt: -1 } },
-        { $group: { 
-            _id: '$club', 
-            latestStatus: { $first: '$status' }, 
-            academicYear: { $first: '$academicYear' } 
-        } }
-      ])
-    ]);
-
-    const projMap = Object.fromEntries(projects.map(p => [p._id.toString(), p]));
-    const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
-    const repMap = Object.fromEntries(reports.map(r => [r._id.toString(), r]));
-    const renMap = Object.fromEntries(renewals.map(r => [r._id.toString(), r]));
-
-    const performanceData = clubStats.map(club => {
-      const p = projMap[club._id.toString()] || { activeProjects: 0, completedProjects: 0 };
-      const t = taskMap[club._id.toString()] || { pendingTasks: 0, completedTasks: 0 };
-      const r = repMap[club._id.toString()] || { totalReports: 0, pendingReports: 0, latestReportDate: null };
-      const ren = renMap[club._id.toString()] || { latestStatus: 'NOT_STARTED' };
-
-      let signal = 'Active';
-      if (ren.latestStatus === 'RETURNED' || ren.latestStatus === 'SUBMITTED') {
-        signal = `Renewal ${ren.latestStatus === 'SUBMITTED' ? 'Pending' : 'Returned'}`;
-      } else if (r.pendingReports > 0) {
-        signal = 'Report Pending Review';
-      } else if (club.status === 'pending') {
-        signal = 'Club Approval Pending';
-      } else {
-        const lastActivity = club.latestEventDate ? new Date(club.latestEventDate) : null;
-        if (!lastActivity && p.activeProjects === 0) {
-          signal = 'No Recent Activity';
-        }
-      }
-
-      return {
-        id: club._id,
-        name: club.name,
-        category: club.category,
-        status: club.status,
-        memberCount: club.memberCount,
-        eventCount: club.eventCount,
-        latestEventDate: club.latestEventDate,
-        activeProjects: p.activeProjects,
-        completedProjects: p.completedProjects,
-        pendingTasks: t.pendingTasks,
-        completedTasks: t.completedTasks,
-        totalReports: r.totalReports,
-        pendingReports: r.pendingReports,
-        latestReportDate: r.latestReportDate,
-        renewalStatus: ren.latestStatus,
-        supportSignal: signal
-      };
-    });
-
-    const summary = {
-      totalClubs: performanceData.length,
-      activeProjects: performanceData.reduce((acc, curr) => acc + curr.activeProjects, 0),
-      totalActivities: performanceData.reduce((acc, curr) => acc + curr.eventCount, 0),
-      attentionRequired: performanceData.filter(c => c.supportSignal !== 'Active').length
-    };
-
-    res.json({
-      success: true,
-      summary,
-      performance: performanceData
-    });
-  } catch (error) {
-    console.error('Get club performance error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching club performance'
-    });
-  }
-});
 
 // @desc    Assign Club Representative (President)
 // @route   PATCH /api/clubs/:id/assign-leader

@@ -180,11 +180,86 @@ router.get('/', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @desc    Get contact statistics
+// @route   GET /api/contact/stats/overview
+// @access  Private/Admin
+router.get('/stats/overview', protect, adminOnly, async (req, res) => {
+  try {
+    const totalMessages = await Contact.countDocuments();
+    const newMessages = await Contact.countDocuments({ status: 'new' });
+    const readMessages = await Contact.countDocuments({ status: 'read' });
+    const repliedMessages = await Contact.countDocuments({ status: 'replied' });
+    const resolvedMessages = await Contact.countDocuments({ status: 'resolved' });
+
+    // Messages by category
+    const messagesByCategory = await Contact.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Messages by priority
+    const messagesByPriority = await Contact.aggregate([
+      { $group: { _id: '$priority', count: { $sum: 1 } } }
+    ]);
+
+    // Recent messages (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentMessages = await Contact.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo }
+    });
+
+    // Average response time for replied messages
+    const repliedMessagesWithTime = await Contact.find({
+      status: 'replied',
+      'replies.0': { $exists: true }
+    }).select('createdAt replies');
+
+    let avgResponseTime = 0;
+    if (repliedMessagesWithTime.length > 0) {
+      const totalTime = repliedMessagesWithTime.reduce((sum, contact) => {
+        const firstReply = contact.replies[0];
+        return sum + (firstReply.sentAt - contact.createdAt);
+      }, 0);
+      avgResponseTime = Math.round(totalTime / repliedMessagesWithTime.length / (1000 * 60 * 60)); // in hours
+    }
+
+    res.json({
+      success: true,
+      stats: {
+        totalMessages,
+        newMessages,
+        readMessages,
+        repliedMessages,
+        resolvedMessages,
+        recentMessages,
+        avgResponseTime,
+        messagesByCategory,
+        messagesByPriority
+      }
+    });
+  } catch (error) {
+    console.error('Get contact stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching contact statistics'
+    });
+  }
+});
+
 // @desc    Get single contact message
 // @route   GET /api/contact/:id
 // @access  Private/Admin
 router.get('/:id', protect, adminOnly, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact message not found'
+      });
+    }
+
     const contact = await Contact.findById(req.params.id)
       .populate('assignedTo', 'name email role')
       .populate('replies.author', 'name email role');
@@ -375,74 +450,6 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error deleting contact message'
-    });
-  }
-});
-
-// @desc    Get contact statistics
-// @route   GET /api/contact/stats/overview
-// @access  Private/Admin
-router.get('/stats/overview', protect, adminOnly, async (req, res) => {
-  try {
-    const totalMessages = await Contact.countDocuments();
-    const newMessages = await Contact.countDocuments({ status: 'new' });
-    const readMessages = await Contact.countDocuments({ status: 'read' });
-    const repliedMessages = await Contact.countDocuments({ status: 'replied' });
-    const resolvedMessages = await Contact.countDocuments({ status: 'resolved' });
-
-    // Messages by category
-    const messagesByCategory = await Contact.aggregate([
-      { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Messages by priority
-    const messagesByPriority = await Contact.aggregate([
-      { $group: { _id: '$priority', count: { $sum: 1 } } }
-    ]);
-
-    // Recent messages (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentMessages = await Contact.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-
-    // Average response time for replied messages
-    const repliedMessagesWithTime = await Contact.find({
-      status: 'replied',
-      'replies.0': { $exists: true }
-    }).select('createdAt replies');
-
-    let avgResponseTime = 0;
-    if (repliedMessagesWithTime.length > 0) {
-      const totalTime = repliedMessagesWithTime.reduce((sum, contact) => {
-        const firstReply = contact.replies[0];
-        return sum + (firstReply.sentAt - contact.createdAt);
-      }, 0);
-      avgResponseTime = Math.round(totalTime / repliedMessagesWithTime.length / (1000 * 60 * 60)); // in hours
-    }
-
-    res.json({
-      success: true,
-      stats: {
-        totalMessages,
-        newMessages,
-        readMessages,
-        repliedMessages,
-        resolvedMessages,
-        recentMessages,
-        avgResponseTime,
-        messagesByCategory,
-        messagesByPriority
-      }
-    });
-  } catch (error) {
-    console.error('Get contact stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching contact statistics'
     });
   }
 });

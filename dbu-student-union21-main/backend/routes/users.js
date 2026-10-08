@@ -417,11 +417,79 @@ router.get('/', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @desc    Get user statistics
+// @route   GET /api/users/stats/overview
+// @access  Private/Admin
+router.get('/stats/overview', protect, adminOnly, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const adminUsers = await User.countDocuments({ isAdmin: true });
+    const studentUsers = await User.countDocuments({ role: 'student' });
+    const moderatorUsers = await User.countDocuments({ role: 'moderator' });
+
+    // Users by department
+    const usersByDepartment = await User.aggregate([
+      { $match: { department: { $exists: true, $ne: null } } },
+      { $group: { _id: '$department', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Users by year
+    const usersByYear = await User.aggregate([
+      { $match: { year: { $exists: true, $ne: null } } },
+      { $group: { _id: '$year', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Recent registrations (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentRegistrations = await User.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo }
+    });
+
+    // Users by status
+    const lockedUsers = await User.countDocuments({ isLocked: true });
+    const inactiveUsers = await User.countDocuments({ isActive: false });
+
+    return res.json({
+      success: true,
+      stats: {
+        totalUsers,
+        activeUsers,
+        adminUsers,
+        studentUsers,
+        moderatorUsers,
+        lockedUsers,
+        inactiveUsers,
+        recentRegistrations,
+        usersByDepartment,
+        usersByYear
+      }
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error fetching user statistics'
+    });
+  }
+});
+
 // @desc    Get user by ID
 // @route   GET /api/users/:id
 // @access  Private/Admin
 router.get('/:id', protect, adminOnly, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     const user = await User.findById(req.params.id)
       .select('-password')
       .lean(); // Use lean for better performance
@@ -606,66 +674,6 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-// @desc    Get user statistics
-// @route   GET /api/users/stats/overview
-// @access  Private/Admin
-router.get('/stats/overview', protect, adminOnly, async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
-    const adminUsers = await User.countDocuments({ isAdmin: true });
-    const studentUsers = await User.countDocuments({ role: 'student' });
-    const moderatorUsers = await User.countDocuments({ role: 'moderator' });
-
-    // Users by department
-    const usersByDepartment = await User.aggregate([
-      { $match: { department: { $exists: true, $ne: null } } },
-      { $group: { _id: '$department', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Users by year
-    const usersByYear = await User.aggregate([
-      { $match: { year: { $exists: true, $ne: null } } },
-      { $group: { _id: '$year', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ]);
-
-    // Recent registrations (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentRegistrations = await User.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-
-    // Users by status
-    const lockedUsers = await User.countDocuments({ isLocked: true });
-    const inactiveUsers = await User.countDocuments({ isActive: false });
-
-    return res.json({
-      success: true,
-      stats: {
-        totalUsers,
-        activeUsers,
-        adminUsers,
-        studentUsers,
-        moderatorUsers,
-        lockedUsers,
-        inactiveUsers,
-        recentRegistrations,
-        usersByDepartment,
-        usersByYear
-      }
-    });
-  } catch (error) {
-    console.error('Get user stats error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error fetching user statistics'
-    });
-  }
-});
 
 // @desc    Reset user password (admin)
 // @route   POST /api/users/:id/reset-password

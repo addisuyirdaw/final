@@ -280,25 +280,11 @@ app.use(errorHandler);
 
 console.log("MongoDB URI:", process.env.MONGODB_URI);
 
-
+// Helper to seed standard clubs and accounts if collection is empty
 const seedClubsAndUsers = async () => {
   try {
     const Club = require('./models/Club');
     const User = require('./models/User');
-
-    const users = [
-      { name: "System Admin", username: "dbu10101030", password: "Admin123#", role: "system_admin", department: "Computer Science", year: "4th Year", isAdmin: true },
-      { name: "President Admin", username: "dbu10101020", password: "Admin123#", role: "president", department: "Software Engineering", year: "4th Year", isAdmin: true },
-      { name: "Club Admin", username: "dbu10101040", password: "Admin123#", role: "clubs_coordinator", department: "Information Technology", year: "3rd Year", isAdmin: true },
-      { name: "Default Student", username: "dbu10178849", password: "Student123#", role: "student", department: "Computer Science", year: "2nd Year", isAdmin: false },
-    ];
-
-    for (const userData of users) {
-      const userExists = await User.findOne({ username: userData.username });
-      if (!userExists) {
-        await User.create(userData);
-      }
-    }
 
     const adminUser = (await User.findOne({ username: 'dbu10101040' })) || (await User.findOne({ isAdmin: true }));
 
@@ -309,7 +295,10 @@ const seedClubsAndUsers = async () => {
       { name: "Idea Hub", category: "Technology", description: "DBU Idea Hub fostering startup incubations and technology entrepreneurship.", founded: "2021", status: "active" },
       { name: "Career Development Club", category: "Professional", description: "Empowering students with career counseling, CV preparation, and internship links.", founded: "2023", status: "active" },
       { name: "Law Association Club", category: "Academic", description: "Law students association facilitating legal aid workshops and moot court sessions.", founded: "2020", status: "active" },
-      { name: "Truth Culture Club", category: "Cultural", description: "Fostering cultural diversity, arts, music, and campus community dialogue.", founded: "2021", status: "active" }
+      { name: "Truth Culture Club", category: "Cultural", description: "Fostering cultural diversity, arts, music, and campus community dialogue.", founded: "2021", status: "active" },
+      { name: "Debate Society", category: "Academic", description: "Developing critical thinking and public speaking skills through competitive debates.", founded: "2015", status: "active" },
+      { name: "Technology and Innovation Club", category: "Technology", description: "Software development, robotics, AI, hackathons, and tech innovation projects.", founded: "2018", status: "active" },
+      { name: "Charity and Community Service Club", category: "Service", description: "Community outreach, blood donation, tutoring local high-schoolers, and social impact projects.", founded: "2019", status: "active" }
     ];
 
     for (const c of clubsToEnsure) {
@@ -317,6 +306,9 @@ const seedClubsAndUsers = async () => {
       if (!existing) {
         await Club.create({
           ...c,
+          contactEmail: `${c.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@dbu.edu.et`,
+          meetingSchedule: "Weekly on Fridays at 4:00 PM",
+          requirements: "Open to all registered DBU students",
           leadership: {
             president: adminUser?._id,
             vicePresident: adminUser?._id,
@@ -335,47 +327,61 @@ const seedClubsAndUsers = async () => {
         });
       }
     }
-    console.log("? Clubs and Users verified & seeded");
+    console.log("✅ Core campus clubs verified & seeded");
   } catch (err) {
-    console.warn("?? Clubs/Users seed warning:", err.message);
+    console.warn("⚠️ Clubs seed warning:", err.message);
   }
 };
 
-// Database connection with fallback logic
+// Database connection with In-Memory fallback
 let mongodInstance = null;
 const connectDB = async () => {
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/student_union_db';
+  console.log('Attempting MongoDB connection to:', uri);
+
   try {
-    let connected = false;
-    if (process.env.MONGODB_URI) {
-      try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
-          serverSelectionTimeoutMS: 3000,
-        });
-        console.log(`? MongoDB Connected: ${conn.connection.host}`);
-        connected = true;
-      } catch (localErr) {
-        console.log("Local MongoDB not reachable, starting embedded In-Memory MongoDB...");
-      }
-    }
-
-    if (!connected) {
-      const { MongoMemoryServer } = require("mongodb-memory-server");
-      mongodInstance = await MongoMemoryServer.create();
-      const memUri = mongodInstance.getUri();
-      const conn = await mongoose.connect(memUri);
-      console.log(`? MongoDB Connected (In-Memory Database): ${conn.connection.host}`);
-    }
-
-    try { await createDefaultAdmin(); } catch (e) { console.warn("Admin seed warning:", e.message); }
-    try { await seedUniversities(); } catch (e) { console.warn("University seed warning:", e.message); }
-    try { await seedBudget(); } catch (e) { console.warn("Budget seed warning:", e.message); }
-    try { await seedClubsAndUsers(); } catch (e) { console.warn("Clubs seed warning:", e.message); }
-
+    const conn = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 2500,
+      connectTimeoutMS: 3000,
+    });
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`✅ Database: ${conn.connection.name}`);
   } catch (error) {
-    console.error("? Database connection error:", error.message);
-    process.exit(1);
+    console.warn(`⚠️ Local MongoDB unreachable (${error.message}). Starting In-Memory MongoDB Server...`);
+    try {
+      const { MongoMemoryServer } = require('mongodb-memory-server');
+      mongodInstance = await MongoMemoryServer.create();
+      const inMemUri = mongodInstance.getUri();
+      const conn = await mongoose.connect(inMemUri);
+      console.log(`✅ In-Memory MongoDB Server Connected at: ${inMemUri}`);
+    } catch (memErr) {
+      console.error('❌ Failed to start In-Memory MongoDB Server:', memErr.message);
+      process.exit(1);
+    }
+  }
+
+  // Create default admin user
+  try {
+    await createDefaultAdmin();
+  } catch (adminError) {
+    console.warn('⚠️ Admin creation warning:', adminError.message);
+  }
+
+  // Seed core clubs
+  await seedClubsAndUsers();
+
+  // Seed university & cross-campus club reference data
+  try {
+    await seedUniversities();
+  } catch (seedError) {
+    console.warn('⚠️ University seed warning:', seedError.message);
+  }
+
+  // Seed initial public financial ledger & micro-grants
+  try {
+    await seedBudget();
+  } catch (budgetError) {
+    console.warn('⚠️ Budget seed warning:', budgetError.message);
   }
 };
 

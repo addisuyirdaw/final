@@ -65,11 +65,90 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
+// @desc    Get post statistics
+// @route   GET /api/posts/stats/overview
+// @access  Private/Admin
+router.get('/stats/overview', protect, adminOnly, async (req, res) => {
+  try {
+    const totalPosts = await Post.countDocuments();
+    const publishedPosts = await Post.countDocuments({ status: 'published' });
+    const draftPosts = await Post.countDocuments({ status: 'draft' });
+    const pinnedPosts = await Post.countDocuments({ isPinned: true });
+
+    // Posts by type
+    const postsByType = await Post.aggregate([
+      { $group: { _id: '$type', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Posts by category
+    const postsByCategory = await Post.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Total views and engagement
+    const engagementStats = await Post.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalViews: { $sum: '$views' },
+          totalLikes: { $sum: { $size: '$likes' } },
+          totalComments: { $sum: { $size: '$comments' } }
+        }
+      }
+    ]);
+
+    // Recent posts (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentPosts = await Post.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo }
+    });
+
+    const popularPosts = await Post.find({ status: 'published' })
+      .select('title views')
+      .sort({ views: -1 })
+      .limit(5);
+
+    return res.json({
+      success: true,
+      stats: {
+        totalPosts,
+        publishedPosts,
+        draftPosts,
+        pinnedPosts,
+        recentPosts,
+        totalViews: engagementStats[0]?.totalViews || 0,
+        totalLikes: engagementStats[0]?.totalLikes || 0,
+        totalComments: engagementStats[0]?.totalComments || 0,
+        postsByType,
+        postsByCategory,
+        popularPosts
+      }
+    });
+  } catch (error) {
+    console.error('Get post stats error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error fetching post statistics'
+    });
+  }
+});
+
 // @desc    Get single post
 // @route   GET /api/posts/:id
 // @access  Public
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
     const post = await Post.findById(req.params.id)
       .populate('author', 'name email role')
       .populate('comments.user', 'name email')
@@ -444,78 +523,6 @@ router.post('/:id/register', protect, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Server error registering for event'
-    });
-  }
-});
-
-// @desc    Get post statistics
-// @route   GET /api/posts/stats/overview
-// @access  Private/Admin
-router.get('/stats/overview', protect, adminOnly, async (req, res) => {
-  try {
-    const totalPosts = await Post.countDocuments();
-    const publishedPosts = await Post.countDocuments({ status: 'published' });
-    const draftPosts = await Post.countDocuments({ status: 'draft' });
-    const pinnedPosts = await Post.countDocuments({ isPinned: true });
-
-    // Posts by type
-    const postsByType = await Post.aggregate([
-      { $group: { _id: '$type', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Posts by category
-    const postsByCategory = await Post.aggregate([
-      { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Total views and engagement
-    const engagementStats = await Post.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalViews: { $sum: '$views' },
-          totalLikes: { $sum: { $size: '$likes' } },
-          totalComments: { $sum: { $size: '$comments' } }
-        }
-      }
-    ]);
-
-    // Recent posts (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentPosts = await Post.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-
-    const popularPosts = await Post.find({ status: 'published' })
-      .select('title views')
-      .sort({ views: -1 })
-      .limit(5);
-
-    return res.json({
-      success: true,
-      stats: {
-        totalPosts,
-        publishedPosts,
-        draftPosts,
-        pinnedPosts,
-        recentPosts,
-        totalViews: engagementStats[0]?.totalViews || 0,
-        totalLikes: engagementStats[0]?.totalLikes || 0,
-        totalComments: engagementStats[0]?.totalComments || 0,
-        postsByType,
-        postsByCategory,
-        popularPosts
-      }
-    });
-  } catch (error) {
-    console.error('Get post stats error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error fetching post statistics'
     });
   }
 });

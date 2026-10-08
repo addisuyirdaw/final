@@ -111,11 +111,83 @@ router.get('/branches', async (req, res) => {
   }
 });
 
+// @desc    Get complaint statistics
+// @route   GET /api/complaints/stats/overview
+// @access  Private/Admin
+router.get('/stats/overview', protect, adminOnly, async (req, res) => {
+  try {
+    const totalComplaints = await Complaint.countDocuments();
+    const pendingComplaints = await Complaint.countDocuments({ status: 'submitted' });
+    const underReviewComplaints = await Complaint.countDocuments({ status: 'under_review' });
+    const resolvedComplaints = await Complaint.countDocuments({ status: 'resolved' });
+
+    // Complaints by category
+    const complaintsByCategory = await Complaint.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Complaints by priority
+    const complaintsByPriority = await Complaint.aggregate([
+      { $group: { _id: '$priority', count: { $sum: 1 } } }
+    ]);
+
+    // Recent complaints (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentComplaints = await Complaint.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo }
+    });
+
+    // Average resolution time
+    const resolvedComplaintsWithTime = await Complaint.find({
+      status: 'resolved',
+      resolvedAt: { $exists: true }
+    }).select('createdAt resolvedAt');
+
+    let avgResolutionTime = 0;
+    if (resolvedComplaintsWithTime.length > 0) {
+      const totalTime = resolvedComplaintsWithTime.reduce((sum, complaint) => {
+        return sum + (complaint.resolvedAt - complaint.createdAt);
+      }, 0);
+      avgResolutionTime = Math.round(totalTime / resolvedComplaintsWithTime.length / (1000 * 60 * 60 * 24)); // in days
+    }
+
+    return res.json({
+      success: true,
+      stats: {
+        totalComplaints,
+        pendingComplaints,
+        underReviewComplaints,
+        resolvedComplaints,
+        recentComplaints,
+        avgResolutionTime,
+        complaintsByCategory,
+        complaintsByPriority
+      }
+    });
+  } catch (error) {
+    console.error('Get complaint stats error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error fetching complaint statistics'
+    });
+  }
+});
+
 // @desc    Get single complaint
 // @route   GET /api/complaints/:id
 // @access  Public (Optional Auth)
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
     const complaint = await Complaint.findById(req.params.id)
       .populate('submittedBy', 'name email studentId')
       .populate('assignedTo', 'name email role')
@@ -365,70 +437,6 @@ router.patch('/:id/assign', protect, adminOnly, async (req, res) => {
   }
 });
 
-// @desc    Get complaint statistics
-// @route   GET /api/complaints/stats/overview
-// @access  Private/Admin
-router.get('/stats/overview', protect, adminOnly, async (req, res) => {
-  try {
-    const totalComplaints = await Complaint.countDocuments();
-    const pendingComplaints = await Complaint.countDocuments({ status: 'submitted' });
-    const underReviewComplaints = await Complaint.countDocuments({ status: 'under_review' });
-    const resolvedComplaints = await Complaint.countDocuments({ status: 'resolved' });
-
-    // Complaints by category
-    const complaintsByCategory = await Complaint.aggregate([
-      { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Complaints by priority
-    const complaintsByPriority = await Complaint.aggregate([
-      { $group: { _id: '$priority', count: { $sum: 1 } } }
-    ]);
-
-    // Recent complaints (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentComplaints = await Complaint.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-
-    // Average resolution time
-    const resolvedComplaintsWithTime = await Complaint.find({
-      status: 'resolved',
-      resolvedAt: { $exists: true }
-    }).select('createdAt resolvedAt');
-
-    let avgResolutionTime = 0;
-    if (resolvedComplaintsWithTime.length > 0) {
-      const totalTime = resolvedComplaintsWithTime.reduce((sum, complaint) => {
-        return sum + (complaint.resolvedAt - complaint.createdAt);
-      }, 0);
-      avgResolutionTime = Math.round(totalTime / resolvedComplaintsWithTime.length / (1000 * 60 * 60 * 24)); // in days
-    }
-
-    return res.json({
-      success: true,
-      stats: {
-        totalComplaints,
-        pendingComplaints,
-        underReviewComplaints,
-        resolvedComplaints,
-        recentComplaints,
-        avgResolutionTime,
-        complaintsByCategory,
-        complaintsByPriority
-      }
-    });
-  } catch (error) {
-    console.error('Get complaint stats error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error fetching complaint statistics'
-    });
-  }
-});
 
 // @desc    Delete complaint (Admin only)
 // @route   DELETE /api/complaints/:id

@@ -173,50 +173,6 @@ async function compileStudentTranscript(studentId) {
   };
 }
 
-// @desc    Get co-curricular transcript for student by ID
-// @route   GET /api/students/:id/transcript or /api/transcripts/student/:id
-// @access  Public / Authenticated
-router.get('/:id/transcript', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Resolve by Mongo ObjectId or by DBU username (e.g., dbu10304058)
-    let student = null;
-    if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      student = await User.findById(id);
-    } else {
-      student = await User.findOne({ username: id.toLowerCase() });
-    }
-
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: `Student with ID or Code "${id}" not found.`,
-      });
-    }
-
-    const transcript = await compileStudentTranscript(student._id);
-    if (!transcript) {
-      return res.status(404).json({
-        success: false,
-        message: 'Could not compile transcript records.',
-      });
-    }
-
-    res.json({
-      success: true,
-      transcript,
-    });
-  } catch (error) {
-    console.error('Fetch transcript error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error generating co-curricular transcript',
-      error: error.message,
-    });
-  }
-});
-
 // @desc    Get currently logged in student's own transcript
 // @route   GET /api/transcripts/me
 // @access  Private
@@ -260,49 +216,98 @@ router.post('/record', protect, async (req, res) => {
       });
     }
 
-    const { studentId, title, organization, category, role, hoursContributed, startDate } = req.body;
+    const { studentId, title, activityType, organization, academicYear, hours, role, description } = req.body;
 
-    if (!studentId || !title || !organization) {
+    if (!studentId || !title || !organization || !academicYear) {
       return res.status(400).json({
         success: false,
-        message: 'studentId, title, and organization are required fields.',
+        message: 'studentId, title, organization, and academicYear are required fields.',
       });
     }
 
-    let record = await TranscriptRecord.findOne({ studentId });
-    if (!record) {
-      record = new TranscriptRecord({
-        studentId,
-        activities: [],
-        leadershipRoles: [],
-        totalHours: 0,
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found',
       });
     }
 
-    record.activities.push({
+    const record = {
       title,
+      activityType: activityType || 'Leadership',
       organization,
-      category: category || 'Leadership',
-      role: role || 'Participant',
-      hoursContributed: parseFloat(hoursContributed) || 1,
-      startDate: startDate || new Date(),
-      verifiedBy: req.user.name || 'DBU Coordinator',
-      status: 'VERIFIED',
-    });
+      academicYear,
+      date: new Date(),
+      hours: Number(hours) || 0,
+      role: role || 'Member',
+      description: description || '',
+      verified: true,
+      verifiedBy: req.user._id,
+      verifiedAt: new Date(),
+      source: 'MANUAL',
+    };
 
-    record.totalHours = (record.totalHours || 0) + (parseFloat(hoursContributed) || 1);
-    await record.save();
+    if (!student.transcriptRecords) {
+      student.transcriptRecords = [];
+    }
+    student.transcriptRecords.push(record);
+    await student.save();
 
     res.status(201).json({
       success: true,
-      message: 'Co-curricular activity appended to transcript successfully',
+      message: 'Co-curricular record appended successfully',
       record,
     });
   } catch (error) {
-    console.error('Create transcript activity error:', error);
+    console.error('Add transcript record error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error updating transcript activity',
+      message: 'Server error adding transcript record',
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Get co-curricular transcript for student by ID
+// @route   GET /api/students/:id/transcript or /api/transcripts/student/:id
+// @access  Public / Authenticated
+router.get('/:id/transcript', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Resolve by Mongo ObjectId or by DBU username (e.g., dbu10304058)
+    let student = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      student = await User.findById(id);
+    } else {
+      student = await User.findOne({ username: id.toLowerCase() });
+    }
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `Student with ID or Code "${id}" not found.`,
+      });
+    }
+
+    const transcript = await compileStudentTranscript(student._id);
+    if (!transcript) {
+      return res.status(404).json({
+        success: false,
+        message: 'Could not compile transcript records.',
+      });
+    }
+
+    res.json({
+      success: true,
+      transcript,
+    });
+  } catch (error) {
+    console.error('Fetch transcript error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error generating co-curricular transcript',
       error: error.message,
     });
   }
