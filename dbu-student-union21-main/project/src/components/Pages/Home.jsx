@@ -195,12 +195,6 @@ const DEFAULT_CAROUSEL_SLIDES = [
 		fetchLeadership();
 	}, [fetchCarousel]);
 
-	const carouselCaptions = [
-		"Celebrating Our Rich Cultural Heritage",
-		"Unity and Diversity at Debre Berhan University",
-		"Empowering Students for a Better Success",
-		"Student Affairs: The Heart of Campus Life",
-	];
 
 	useEffect(() => {
 		if (carouselSlides.length === 0) return;
@@ -338,13 +332,8 @@ const DEFAULT_CAROUSEL_SLIDES = [
 				>
 					{/* Skeleton Shimmer Loader while initial carousel slides are resolving */}
 					{carouselLoading && (
-						<div className="absolute inset-0 z-20 flex flex-col justify-center items-center pointer-events-none bg-slate-900/60 backdrop-blur-xs">
+						<div className="absolute inset-0 z-20 pointer-events-none bg-slate-900">
 							<div className="w-full h-full animate-pulse bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 absolute inset-0" />
-							<div className="relative z-30 flex flex-col items-center space-y-4 px-6 text-center">
-								<div className="w-48 h-5 rounded-full bg-blue-500/20 border border-blue-400/30 animate-pulse" />
-								<div className="w-72 sm:w-96 md:w-[32rem] h-10 sm:h-14 rounded-2xl bg-white/10 animate-pulse" />
-								<div className="w-40 sm:w-60 h-4 rounded-full bg-slate-600/30 animate-pulse" />
-							</div>
 						</div>
 					)}
 
@@ -391,8 +380,8 @@ const DEFAULT_CAROUSEL_SLIDES = [
 									}}
 								/>
 
-								{/* Subtle overlay gradient to guarantee high text contrast */}
-								<div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/40 to-slate-950/40" />
+								{/* Subtle bottom gradient to ensure carousel controls and indicators remain crisp without obscuring the photo */}
+								<div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/60 to-transparent pointer-events-none z-10" />
 
 								{/* Main clear image with explicit aspect ratio attributes and priority preloading on first slide */}
 								<img
@@ -428,42 +417,6 @@ const DEFAULT_CAROUSEL_SLIDES = [
 										<Trash2 className="w-3.5 h-3.5" /> Remove Slide
 									</button>
 								)}
-
-								<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center items-center text-center">
-									<motion.div
-										initial={{ opacity: 0, y: 30 }}
-										animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 30 }}
-										transition={{ duration: 0.8, delay: 0.2 }}
-										className="bg-slate-900/60 backdrop-blur-md px-8 sm:px-12 py-6 sm:py-8 rounded-3xl border border-white/20 max-w-4xl mx-auto shadow-2xl"
-									>
-										<motion.div
-											initial={{ opacity: 0, scale: 0.9 }}
-											animate={{ opacity: isActive ? 1 : 0, scale: isActive ? 1 : 0.9 }}
-											transition={{ duration: 0.5, delay: 0.1 }}
-											className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3"
-										>
-											Debre Berhan University • Student Affairs
-										</motion.div>
-
-										<motion.h1
-											initial={{ opacity: 0, y: 30 }}
-											animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 30 }}
-											transition={{ duration: 0.7, delay: 0.2 }}
-											className="text-3xl sm:text-5xl md:text-6xl font-black mb-3 text-white tracking-tight drop-shadow-xl"
-										>
-											{slide.caption || carouselCaptions[index % carouselCaptions.length]}
-										</motion.h1>
-
-										<motion.p
-											initial={{ opacity: 0, y: 20 }}
-											animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 20 }}
-											transition={{ duration: 0.7, delay: 0.3 }}
-											className="text-sm sm:text-base text-blue-200 font-medium tracking-wide"
-										>
-											Dedicated to Student Welfare, Academic Excellence & Vibrant Campus Life
-										</motion.p>
-									</motion.div>
-								</div>
 							</motion.div>
 						);
 					})}
