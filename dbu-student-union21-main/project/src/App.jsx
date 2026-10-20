@@ -43,6 +43,9 @@ import { CertificatesAdmin } from "./components/Admin/CertificatesAdmin";
 import { BudgetDashboard } from "./components/Budget/BudgetDashboard";
 import { MicroGrantPortal } from "./components/Budget/MicroGrantPortal";
 import { EventsPage } from "./components/Pages/EventsPage";
+import { PresidentRoute } from "./components/Auth/PresidentRoute";
+import { ProposalSubmission } from "./components/Pages/ProposalSubmission";
+import { ProposalsAdmin } from "./components/Admin/ProposalsAdmin";
 import "./index.css";
 
 function AppContent() {
@@ -210,6 +213,24 @@ function AppContent() {
                 <AdminRoute>
                   <CertificatesAdmin />
                 </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/proposals"
+            element={
+              <ProtectedRoute>
+                <PresidentRoute>
+                  <ProposalsAdmin />
+                </PresidentRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/proposal-submission"
+            element={
+              <ProtectedRoute>
+                <ProposalSubmission />
               </ProtectedRoute>
             }
           />

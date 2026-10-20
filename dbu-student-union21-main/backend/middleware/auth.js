@@ -288,9 +288,32 @@ const clubLeader = async (req, res, next) => {
 	}
 };
 
+// Narrowly scoped authorization check: Only the Student Union President
+const presidentOnly = (req, res, next) => {
+	if (!req.user) {
+		return res.status(401).json({
+			success: false,
+			message: "Authentication required.",
+		});
+	}
+	const isPresident =
+		req.user.role === 'president' ||
+		req.user.role === 'council_president';
+
+	if (isPresident) {
+		return next();
+	}
+
+	return res.status(403).json({
+		success: false,
+		message: "Access denied. Only the Student Union President is authorized to access proposal management and deadline settings.",
+	});
+};
+
 module.exports = {
 	protect,
 	adminOnly,
+	presidentOnly,
 	systemAdminOnly,
 	superAdminOnly,
 	authorize,

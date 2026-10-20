@@ -147,6 +147,14 @@ export function Header() {
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
 				...(complaintsVisible ? [{ name: "Complaints", href: "/complaints" }] : []),
+				{
+					name: (user?.role === 'president' || user?.role === 'council_president')
+						? "Proposal Management"
+						: "Proposals",
+					href: (user?.role === 'president' || user?.role === 'council_president')
+						? "/admin/proposals"
+						: "/proposal-submission"
+				},
 				{ name: "My Profile", href: "/profile" },
 			]
 			: []),
@@ -216,7 +224,7 @@ export function Header() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="flex justify-between items-center py-4">
 					{/* Desktop Navigation */}
-					<nav className="hidden md:flex items-center space-x-8">
+					<nav className="hidden lg:flex items-center gap-x-2 xl:gap-x-4 text-xs xl:text-sm font-medium">
 						{navigation.map((item) => (
 							<React.Fragment key={item.name}>
 								{item.href.includes("#") ? (
@@ -297,14 +305,14 @@ export function Header() {
 					</nav>
 
 					{/* User Menu */}
-					<div className="flex items-center space-x-4">
+					<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
 						{user ? (
-							<div className="flex items-center space-x-3">
-								<div className="flex items-center space-x-2 text-gray-700">
-									<User className="w-5 h-5" />
-									<span className="hidden sm:inline">{user.name}</span>
+							<div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+								<div className="flex items-center space-x-1.5 text-gray-700">
+									<User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+									<span className="hidden xl:inline text-xs sm:text-sm font-semibold">{user.name}</span>
 									{user.isAdmin && (
-										<span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+										<span className="bg-blue-100 text-blue-800 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold">
 											Admin
 										</span>
 									)}
@@ -312,9 +320,17 @@ export function Header() {
 								{user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true) && (
 									<Link
 										to="/admin"
-										className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+										className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-blue-700 transition-colors whitespace-nowrap font-medium"
 									>
 										Admin Panel
+									</Link>
+								)}
+								{user && (user.role === 'president' || user.role === 'council_president') && (
+									<Link
+										to="/admin/proposals"
+										className="bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-indigo-800 transition-colors font-semibold shadow-sm whitespace-nowrap"
+									>
+										📜 Proposal Management
 									</Link>
 								)}
 

@@ -1213,6 +1213,63 @@ class ApiService {
   async getMyUpcomingEvents() {
     return this.request('/clubs/events/my-upcoming');
   }
+
+  // --- PROPOSAL SUBMISSION & PRESIDENT MANAGEMENT ---
+  async getProposalStatus() {
+    return this.request('/proposals/my-status');
+  }
+
+  async verifyCandidateExamCode(examCode, position) {
+    return this.request('/proposals/verify-candidate', {
+      method: 'POST',
+      body: JSON.stringify({ examCode, position }),
+    });
+  }
+
+  async getProposalDeadline() {
+    return this.request('/proposals/deadline');
+  }
+
+  async submitProposal(formData) {
+    return this.request('/proposals', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async updateProposalDeadline(deadlineData) {
+    return this.request('/proposals/admin/deadline', {
+      method: 'PUT',
+      body: JSON.stringify(deadlineData),
+    });
+  }
+
+  async getPresidentProposalDashboard() {
+    return this.request('/proposals/admin/dashboard');
+  }
+
+  async downloadProposalFile(proposalId, version, fileName) {
+    const url = `${this.baseURL}/proposals/download/${proposalId}${version ? `?version=${version}` : ''}`;
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const response = await fetch(url, {
+      headers: {
+        ...(user.token && { Authorization: `Bearer ${user.token}` }),
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to download proposal PDF file.');
+    }
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName || 'candidate-proposal.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  }
 }
 
 export const apiService = new ApiService();

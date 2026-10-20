@@ -820,6 +820,46 @@ export function Dashboard() {
 				)}
 			</AnimatePresence>
 
+			{/* Student Union Proposal Hub Quick Banner */}
+			<motion.div
+				initial={{ opacity: 0, y: 15 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="bg-white rounded-xl sm:rounded-2xl p-5 shadow-sm border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+			>
+				<div className="flex items-center gap-4">
+					<div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-700 to-sky-700 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-md">
+						📜
+					</div>
+					<div>
+						<div className="flex items-center gap-2">
+							<h3 className="font-bold text-gray-900 text-base">
+								{user && (user.role === 'president' || user.role === 'council_president')
+									? "Presidential Proposal Management"
+									: "Candidate Proposal Submission (2019 Batch)"}
+							</h3>
+							<span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+								Official 2026
+							</span>
+						</div>
+						<p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+							{user && (user.role === 'president' || user.role === 'council_president')
+								? "Configure proposal deadlines, view eligible candidate roster, and download submitted PDFs."
+								: "Are you under 2019, 16 Top Performers? Click here to enter your Student ID & Final Exam Code to unlock and submit your executive proposal."}
+						</p>
+					</div>
+				</div>
+				<Link
+					to={user && (user.role === 'president' || user.role === 'council_president')
+						? "/admin/proposals"
+						: "/proposal-submission"}
+					className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-colors flex-shrink-0"
+				>
+					{user && (user.role === 'president' || user.role === 'council_president')
+						? "Open Proposals Hub"
+						: "Submit Proposal (2019 Top 16 Verify)"} &rarr;
+				</Link>
+			</motion.div>
+
 			{/* Pitch Stats for Presentation (Task 4) - RESTORED */}
 			{(user?.isAdmin || user?.role === 'clubs_coordinator') && (
 				<motion.div

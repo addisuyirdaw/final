@@ -38,6 +38,10 @@ const candidateSchema = new mongoose.Schema({
     trim: true,
     maxlength: [1000, 'Biography cannot be more than 1000 characters']
   },
+  examCode: {
+    type: String,
+    trim: true,
+  },
   votes: {
     type: Number,
     default: 0
