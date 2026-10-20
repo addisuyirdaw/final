@@ -269,21 +269,36 @@ export function ProposalSubmission() {
 
           {/* Candidate Self-Verification Card for 2019 Top Performers */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden text-left">
+            {/* Directive No. 003/2012 Afegubaye Advisory Banner */}
+            {statusData?.isAfegubayeExempt && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚖️</span>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-base">Directive No. 003/2012 Advisory: Afegubaye Exemption</h3>
+                    <p className="text-xs leading-relaxed text-amber-800">
+                      Under Articles 22 &amp; 28 of Directive No. 003/2012, candidates nominated for <strong>Afegubaye (Speaker of the Council)</strong> are evaluated solely through the written exam (20%), candidate interview (20%), and council speech (60%). You do not need to submit a proposal.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Header banner */}
             <div className="bg-gradient-to-r from-sky-900 via-indigo-900 to-blue-900 text-white p-6 sm:p-8">
               <div className="flex items-center gap-3 mb-2">
                 <span className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-xl">
-                  🎓
+                  ⚙️
                 </span>
                 <span className="bg-sky-400/20 text-sky-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-sky-400/30">
-                  Candidate Verification &bull; 2019 Batch
+                  Directive No. 003/2012 &bull; Executive Committee
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Are you under the 2019 Batch 16 Top Performers?
+                Executive Committee Candidate Verification
               </h1>
               <p className="text-sky-100 text-xs sm:text-sm mt-2 max-w-2xl leading-relaxed">
-                If you were shortlisted among the top performers selected during the final exam evaluation, verify your credentials below using your official <strong>Student ID</strong> and <strong>Exam Verification Code</strong> to unlock your proposal submission.
+                If you were shortlisted among the top performers running for the <strong>Executive Committee (ዋና ሥራ አስፈጻሚ / Sira Asfetsami)</strong>, verify your credentials below using your official <strong>Student ID</strong> and <strong>Exam Verification Code</strong> to unlock your strategic proposal submission.
               </p>
             </div>
 
@@ -333,78 +348,41 @@ export function ProposalSubmission() {
                 </p>
               </div>
 
-              {/* Input: Running Portfolio / Position: ONLY Afegubaye or Sira Asfetsami */}
+              {/* Dedicated Executive Committee Position Display (Directive No. 003/2012) */}
               <div>
                 <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5">
-                  Candidate Running Position <span className="text-red-500">*</span>
+                  Nominated Candidate Position / Category
                 </label>
-
-                {/* 2 Selectable Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                  <div
-                    onClick={() => setPosition("Afegubaye")}
-                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
-                      position === "Afegubaye"
-                        ? "border-indigo-600 bg-indigo-50/70 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-base ${
-                        position === "Afegubaye" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"
-                      }`}>
-                        🏛️
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-900 text-sm">Afegubaye</div>
-                        <div className="text-xs text-indigo-700 font-semibold">አፈ ጉባኤ &bull; Speaker / Council Head</div>
-                      </div>
+                <div className="p-4 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                      ⚙️
                     </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      position === "Afegubaye" ? "border-indigo-600 bg-indigo-600" : "border-gray-300"
-                    }`}>
-                      {position === "Afegubaye" && <div className="w-2 h-2 rounded-full bg-white" />}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-gray-900 text-sm sm:text-base">
+                          Sira Asfetsami (ሥራ አስፈፃሚ)
+                        </span>
+                        <span className="bg-indigo-200/80 text-indigo-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                          Executive Committee
+                        </span>
+                      </div>
+                      <p className="text-xs text-indigo-900 font-medium mt-0.5">
+                        Strategic Proposal Submission (Evaluated for 15% pre-council score)
+                      </p>
                     </div>
                   </div>
-
-                  <div
-                    onClick={() => setPosition("Sira Asfetsami")}
-                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
-                      position === "Sira Asfetsami"
-                        ? "border-indigo-600 bg-indigo-50/70 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-base ${
-                        position === "Sira Asfetsami" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"
-                      }`}>
-                        ⚙️
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-900 text-sm">Sira Asfetsami</div>
-                        <div className="text-xs text-indigo-700 font-semibold">ሥራ አስፈፃሚ &bull; Executive Committee</div>
-                      </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      position === "Sira Asfetsami" ? "border-indigo-600 bg-indigo-600" : "border-gray-300"
-                    }`}>
-                      {position === "Sira Asfetsami" && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white rounded-lg border border-indigo-200 text-xs font-bold text-indigo-800 shadow-sm">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Authorized Role
                   </div>
                 </div>
 
-                <select
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 bg-white"
-                >
-                  <option value="Afegubaye">Afegubaye (አፈ ጉባኤ)</option>
-                  <option value="Sira Asfetsami">Sira Asfetsami (ሥራ አስፈፃሚ)</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1.5">
-                  Select your candidate nomination: <strong>Afegubaye</strong> or <strong>Sira Asfetsami</strong>, then proceed directly to upload your proposal PDF.
-                </p>
+                <div className="mt-2.5 bg-blue-50 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2.5">
+                  <span className="text-base leading-none">⚖️</span>
+                  <p className="leading-relaxed">
+                    <strong>Directive No. 003/2012 Articles 22 &amp; 28 Notice:</strong> Proposal submissions are exclusively designated for Executive Committee (ዋና ሥራ አስፈጻሚ) contestants. Afegubaye candidates are evaluated solely through the written exam (20%), interview (20%), and council speech (60%) without submitting a strategic proposal.
+                  </p>
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -462,10 +440,10 @@ export function ProposalSubmission() {
                 🏛️ DBU Student Union Election 2026
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                Candidate Proposal Submission
+                Executive Committee Proposal Submission (ሥራ አስፈፃሚ)
               </h1>
               <p className="text-gray-600 text-sm mt-1">
-                Official digital repository for shortlisted Student Union candidate manifestos and executive proposals.
+                Strategic proposal repository for Executive Committee candidates under Directive No. 003/2012 (Articles 22 &amp; 28).
               </p>
             </div>
             <button

@@ -219,6 +219,26 @@ router.get('/my-status', protect, async (req, res) => {
       });
     }
 
+    // Directive No. 003/2012 Notice: Afegubaye candidates do not submit strategic proposals
+    if (eligibility && eligibility.candidate) {
+      const candPos = (eligibility.candidate.position || '').toLowerCase();
+      if (candPos.includes('afegubaye') || candPos.includes('speaker') || candPos.includes('council')) {
+        return res.json({
+          success: true,
+          isEligible: false,
+          isAfegubayeExempt: true,
+          message: 'Directive No. 003/2012 Notice: Pursuant to Articles 22 & 28 of the Ethiopian Higher Education Student Union Election Directive, Afegubaye candidates are evaluated via written exam (20%), interview (20%), and council vote (60%) without submitting a strategic proposal. Proposal submission is strictly reserved for Executive Committee (ሥራ አስፈፃሚ) candidates.',
+          settings: {
+            deadline: settings.deadline,
+            deadlineEthiopia: settings.deadlineEthiopia,
+            status: settings.status,
+            isOpen: settings.isOpen,
+            serverTime: settings.serverTime,
+          },
+        });
+      }
+    }
+
     const proposal = await Proposal.findOne({ candidateUsername: req.user.username.toLowerCase() });
 
     res.json({
@@ -288,16 +308,19 @@ router.post('/verify-candidate', protect, async (req, res) => {
       }
     }
 
-    // Determine normalized position: strictly "Afegubaye" or "Sira Asfetsami"
-    let chosenPosition = 'Afegubaye';
+    // Directive No. 003/2012 Articles 22 & 28: Reject any attempt to verify as Afegubaye
     if (position && typeof position === 'string') {
       const posLower = position.toLowerCase();
-      if (posLower.includes('sira') || posLower.includes('asfetsami') || posLower.includes('executive')) {
-        chosenPosition = 'Sira Asfetsami';
-      } else {
-        chosenPosition = 'Afegubaye';
+      if (posLower.includes('afegubaye') || posLower.includes('speaker') || posLower.includes('council')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Directive No. 003/2012 Exclusion: Under Articles 22 & 28 of the Ethiopian Higher Education Student Union Election Directive, Afegubaye (Speaker of the Council) candidates are evaluated via written exam (20%), interview (20%), and council vote (60%) without submitting a strategic proposal. Proposal submission is strictly reserved for Executive Committee (ዋና ሥራ አስፈጻሚ / Sira Asfetsami) contestants.',
+        });
       }
     }
+
+    // Exclusively designate position to Executive Committee (Sira Asfetsami)
+    const chosenPosition = 'Sira Asfetsami';
 
     // 1. Fetch proposal settings and allowed codes
     const settings = await getProposalSettings();
@@ -408,6 +431,18 @@ const handleProposalSubmit = async (req, res) => {
         success: false,
         message: 'Access denied: Only authorized student union candidates may submit proposals.',
       });
+    }
+
+    // Directive No. 003/2012 Articles 22 & 28: Enforce Executive Committee only
+    if (eligibility && eligibility.candidate) {
+      const candPos = (eligibility.candidate.position || '').toLowerCase();
+      if (candPos.includes('afegubaye') || candPos.includes('speaker') || candPos.includes('council')) {
+        if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+        return res.status(403).json({
+          success: false,
+          message: 'Directive No. 003/2012 Articles 22 & 28 Exclusion: Afegubaye (Speaker) candidates are evaluated via exam, interview, and council vote without submitting strategic proposals. Proposal submission is strictly reserved for Executive Committee (ሥራ አስፈፃሚ) candidates.',
+        });
+      }
     }
 
     // 2. Enforce Deadline using authoritative server time

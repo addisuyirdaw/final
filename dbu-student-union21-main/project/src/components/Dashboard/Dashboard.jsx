@@ -835,16 +835,16 @@ export function Dashboard() {
 							<h3 className="font-bold text-gray-900 text-base">
 								{user && (user.role === 'president' || user.role === 'council_president')
 									? "Presidential Proposal Management"
-									: "Candidate Proposal Submission (2019 Batch)"}
+									: "Executive Committee (Sira Asfetsami) Proposal Portal"}
 							</h3>
 							<span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-								Official 2026
+								Directive 003/2012
 							</span>
 						</div>
 						<p className="text-gray-500 text-xs sm:text-sm mt-0.5">
 							{user && (user.role === 'president' || user.role === 'council_president')
 								? "Configure proposal deadlines, view eligible candidate roster, and download submitted PDFs."
-								: "Are you under 2019, 16 Top Performers? Click here to enter your Student ID & Final Exam Code to unlock and submit your executive proposal."}
+								: "Are you a 2019 top performer running for Executive Committee (ሥራ አስፈፃሚ)? Verify your exam code to submit your strategic proposal."}
 						</p>
 					</div>
 				</div>
@@ -856,7 +856,7 @@ export function Dashboard() {
 				>
 					{user && (user.role === 'president' || user.role === 'council_president')
 						? "Open Proposals Hub"
-						: "Submit Proposal (2019 Top 16 Verify)"} &rarr;
+						: "Submit Executive Proposal"} &rarr;
 				</Link>
 			</motion.div>
 
