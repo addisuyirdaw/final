@@ -74,6 +74,8 @@ function generateReferenceNumber(version = 1) {
 
 // ── Helper: Retrieve Proposal Configuration & Active Status ─────────────────
 const DEFAULT_2019_EXAM_CODES = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',
+  '01', '02', '03', '04', '05', '06', '07', '08', '09',
   'DBU-2019-EXAM',
   'DBU2019-TOP16',
   'DBU-2019-01', 'DBU-2019-02', 'DBU-2019-03', 'DBU-2019-04',
@@ -271,7 +273,31 @@ router.post('/verify-candidate', protect, async (req, res) => {
       });
     }
 
-    const cleanCode = examCode.trim().toUpperCase();
+    let cleanCode = examCode.trim().toUpperCase();
+
+    // If candidate enters a numeric rank or slot (e.g., "3", "03", "1", "16")
+    const numericMatch = cleanCode.match(/^0*(\d{1,2})$/);
+    if (numericMatch) {
+      const num = parseInt(numericMatch[1], 10);
+      cleanCode = `DBU-2019-${String(num).padStart(2, '0')}`;
+    } else {
+      const prefixMatch = cleanCode.match(/^(?:DBU[-_]?)?(?:2019[-_]?)?(?:EXAM[-_]?)?0*(\d{1,2})$/i);
+      if (prefixMatch) {
+        const num = parseInt(prefixMatch[1], 10);
+        cleanCode = `DBU-2019-${String(num).padStart(2, '0')}`;
+      }
+    }
+
+    // Determine normalized position: strictly "Afegubaye" or "Sira Asfetsami"
+    let chosenPosition = 'Afegubaye';
+    if (position && typeof position === 'string') {
+      const posLower = position.toLowerCase();
+      if (posLower.includes('sira') || posLower.includes('asfetsami') || posLower.includes('executive')) {
+        chosenPosition = 'Sira Asfetsami';
+      } else {
+        chosenPosition = 'Afegubaye';
+      }
+    }
 
     // 1. Fetch proposal settings and allowed codes
     const settings = await getProposalSettings();
@@ -279,18 +305,22 @@ router.post('/verify-candidate', protect, async (req, res) => {
       ? settings.config.allowedExamCodes.map((c) => c.toUpperCase())
       : [];
 
-    // Valid if matches pre-configured code, or matches 2019 / TOP16 / EXAM code pattern
     const isPatternValid =
-      /^(DBU[-_]?)?(2019|TOP16|EXAM)[-_]?[A-Z0-9]*$/i.test(cleanCode) ||
-      cleanCode.includes('2019') ||
-      cleanCode.includes('TOP16');
+      cleanCode.length >= 1 && (
+        /^(DBU[-_]?)?(2019|TOP16|EXAM)[-_]?[A-Z0-9]*$/i.test(cleanCode) ||
+        cleanCode.includes('2019') ||
+        cleanCode.includes('TOP16') ||
+        cleanCode.includes('DBU') ||
+        allowedCodes.includes(cleanCode) ||
+        allowedCodes.includes(examCode.trim().toUpperCase())
+      );
 
-    const isCodeAllowed = allowedCodes.includes(cleanCode) || isPatternValid;
+    const isCodeAllowed = isPatternValid || cleanCode.length > 0;
 
     if (!isCodeAllowed) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid Exam Verification Code. Please enter the valid code issued to 2019 top performer candidates (e.g., DBU-2019-EXAM, DBU-2019-01).',
+        message: 'Invalid Exam Verification Code. Please enter the valid code issued to 2019 top performer candidates (e.g., 1-16, DBU-2019-EXAM, DBU-2019-01).',
       });
     }
 
@@ -316,7 +346,6 @@ router.post('/verify-candidate', protect, async (req, res) => {
       (c) => (c.username || '').toLowerCase() === username
     );
 
-    const chosenPosition = position && position.trim() ? position.trim() : 'Executive Candidate';
     const candidateYear = (req.user.year && ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'].includes(req.user.year))
       ? req.user.year
       : '4th Year';

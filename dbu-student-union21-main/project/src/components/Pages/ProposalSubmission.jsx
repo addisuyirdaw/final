@@ -120,7 +120,7 @@ export function ProposalSubmission() {
 
   // 2019 Top Performer Candidate Verification State
   const [examCode, setExamCode] = useState("");
-  const [position, setPosition] = useState("Student Union President");
+  const [position, setPosition] = useState("Afegubaye");
   const [verifyingCode, setVerifyingCode] = useState(false);
 
   useEffect(() => {
@@ -324,38 +324,86 @@ export function ProposalSubmission() {
                     required
                     value={examCode}
                     onChange={(e) => setExamCode(e.target.value)}
-                    placeholder="Enter exam code (e.g. DBU-2019-01, DBU-2019-EXAM)"
+                    placeholder="Enter exam code or candidate rank (e.g. 1 to 16, or DBU-2019-01)"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 uppercase font-semibold"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  💡 Enter the code given to you by the University / Electoral Board during final exam evaluation (e.g. <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">DBU-2019-01</code> to <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">DBU-2019-16</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">DBU-2019-EXAM</code>).
+                  💡 Enter your candidate code or rank number given during your final exam evaluation (e.g. <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">1</code> to <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">16</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">DBU-2019-01</code>). Any format is automatically accepted.
                 </p>
               </div>
 
-              {/* Input: Running Portfolio / Position */}
+              {/* Input: Running Portfolio / Position: ONLY Afegubaye or Sira Asfetsami */}
               <div>
-                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
-                  Candidate Running Position / Portfolio <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5">
+                  Candidate Running Position <span className="text-red-500">*</span>
                 </label>
+
+                {/* 2 Selectable Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div
+                    onClick={() => setPosition("Afegubaye")}
+                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                      position === "Afegubaye"
+                        ? "border-indigo-600 bg-indigo-50/70 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-base ${
+                        position === "Afegubaye" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"
+                      }`}>
+                        🏛️
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 text-sm">Afegubaye</div>
+                        <div className="text-xs text-indigo-700 font-semibold">አፈ ጉባኤ &bull; Speaker / Council Head</div>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      position === "Afegubaye" ? "border-indigo-600 bg-indigo-600" : "border-gray-300"
+                    }`}>
+                      {position === "Afegubaye" && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setPosition("Sira Asfetsami")}
+                    className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                      position === "Sira Asfetsami"
+                        ? "border-indigo-600 bg-indigo-50/70 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-base ${
+                        position === "Sira Asfetsami" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"
+                      }`}>
+                        ⚙️
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 text-sm">Sira Asfetsami</div>
+                        <div className="text-xs text-indigo-700 font-semibold">ሥራ አስፈፃሚ &bull; Executive Committee</div>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      position === "Sira Asfetsami" ? "border-indigo-600 bg-indigo-600" : "border-gray-300"
+                    }`}>
+                      {position === "Sira Asfetsami" && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </div>
+                </div>
+
                 <select
                   value={position}
                   onChange={(e) => setPosition(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-indigo-500 bg-white"
                 >
-                  <option value="Student Union President">Student Union President</option>
-                  <option value="Council President">Council President</option>
-                  <option value="Vice President">Vice President</option>
-                  <option value="General Secretary">General Secretary</option>
-                  <option value="Academic Affairs Executive">Academic Affairs Executive</option>
-                  <option value="Student Welfare & Services Executive">Student Welfare & Services Executive</option>
-                  <option value="Clubs & Extracurricular Coordinator">Clubs & Extracurricular Coordinator</option>
-                  <option value="Finance & Budget Officer">Finance & Budget Officer</option>
-                  <option value="Discipline & Ethics Committee">Discipline & Ethics Committee</option>
-                  <option value="Campus Representative Executive">Campus Representative Executive</option>
+                  <option value="Afegubaye">Afegubaye (አፈ ጉባኤ)</option>
+                  <option value="Sira Asfetsami">Sira Asfetsami (ሥራ አስፈፃሚ)</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1.5">
-                  Select the executive portfolio corresponding to your candidate nomination.
+                  Select your candidate nomination: <strong>Afegubaye</strong> or <strong>Sira Asfetsami</strong>, then proceed directly to upload your proposal PDF.
                 </p>
               </div>
 
@@ -373,7 +421,7 @@ export function ProposalSubmission() {
                     </>
                   ) : (
                     <>
-                      <Unlock className="w-4 h-4" /> Verify Exam Code &amp; Unlock Proposal Form
+                      <Unlock className="w-4 h-4" /> Verify &amp; Directly Proceed to Upload Proposal &rarr;
                     </>
                   )}
                 </button>
