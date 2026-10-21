@@ -42,6 +42,10 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  studentId: {
+    type: String,
+    trim: true,
+  },
   votes: {
     type: Number,
     default: 0

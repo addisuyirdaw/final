@@ -119,14 +119,19 @@ export function ProposalSubmission() {
   const [dragOver, setDragOver] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // 2019 Top Performer Candidate Verification State
+  // Candidate Exam Code + University Student ID Verification State
   const [examCode, setExamCode] = useState("");
+  const [studentIdInput, setStudentIdInput] = useState("");
   const [position, setPosition] = useState("Sira Asfetsami");
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
 
   useEffect(() => {
     fetchStatus();
+    if (user?.username && !studentIdInput) {
+      const clean = user.username.replace(/^(?:dbu[-_/\s]*)?/i, '').trim();
+      setStudentIdInput(clean || user.username);
+    }
   }, [user]);
 
   const fetchStatus = async () => {
@@ -173,6 +178,10 @@ export function ProposalSubmission() {
       if (activeCode) {
         formData.append("examCode", activeCode.trim());
       }
+      const activeStudentId = statusData?.candidate?.studentId || studentIdInput;
+      if (activeStudentId) {
+        formData.append("studentId", activeStudentId.trim());
+      }
       if (note.trim()) {
         formData.append("note", note.trim());
       }
@@ -209,19 +218,27 @@ export function ProposalSubmission() {
 
   const handleVerifyExamCode = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!studentIdInput.trim()) {
+      toast.error("Please enter your University Student ID.");
+      return;
+    }
     if (!examCode.trim()) {
-      toast.error("Please enter your candidate exam verification code.");
+      toast.error("Please enter your Candidate Exam Code.");
       return;
     }
 
     try {
       setVerifyingCode(true);
-      const res = await apiService.verifyCandidateExamCode(examCode.trim(), "Sira Asfetsami");
+      const res = await apiService.verifyCandidateExamCode(
+        examCode.trim(),
+        "Sira Asfetsami",
+        studentIdInput.trim()
+      );
       toast.success(res.message || "Candidate verified! Welcome to the proposal submission portal.");
       await fetchStatus();
     } catch (err) {
       console.error("Verification error:", err);
-      toast.error(err.message || "Invalid candidate code. Only the 16 shortlisted Executive Committee candidates are authorized.");
+      toast.error(err.message || "Verification failed. The entered Exam Code does not match this University Student ID.");
     } finally {
       setVerifyingCode(false);
     }
@@ -321,27 +338,53 @@ export function ProposalSubmission() {
                 </div>
               </div>
 
-              {/* Input: Candidate Personal Exam Verification Code */}
-              <div>
-                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
-                  Candidate Exam Verification Code <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                    <Key className="w-5 h-5 text-indigo-500" />
+              {/* Dual Verification Fields: University Student ID + Candidate Exam Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. University Student ID */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
+                    University Student ID <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                      <User className="w-5 h-5 text-indigo-500" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={studentIdInput}
+                      onChange={(e) => setStudentIdInput(e.target.value)}
+                      placeholder="e.g. 1801228 (or DBU1801228)"
+                      className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 font-semibold"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    required
-                    value={examCode}
-                    onChange={(e) => setExamCode(e.target.value)}
-                    placeholder="Enter your confidential candidate exam code (e.g. 16, 02)"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 uppercase font-semibold"
-                  />
+                  <p className="text-[11px] text-gray-500 mt-1.5">
+                    Your official university student registration ID (e.g. 1801228).
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 Enter the official verification code issued to you by the campus electoral board. Anti-hijacking binds this code directly to your student ID upon first verification.
-                </p>
+
+                {/* 2. Candidate Exam Code */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
+                    Candidate Exam Code <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                      <Key className="w-5 h-5 text-indigo-500" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={examCode}
+                      onChange={(e) => setExamCode(e.target.value)}
+                      placeholder="e.g. 16, 02, 23, 32"
+                      className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 uppercase font-semibold"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1.5">
+                    Official candidate exam code (e.g. 16, 23, 02, 32).
+                  </p>
+                </div>
               </div>
 
               {/* Dedicated Executive Committee Position Display (Directive No. 003/2012) */}
@@ -391,11 +434,11 @@ export function ProposalSubmission() {
                   {verifyingCode ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Verifying Exam Credentials...
+                      Verifying Candidate Credentials...
                     </>
                   ) : (
                     <>
-                      <Unlock className="w-4 h-4" /> Verify &amp; Directly Proceed to Upload Proposal &rarr;
+                      <Unlock className="w-4 h-4" /> Verify &amp; Proceed to Upload Proposal &rarr;
                     </>
                   )}
                 </button>

@@ -72,17 +72,46 @@ function generateReferenceNumber(version = 1) {
   return `DBU-PROP-${year}-${random4}-V${version}`;
 }
 
-// ── Official Authorized 16 Candidate Codes (from stamped notice) ──────────────
-const OFFICIAL_16_EXAM_CODES = [
-  '16', '23', '02', '32', '37', '38', '22', '19', '04', '30', '24', '20', '03', '36', '34', '15'
+// ── Official Authorized 16 Candidate Pairs (from Stamped Notice) ──────────────
+const AUTHORIZED_16_CANDIDATE_PAIRS = [
+  { examNum: 16, canonicalCode: '16', studentId: '1801228' },
+  { examNum: 23, canonicalCode: '23', studentId: '1700785' },
+  { examNum: 2,  canonicalCode: '02', studentId: '1600840' },
+  { examNum: 32, canonicalCode: '32', studentId: '1700576' },
+  { examNum: 37, canonicalCode: '37', studentId: '1700313' },
+  { examNum: 38, canonicalCode: '38', studentId: '1800827' },
+  { examNum: 22, canonicalCode: '22', studentId: '1701151' },
+  { examNum: 19, canonicalCode: '19', studentId: '1601605' },
+  { examNum: 4,  canonicalCode: '04', studentId: '1600707' },
+  { examNum: 30, canonicalCode: '30', studentId: '1401493' },
+  { examNum: 24, canonicalCode: '24', studentId: '1601348' },
+  { examNum: 20, canonicalCode: '20', studentId: '1802083' },
+  { examNum: 3,  canonicalCode: '03', studentId: '1700308' },
+  { examNum: 36, canonicalCode: '36', studentId: '1701435' },
+  { examNum: 34, canonicalCode: '34', studentId: '1802151' },
+  { examNum: 15, canonicalCode: '15', studentId: '1500992' },
 ];
+
+const OFFICIAL_16_EXAM_CODES = AUTHORIZED_16_CANDIDATE_PAIRS.map((p) => p.canonicalCode);
+
+/**
+ * Normalizes University Student ID:
+ * - Strips case-insensitive prefixes like dbu or DBU and trims spaces (e.g. "dbu1801228" -> "1801228")
+ */
+function normalizeStudentId(rawInput) {
+  if (rawInput === undefined || rawInput === null) return null;
+  let clean = String(rawInput).trim();
+  if (!clean) return null;
+  clean = clean.replace(/^(?:DBU[-_/\s]*)?/i, '').trim();
+  const match = clean.match(/(\d+)/);
+  return match ? match[1] : clean;
+}
 
 /**
  * Normalizes input exam codes:
  * - Strips leading/trailing whitespace and common prefixes (DBU-, 2019-, EXAM-, etc.)
  * - Extracts digits and strips letters or suffixes (e.g. "016R" -> 16, "DBU-02" -> 2, "02" -> 2)
- * - Checks whether code matches one of the 16 authorized candidates
- * - Returns canonical format matching official whitelist (e.g. "02", "03", "04", "16", etc.)
+ * - Returns matching pair info if in the authorized list
  */
 function normalizeCandidateExamCode(rawInput) {
   if (rawInput === undefined || rawInput === null) return null;
@@ -91,25 +120,25 @@ function normalizeCandidateExamCode(rawInput) {
 
   // Strip prefixes like DBU-, 2019-, EXAM-, TOP16-
   clean = clean.replace(/^(?:DBU[-_/\s]*)?(?:2019[-_/\s]*)?(?:EXAM[-_/\s]*)?(?:TOP16[-_/\s]*)?(?:CAND[-_/\s]*)?/i, '');
-  // Extract numeric digits, ignoring suffix letters like 'R' or spaces (e.g. "016R" -> 16, "02" -> 2)
   const match = clean.match(/(\d+)/);
   if (!match) return null;
   const num = parseInt(match[1], 10);
 
-  // Find matching code in official 16 list
-  const canonical = OFFICIAL_16_EXAM_CODES.find((code) => parseInt(code, 10) === num);
-  if (!canonical) {
+  const matchedPair = AUTHORIZED_16_CANDIDATE_PAIRS.find((p) => p.examNum === num);
+  if (!matchedPair) {
     return {
       isValid: false,
       rawNumber: num,
       canonicalCode: String(num),
+      authorizedStudentId: null,
     };
   }
 
   return {
     isValid: true,
     rawNumber: num,
-    canonicalCode: canonical,
+    canonicalCode: matchedPair.canonicalCode,
+    authorizedStudentId: matchedPair.studentId,
   };
 }
 
@@ -161,6 +190,7 @@ async function getProposalSettings() {
     deadline: config.deadline,
     deadlineEthiopia: config.deadline ? formatEthiopiaTime(config.deadline) : 'Deadline not set',
     allowedExamCodes: config.allowedExamCodes || OFFICIAL_16_EXAM_CODES,
+    authorizedPairs: AUTHORIZED_16_CANDIDATE_PAIRS,
     serverTime: now.toISOString(),
   };
 }
@@ -307,58 +337,86 @@ router.get('/my-status', protect, async (req, res) => {
 });
 
 // ============================================================================
+// ============================================================================
 // 3b. POST /api/proposals/verify-candidate
-// Top Performer Verification: Candidate verifies via official 16 exam codes
+// Top Performer Verification: Candidate verifies via official 16 exam code + Student ID pair
 // ============================================================================
 router.post('/verify-candidate', protect, async (req, res) => {
   try {
-    const { examCode } = req.body;
+    const { examCode, studentId } = req.body;
     const username = (req.user.username || '').toLowerCase().trim();
 
-    if (!examCode || typeof examCode !== 'string' || !examCode.trim()) {
+    // 1. Normalize both inputs
+    const rawStudentId = studentId || req.user.username;
+    const normalizedId = normalizeStudentId(rawStudentId);
+    const normalizedCodeObj = normalizeCandidateExamCode(examCode);
+
+    if (!examCode || typeof examCode !== 'string' || !examCode.trim() || !normalizedCodeObj) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide the Candidate Verification Code provided during your final exam evaluation.',
+        message: 'Please provide your Candidate Exam Code.',
       });
     }
 
-    // 1. Candidate Code Normalization & Whitelist Check
-    const normalized = normalizeCandidateExamCode(examCode);
-    if (!normalized || !normalized.isValid) {
+    if (!normalizedId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide your University Student ID.',
+      });
+    }
+
+    const pairByCode = AUTHORIZED_16_CANDIDATE_PAIRS.find((p) => p.examNum === normalizedCodeObj.rawNumber);
+    const pairById = AUTHORIZED_16_CANDIDATE_PAIRS.find((p) => p.studentId === normalizedId);
+
+    // If neither is in the 16 candidates
+    if (!pairByCode && !pairById) {
       return res.status(403).json({
         success: false,
-        message: 'Invalid candidate code. Only the 16 shortlisted Executive Committee candidates are authorized to submit proposals.',
+        message: 'Unauthorized. You are not in the shortlisted 16 Executive Committee candidates.',
       });
     }
 
-    const canonicalCode = normalized.canonicalCode;
+    // If mismatch
+    if (!pairByCode || !pairById || pairByCode.studentId !== normalizedId || pairById.examNum !== normalizedCodeObj.rawNumber) {
+      return res.status(403).json({
+        success: false,
+        message: 'Verification failed. The entered Exam Code does not match this University Student ID.',
+      });
+    }
+
+    const canonicalCode = pairByCode.canonicalCode;
+    const verifiedStudentId = pairByCode.studentId;
 
     // 2. Strict Candidate-to-StudentID mapping & Anti-hijacking checks
-    // A. Check if already claimed in Proposal by another registered candidate
     const existingClaimProposal = await Proposal.findOne({
-      candidateExamCode: canonicalCode,
+      $or: [
+        { candidateExamCode: canonicalCode },
+        { studentId: verifiedStudentId },
+      ],
       candidateUsername: { $ne: username },
     });
     if (existingClaimProposal) {
       return res.status(403).json({
         success: false,
-        message: 'Unauthorized. This exam code belongs to another registered candidate.',
+        message: 'Unauthorized. This exam code or student ID has already been claimed by another registered candidate.',
       });
     }
 
-    // B. Check if already claimed in Election candidates by another registered candidate
     const electionsWithCandidate = await Election.find({
-      'candidates.examCode': canonicalCode,
+      $or: [
+        { 'candidates.examCode': canonicalCode },
+        { 'candidates.studentId': verifiedStudentId },
+      ],
     });
     for (const elec of electionsWithCandidate) {
       for (const cand of elec.candidates) {
         if (
-          cand.examCode === canonicalCode &&
+          (cand.examCode === canonicalCode || cand.studentId === verifiedStudentId) &&
           (cand.username || '').toLowerCase() !== username
         ) {
           return res.status(403).json({
             success: false,
-            message: 'Unauthorized. This exam code belongs to another registered candidate.',
+            message: 'Unauthorized. This exam code or student ID has already been claimed by another registered candidate.',
           });
         }
       }
@@ -367,7 +425,6 @@ router.post('/verify-candidate', protect, async (req, res) => {
     // 3. Bind on First Successful Claim to the authenticated candidate
     const chosenPosition = 'Sira Asfetsami';
 
-    // Find active or upcoming election, or fallback to any election, or create one
     let election = await Election.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ createdAt: -1 });
     if (!election) {
       election = await Election.findOne({}).sort({ createdAt: -1 });
@@ -395,6 +452,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
     if (existingIndex >= 0) {
       election.candidates[existingIndex].position = chosenPosition;
       election.candidates[existingIndex].examCode = canonicalCode;
+      election.candidates[existingIndex].studentId = verifiedStudentId;
       election.candidates[existingIndex].academicYear = candidateYear;
       election.candidates[existingIndex].year = candidateYear;
       election.candidates[existingIndex].department = req.user.department || election.candidates[existingIndex].department || 'General';
@@ -402,6 +460,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
       election.candidates.push({
         name: req.user.name || 'Candidate',
         username: username,
+        studentId: verifiedStudentId,
         department: req.user.department || 'General',
         year: candidateYear,
         academicYear: candidateYear,
@@ -420,11 +479,13 @@ router.post('/verify-candidate', protect, async (req, res) => {
       verified: true,
       position: chosenPosition,
       candidateCode: canonicalCode,
+      studentId: verifiedStudentId,
       message: 'Candidate eligibility verified successfully! Your proposal submission portal is now unlocked.',
       candidate: {
         _id: candidateRecord._id,
         name: candidateRecord.name,
         username: candidateRecord.username,
+        studentId: verifiedStudentId,
         department: candidateRecord.department,
         year: candidateRecord.year,
         position: chosenPosition,
@@ -435,7 +496,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Candidate verification error:', error);
-    res.status(500).json({ success: false, message: 'Failed to verify candidate code: ' + error.message });
+    res.status(500).json({ success: false, message: 'Failed to verify candidate credentials: ' + error.message });
   }
 });
 
@@ -459,38 +520,69 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // Determine candidate canonical exam code
+    // Determine candidate canonical exam code & student ID
     let rawCode = req.body.examCode || req.body.candidateCode || (eligibility.candidate ? eligibility.candidate.examCode : null);
     const normalized = normalizeCandidateExamCode(rawCode);
     const canonicalCode = normalized?.isValid ? normalized.canonicalCode : (eligibility.candidate ? eligibility.candidate.examCode : null);
 
-    if (!canonicalCode || !OFFICIAL_16_EXAM_CODES.includes(canonicalCode)) {
+    let rawStudentId = req.body.studentId || (eligibility.candidate ? eligibility.candidate.studentId : null) || req.user.username;
+    const normalizedId = normalizeStudentId(rawStudentId);
+
+    if (!canonicalCode || !normalizedId) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-      return res.status(403).json({
+      return res.status(400).json({
         success: false,
-        message: 'Invalid candidate code. Only the 16 shortlisted Executive Committee candidates are authorized to submit proposals.',
+        message: 'Candidate Exam Code and University Student ID are required for proposal submission.',
       });
     }
 
-    // Anti-Hijacking Check: verify that this canonicalCode is not claimed by another student
+    const pairByCode = AUTHORIZED_16_CANDIDATE_PAIRS.find((p) => p.canonicalCode === canonicalCode || (normalized && p.examNum === normalized.rawNumber));
+    const pairById = AUTHORIZED_16_CANDIDATE_PAIRS.find((p) => p.studentId === normalizedId);
+
+    // If neither is in the 16 candidates
+    if (!pairByCode && !pairById) {
+      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized. You are not in the shortlisted 16 Executive Committee candidates.',
+      });
+    }
+
+    // If mismatch
+    if (!pairByCode || !pairById || pairByCode.studentId !== normalizedId || pairById.canonicalCode !== canonicalCode) {
+      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+      return res.status(403).json({
+        success: false,
+        message: 'Verification failed. The entered Exam Code does not match this University Student ID.',
+      });
+    }
+
+    const verifiedCanonicalCode = pairByCode.canonicalCode;
+    const verifiedStudentId = pairByCode.studentId;
+
+    // Anti-Hijacking Check: verify that this canonicalCode or studentId is not claimed by another candidate
     const existingOtherProposal = await Proposal.findOne({
-      candidateExamCode: canonicalCode,
+      $or: [
+        { candidateExamCode: verifiedCanonicalCode },
+        { studentId: verifiedStudentId },
+      ],
       candidateUsername: { $ne: username },
     });
     if (existingOtherProposal) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
         success: false,
-        message: 'Unauthorized. This exam code belongs to another registered candidate.',
+        message: 'Unauthorized. This exam code or student ID belongs to another registered candidate.',
       });
     }
 
     // Strict One-Time Submission Enforcement (Duplicate Prevention):
-    // Check if a proposal already exists for this candidate's normalized exam code OR username
+    // Check if a proposal already exists for this candidate's normalized exam code OR studentId OR username
     const existingProposal = await Proposal.findOne({
       $or: [
         { candidateUsername: username },
-        { candidateExamCode: canonicalCode },
+        { candidateExamCode: verifiedCanonicalCode },
+        { studentId: verifiedStudentId },
       ],
     });
 
@@ -573,7 +665,8 @@ const handleProposalSubmit = async (req, res) => {
       candidateDepartment: candidateData.department,
       candidateYear: candidateData.year,
       candidatePosition: 'Sira Asfetsami',
-      candidateExamCode: canonicalCode,
+      candidateExamCode: verifiedCanonicalCode,
+      studentId: verifiedStudentId,
       electionId: eligibility.electionId,
       currentVersion: initialVersion,
       latestReferenceNumber: refNumber,
@@ -598,12 +691,14 @@ const handleProposalSubmit = async (req, res) => {
       version: initialVersion,
       submittedAt: proposal.latestSubmittedAt,
       fileName: req.file.originalname,
-      candidateExamCode: canonicalCode,
+      candidateExamCode: verifiedCanonicalCode,
+      studentId: verifiedStudentId,
       proposal: {
         referenceNumber: refNumber,
         currentVersion: initialVersion,
         submittedAt: proposal.latestSubmittedAt,
-        candidateExamCode: canonicalCode,
+        candidateExamCode: verifiedCanonicalCode,
+        studentId: verifiedStudentId,
       },
     });
   } catch (error) {

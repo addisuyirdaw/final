@@ -81,6 +81,11 @@ const proposalSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    studentId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
     electionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Election',

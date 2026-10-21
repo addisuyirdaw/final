@@ -33,6 +33,7 @@ async function getAuthorizedCandidates() {
             position: c.position || 'Candidate',
             profileImage: c.profileImage || '',
             examCode: c.examCode || '',
+            studentId: c.studentId || '',
             electionId: election._id,
             electionTitle: election.title,
           });
