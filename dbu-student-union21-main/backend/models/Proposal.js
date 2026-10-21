@@ -145,9 +145,19 @@ const proposalSchema = new mongoose.Schema(
           maxScore: { type: Number, default: 4 },
           feedback: { type: String, default: '' },
         },
+        timeline: {
+          score: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 4 },
+          feedback: { type: String, default: '' },
+        },
         timelinePlanning: {
           score: { type: Number, default: 0 },
           maxScore: { type: Number, default: 4 },
+          feedback: { type: String, default: '' },
+        },
+        budgetingClarity: {
+          score: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 3 },
           feedback: { type: String, default: '' },
         },
         clarityBudgeting: {
@@ -156,6 +166,7 @@ const proposalSchema = new mongoose.Schema(
           feedback: { type: String, default: '' },
         },
       },
+      summary: { type: String, default: '' },
       summaryFeedback: { type: String, default: '' },
       status: {
         type: String,

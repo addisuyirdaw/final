@@ -1348,17 +1348,23 @@ const handleAiEvaluateProposal = async (req, res) => {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        const prompt = `You are the Official Electoral Review Committee for Debre Berhan University (DBU) Student Union Executive Committee Election, operating under Directive No. 003/2012 Article 22.
+        const prompt = `You are the Official Electoral Review Committee for Debre Berhan University (DBU) Student Union Executive Committee Election, operating under Directive No. 003/2012 Article 22 (በደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ህብረት መመሪያ ቁጥር 003/2012 አንቀጽ 22 መሠረት የተቋቋመ አስመራጭ እና ገምጋሚ ኮሚቴ).
 
-Evaluate the attached candidate strategic proposal according to the official 15% pre-council evaluation rubric:
-1. Strategic Objectives & Campus Relevance (max 4.0 points)
-2. Actionability & Feasibility (max 4.0 points)
-3. Realistic Timeline & Milestone Planning (max 4.0 points)
-4. Clarity, Budgeting & Student Union Alignment (max 3.0 points)
-TOTAL MAX SCORE = 15.0 points.
+The attached strategic proposal is written in Amharic (or English) by a shortlisted candidate for the Student Union Executive Committee (ሥራ አስፈፃሚ).
 
-Candidate: ${proposal.candidateName} (${proposal.candidateDepartment || 'General'}, ${proposal.candidateYear || '4th Year'})
+CRITICAL INSTRUCTION:
+You MUST evaluate the candidate's proposal against the Directive No. 003/2012 Article 22 criteria and write ALL qualitative feedback and overall summary STRICTLY IN AMHARIC (ሙሉውን አስተያየት እና ማጠቃለያውን በጥራት እና ደረጃውን በጠበቀ አማርኛ ቋንቋ ብቻ ጻፍ/ፊ).
+
+Official Directive No. 003/2012 Article 22 Evaluation Rubric (Total: 15%):
+1. Strategic Objectives & Campus Relevance (ስትራቴጂካዊ ዓላማ እና ለካምፓሱ ያለው ጠቀሜታ): max 4.0 pts
+2. Actionability & Feasibility (የእቅዱ ተፈጻሚነት እና አዋጭነት): max 4.0 pts
+3. Realistic Timeline & Milestone Planning (ተጨባጭ የጊዜ ሰሌዳ እና የክንውን ምዕራፎች): max 4.0 pts
+4. Clarity, Budgeting & Student Union Alignment (የበጀት ግልጽነት እና ከተማሪዎች ህብረት አደረጃጀት ጋር ያለው ትስስር): max 3.0 pts
+TOTAL MAX SCORE = 15.0 pts.
+
+Candidate Name: ${proposal.candidateName}
 Exam Code: ${proposal.candidateExamCode}
+Department: ${proposal.candidateDepartment || 'General'}
 Position: Sira Asfetsami (ሥራ አስፈፃሚ)
 
 Proposal Document Content (Pages: ${pageCount}):
@@ -1366,32 +1372,26 @@ Proposal Document Content (Pages: ${pageCount}):
 ${extractedText.substring(0, 16000)}
 """
 
-Return ONLY a valid JSON object matching this exact schema (no markdown, no quotes around json):
+Return ONLY a valid JSON object matching this exact schema (no markdown, no backticks, strictly in Amharic):
 {
   "totalScore": 13.5,
-  "criteria": {
-    "strategicObjectives": {
-      "score": 3.5,
-      "maxScore": 4,
-      "feedback": "Concise assessment of campus relevance and strategic alignment."
-    },
-    "actionability": {
-      "score": 3.5,
-      "maxScore": 4,
-      "feedback": "Concise assessment of implementation practicality and tangible solutions."
-    },
-    "timelinePlanning": {
-      "score": 3.5,
-      "maxScore": 4,
-      "feedback": "Concise assessment of milestone planning and phase breakdown."
-    },
-    "clarityBudgeting": {
-      "score": 3.0,
-      "maxScore": 3,
-      "feedback": "Concise assessment of budget transparency and Union policy alignment."
-    }
+  "strategicObjectives": {
+    "score": 3.5,
+    "feedback": "የእጩው ስትራቴጂካዊ ዓላማ የተማሪውን መብት፣ ማህበራዊ ደህንነትና አካዳሚካዊ ልህቀት በግልጽ ያገናዘበ እና ለዩኒቨርሲቲው ተጨባጭ ጠቀሜታ ያለው ነው።"
   },
-  "summaryFeedback": "Overall qualitative evaluation highlighting strengths and areas of consideration."
+  "actionability": {
+    "score": 3.5,
+    "feedback": "የቀረቡት የድርጊት መርሃ ግብሮች በተግባር ሊፈጸሙ የሚችሉ፣ ሊለኩ የሚችሉ ውጤቶችን የያዙና አዋጭ ናቸው።"
+  },
+  "timeline": {
+    "score": 3.5,
+    "feedback": "የክንውን ምዕራፎቹ በየሴሚስተሩ እና በወራት ተከፋፍለው ግልጽ በሆነ ተጨባጭ የጊዜ ሰሌዳ የተቀመጡ ናቸው።"
+  },
+  "budgetingClarity": {
+    "score": 3.0,
+    "feedback": "የሀብት እና የበጀት አጠቃቀሙ ግልጽነት ያለው እና ከመመሪያ ቁጥር 003/2012 መርሆዎች ጋር የተጣጣመ ነው።"
+  },
+  "summary": "አጠቃላይ የቀረበው የስትራቴጂክ እቅድ የተማሪዎችን ሁለንተናዊ ጥቅም የሚያስጠብቅ፣ ተጨባጭ እና ከፍተኛ ተፈጻሚነት ያለው የሥራ አስፈፃሚ ሰነድ ነው።"
 }`;
 
         const result = await model.generateContent(prompt);
@@ -1399,71 +1399,140 @@ Return ONLY a valid JSON object matching this exact schema (no markdown, no quot
         const clean = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
         aiEvaluation = JSON.parse(clean);
       } catch (geminiErr) {
-        console.warn('Gemini API evaluation error, switching to rule-based rubric evaluation:', geminiErr.message);
+        console.warn('Gemini API evaluation error, switching to rule-based Amharic rubric evaluation:', geminiErr.message);
       }
     }
 
-    // Resilient Rule-Based Calibrated Rubric NLP Evaluator if Gemini not used/failed
+    // Resilient Rule-Based Calibrated Amharic Rubric NLP Evaluator if Gemini not used/failed
     if (!aiEvaluation || !aiEvaluation.totalScore) {
       const wordCount = extractedText.split(/\s+/).filter(Boolean).length;
       const lower = extractedText.toLowerCase();
 
       // Criterion 1: Strategic Objectives & Campus Relevance (max 4.0)
-      const objKeywords = ['objective', 'goal', 'vision', 'mission', 'campus', 'student', 'welfare', 'academic', 'service', 'reform', 'representation'];
-      let objMatches = objKeywords.filter((k) => lower.includes(k)).length;
-      let score1 = Math.min(4.0, Math.max(2.5, +(2.5 + (objMatches / objKeywords.length) * 1.5).toFixed(1)));
-      let fb1 = objMatches >= 5
-        ? 'Articulates clear strategic vision addressing university student welfare, academic rights, and campus community advancement.'
-        : 'Covers foundational student priorities with good alignment to Executive Committee mandates.';
+      const objKeywords = [
+        'ዓላማ', 'ራዕይ', 'ተማሪ', 'አካዳሚክ', 'አገልግሎት', 'መብት', 'ማሻሻያ', 'ተወካይ', 'ካምፓስ', 'ህብረት',
+        'objective', 'goal', 'vision', 'mission', 'campus', 'student', 'welfare', 'academic', 'service', 'reform'
+      ];
+      let objMatches = objKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
+      let score1 = Math.min(4.0, Math.max(2.6, +(2.6 + (objMatches / objKeywords.length) * 1.4).toFixed(1)));
+      let fb1 = objMatches >= 4
+        ? 'የእጩው ስትራቴጂካዊ ዓላማ የተማሪውን መብት፣ ማህበራዊ ደህንነትና አካዳሚካዊ ልህቀት በግልጽ የሚያስቀድም ሆኖ ለካምፓሱ ሁለንተናዊ ማህበረሰብ የጎላ ፋይዳ አለው።'
+        : 'የተማሪዎችን መሰረታዊ ፍላጎት የሚያንፀባርቅ እና ከህብረቱ የስራ አስፈፃሚ ስልጣንና ተግባር ጋር ጥሩ ትስስር ያለው ዓላማ ይዟል።';
 
       // Criterion 2: Actionability & Feasibility (max 4.0)
-      const actKeywords = ['action', 'implement', 'execute', 'initiative', 'project', 'step', 'committee', 'cooperation', 'department', 'solution'];
-      let actMatches = actKeywords.filter((k) => lower.includes(k)).length;
-      let score2 = Math.min(4.0, Math.max(2.4, +(2.4 + (actMatches / actKeywords.length) * 1.6).toFixed(1)));
-      let fb2 = actMatches >= 5
-        ? 'Outlines practical, tangible solutions with measurable deliverables feasible within the academic year.'
-        : 'Demonstrates actionable intent with reasonable scope of execution for student union leadership.';
+      const actKeywords = [
+        'ተግባር', 'አፈጻጸም', 'እቅድ', 'ተነሳሽነት', 'ውጤት', 'ኮሚቴ', 'መፍትሄ', 'ትብብር', 'አዋጭ',
+        'action', 'implement', 'execute', 'initiative', 'project', 'step', 'committee', 'solution'
+      ];
+      let actMatches = actKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
+      let score2 = Math.min(4.0, Math.max(2.5, +(2.5 + (actMatches / actKeywords.length) * 1.5).toFixed(1)));
+      let fb2 = actMatches >= 4
+        ? 'የቀረቡት የመፍትሄ እርምጃዎች በተጨባጭ ሊተገበሩ የሚችሉ፣ ሊለኩ የሚችሉ ውጤቶችን የያዙና በበጀት ዓመቱ ውስጥ ለመፈጸም አዋጭ ናቸው።'
+        : 'የእቅዱ ተግባራዊ እንቅስቃሴዎች የተማሪዎች ህብረትን አቅም ያገናዘቡ እና አፈጻጸማቸው መልካም ተስፋ የሚጣልበት ነው።';
 
       // Criterion 3: Realistic Timeline & Milestone Planning (max 4.0)
-      const timeKeywords = ['timeline', 'schedule', 'phase', 'month', 'semester', 'quarter', 'milestone', 'week', 'term', 'deadline'];
-      let timeMatches = timeKeywords.filter((k) => lower.includes(k)).length;
+      const timeKeywords = [
+        'ጊዜ', 'ሰሌዳ', 'ወር', 'ሴሚስተር', 'ምዕራፍ', 'ቀን', 'ሳምንት', 'ደረጃ',
+        'timeline', 'schedule', 'phase', 'month', 'semester', 'quarter', 'milestone', 'deadline'
+      ];
+      let timeMatches = timeKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
       let score3 = Math.min(4.0, Math.max(2.5, +(2.5 + (timeMatches / timeKeywords.length) * 1.5).toFixed(1)));
-      let fb3 = timeMatches >= 4
-        ? 'Presents structured milestone planning with phased execution across university semesters.'
-        : 'Provides progressive timeline for proposed initiatives with identifiable checkpoints.';
+      let fb3 = timeMatches >= 3
+        ? 'የክንውን ምዕራፎቹ በየሴሚስተሩ እና በወራት ተከፋፍለው ግልጽ በሆነ የጊዜ ሰሌዳ እና መቆጣጠሪያ ነጥቦች የተደራጁ ናቸው።'
+        : 'የታቀዱ ተግባራትን ቅደም ተከተል የሚያሳይ እና ተከታታይ የጊዜ ሰሌዳ ያለው እቅድ ቀርቧል።';
 
       // Criterion 4: Clarity, Budgeting & Student Union Alignment (max 3.0)
-      const budKeywords = ['budget', 'fund', 'resource', 'financial', 'transparent', 'union', 'directive', 'governance', 'transparency'];
-      let budMatches = budKeywords.filter((k) => lower.includes(k)).length;
+      const budKeywords = [
+        'በጀት', 'ፋይናንስ', 'ሀብት', 'ግልጽነት', 'ህብረት', 'መመሪያ', 'አስተዳደር', 'ቁጥጥር',
+        'budget', 'fund', 'resource', 'financial', 'transparent', 'union', 'directive', 'governance'
+      ];
+      let budMatches = budKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
       let score4 = Math.min(3.0, Math.max(2.0, +(2.0 + (budMatches / budKeywords.length) * 1.0).toFixed(1)));
       let fb4 = budMatches >= 3
-        ? 'Transparent resource allocation and accountability aligned with Directive No. 003/2012 standards.'
-        : 'Clear document presentation with commendable adherence to student union principles.';
+        ? 'የሀብት አመዳደቡ ግልጽነት ያለው፣ ተጠያቂነትን የሚያረጋግጥና ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 ድንጋጌዎች ጋር ሙሉ በሙሉ የተጣጣመ ነው።'
+        : 'የሰነዱ አቀራረብ ግልጽ እና ከተማሪዎች ህብረት የፋይናንስና የአሰራር መርሆዎች ጋር የሚጣጣም ነው።';
 
       if (wordCount < 40) {
         score1 = 2.0; score2 = 2.0; score3 = 2.0; score4 = 1.5;
-        fb1 = 'Brief initial draft document submitted. Additional detail on student welfare initiatives recommended.';
+        fb1 = 'አጭር ረቂቅ ሰነድ የቀረበ ሲሆን በተማሪዎች ደህንነት እና ሁለንተናዊ አገልግሎቶች ላይ ተጨማሪ ዝርዝር ማካተት ይመረጣል።';
       }
 
       const total = +(score1 + score2 + score3 + score4).toFixed(1);
 
       aiEvaluation = {
         totalScore: Math.min(15.0, total),
-        criteria: {
-          strategicObjectives: { score: score1, maxScore: 4, feedback: fb1 },
-          actionability: { score: score2, maxScore: 4, feedback: fb2 },
-          timelinePlanning: { score: score3, maxScore: 4, feedback: fb3 },
-          clarityBudgeting: { score: score4, maxScore: 3, feedback: fb4 },
-        },
-        summaryFeedback: 'Evaluated under Directive No. 003/2012 Article 22: Strong strategic proposal addressing core university student union goals with well-balanced action plans and timeline milestones.',
+        strategicObjectives: { score: score1, maxScore: 4, feedback: fb1 },
+        actionability: { score: score2, maxScore: 4, feedback: fb2 },
+        timeline: { score: score3, maxScore: 4, feedback: fb3 },
+        budgetingClarity: { score: score4, maxScore: 3, feedback: fb4 },
+        summary: 'በመመሪያ ቁጥር 003/2012 አንቀጽ 22 መሰረት የተገመገመ፡ የተማሪዎችን ሁለንተናዊ ፍላጎት፣ ተጨባጭ የክንውን ምዕራፎችን እና ግልጽ የአሰራር መርሆዎችን ያካተተ ጠንካራ የሥራ አስፈፃሚ ስትራቴጂካዊ እቅድ ነው።',
       };
     }
 
-    // Save evaluation to Proposal
+    // Build unified criteria mapping to satisfy both required schema and legacy fields
+    const strategicObj = aiEvaluation.strategicObjectives || aiEvaluation.criteria?.strategicObjectives || {
+      score: 3.5, maxScore: 4, feedback: 'ስትራቴጂካዊ ዓላማው ለካምፓሱ ተጨባጭ ጠቀሜታ አለው።'
+    };
+    const actionability = aiEvaluation.actionability || aiEvaluation.criteria?.actionability || {
+      score: 3.5, maxScore: 4, feedback: 'የድርጊት መርሃ ግብሮቹ ተግባራዊ አዋጭነት አላቸው።'
+    };
+    const timeline = aiEvaluation.timeline || aiEvaluation.criteria?.timeline || aiEvaluation.criteria?.timelinePlanning || {
+      score: 3.5, maxScore: 4, feedback: 'የክንውን ምዕራፎቹ በግልጽ የጊዜ ሰሌዳ የተደራጁ ናቸው።'
+    };
+    const budgetingClarity = aiEvaluation.budgetingClarity || aiEvaluation.criteria?.budgetingClarity || aiEvaluation.criteria?.clarityBudgeting || {
+      score: 2.5, maxScore: 3, feedback: 'የበጀት አጠቃቀሙ ግልጽና ከመመሪያ ቁጥር 003/2012 ጋር የተጣጣመ ነው።'
+    };
+    const summaryText = aiEvaluation.summary || aiEvaluation.summaryFeedback || 'በመመሪያ ቁጥር 003/2012 አንቀጽ 22 መሰረት የተገመገመ ስትራቴጂካዊ የሥራ አስፈፃሚ ሰነድ ነው።';
+
+    const normalizedTotalScore = Number(
+      aiEvaluation.totalScore !== undefined
+        ? aiEvaluation.totalScore
+        : (strategicObj.score + actionability.score + timeline.score + budgetingClarity.score).toFixed(1)
+    );
+
+    const fullCriteria = {
+      strategicObjectives: {
+        score: Number(strategicObj.score || 0),
+        maxScore: 4,
+        feedback: strategicObj.feedback || '',
+      },
+      actionability: {
+        score: Number(actionability.score || 0),
+        maxScore: 4,
+        feedback: actionability.feedback || '',
+      },
+      timeline: {
+        score: Number(timeline.score || 0),
+        maxScore: 4,
+        feedback: timeline.feedback || '',
+      },
+      timelinePlanning: {
+        score: Number(timeline.score || 0),
+        maxScore: 4,
+        feedback: timeline.feedback || '',
+      },
+      budgetingClarity: {
+        score: Number(budgetingClarity.score || 0),
+        maxScore: 3,
+        feedback: budgetingClarity.feedback || '',
+      },
+      clarityBudgeting: {
+        score: Number(budgetingClarity.score || 0),
+        maxScore: 3,
+        feedback: budgetingClarity.feedback || '',
+      },
+    };
+
+    // Save evaluation to Proposal in database
     proposal.evaluation = {
-      totalScore: Number(aiEvaluation.totalScore),
-      criteria: aiEvaluation.criteria,
-      summaryFeedback: aiEvaluation.summaryFeedback,
+      totalScore: normalizedTotalScore,
+      criteria: fullCriteria,
+      strategicObjectives: fullCriteria.strategicObjectives,
+      actionability: fullCriteria.actionability,
+      timeline: fullCriteria.timeline,
+      budgetingClarity: fullCriteria.budgetingClarity,
+      summary: summaryText,
+      summaryFeedback: summaryText,
       status: 'AI_EVALUATED',
       evaluatedAt: new Date(),
     };
@@ -1473,7 +1542,26 @@ Return ONLY a valid JSON object matching this exact schema (no markdown, no quot
       success: true,
       proposalId: proposal._id,
       candidateExamCode: proposal.candidateExamCode,
-      evaluation: proposal.evaluation,
+      // Exact required schema root fields
+      strategicObjectives: fullCriteria.strategicObjectives,
+      actionability: fullCriteria.actionability,
+      timeline: fullCriteria.timeline,
+      budgetingClarity: fullCriteria.budgetingClarity,
+      totalScore: normalizedTotalScore,
+      summary: summaryText,
+      // Full evaluation object
+      evaluation: {
+        totalScore: normalizedTotalScore,
+        criteria: fullCriteria,
+        strategicObjectives: fullCriteria.strategicObjectives,
+        actionability: fullCriteria.actionability,
+        timeline: fullCriteria.timeline,
+        budgetingClarity: fullCriteria.budgetingClarity,
+        summary: summaryText,
+        summaryFeedback: summaryText,
+        status: 'AI_EVALUATED',
+        evaluatedAt: proposal.evaluation.evaluatedAt,
+      },
       wordCount: extractedText.split(/\s+/).filter(Boolean).length,
       pageCount: pageCount,
     });
@@ -1514,11 +1602,59 @@ const handleSaveScore = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Total score must be a number between 0 and 15.' });
     }
 
+    const incomingSummary = req.body.summary || summaryFeedback || proposal.evaluation?.summary || proposal.evaluation?.summaryFeedback || '';
+
+    let updatedCriteria = {};
+    if (criteria && typeof criteria === 'object') {
+      updatedCriteria = { ...criteria };
+    } else if (proposal.evaluation?.criteria) {
+      updatedCriteria = proposal.evaluation.criteria.toObject
+        ? proposal.evaluation.criteria.toObject()
+        : JSON.parse(JSON.stringify(proposal.evaluation.criteria));
+    }
+
+    if (req.body.strategicObjectives) updatedCriteria.strategicObjectives = req.body.strategicObjectives;
+    if (req.body.actionability) updatedCriteria.actionability = req.body.actionability;
+    if (req.body.timeline) {
+      updatedCriteria.timeline = req.body.timeline;
+      updatedCriteria.timelinePlanning = req.body.timeline;
+    }
+    if (req.body.timelinePlanning && !updatedCriteria.timeline) {
+      updatedCriteria.timeline = req.body.timelinePlanning;
+      updatedCriteria.timelinePlanning = req.body.timelinePlanning;
+    }
+    if (req.body.budgetingClarity) {
+      updatedCriteria.budgetingClarity = req.body.budgetingClarity;
+      updatedCriteria.clarityBudgeting = req.body.budgetingClarity;
+    }
+    if (req.body.clarityBudgeting && !updatedCriteria.budgetingClarity) {
+      updatedCriteria.budgetingClarity = req.body.clarityBudgeting;
+      updatedCriteria.clarityBudgeting = req.body.clarityBudgeting;
+    }
+
+    if (updatedCriteria.timeline && !updatedCriteria.timelinePlanning) {
+      updatedCriteria.timelinePlanning = updatedCriteria.timeline;
+    }
+    if (updatedCriteria.timelinePlanning && !updatedCriteria.timeline) {
+      updatedCriteria.timeline = updatedCriteria.timelinePlanning;
+    }
+    if (updatedCriteria.budgetingClarity && !updatedCriteria.clarityBudgeting) {
+      updatedCriteria.clarityBudgeting = updatedCriteria.budgetingClarity;
+    }
+    if (updatedCriteria.clarityBudgeting && !updatedCriteria.budgetingClarity) {
+      updatedCriteria.budgetingClarity = updatedCriteria.clarityBudgeting;
+    }
+
     proposal.evaluation = {
       ...(proposal.evaluation || {}),
       totalScore: finalScore,
-      criteria: criteria || proposal.evaluation?.criteria,
-      summaryFeedback: summaryFeedback || proposal.evaluation?.summaryFeedback || '',
+      criteria: updatedCriteria,
+      strategicObjectives: updatedCriteria.strategicObjectives,
+      actionability: updatedCriteria.actionability,
+      timeline: updatedCriteria.timeline,
+      budgetingClarity: updatedCriteria.budgetingClarity,
+      summary: incomingSummary,
+      summaryFeedback: incomingSummary,
       status: 'APPROVED',
       approvedAt: new Date(),
       approvedBy: req.user._id,

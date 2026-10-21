@@ -244,25 +244,55 @@ export function PresidentPage() {
       let evalData = candidate.evaluation;
 
       if (!evalData || forceRefresh) {
-        toast.loading("AI is reading proposal PDF and evaluating Directive No. 003/2012 rubric...", { id: "ai-eval" });
+        toast.loading("AI እቅዱን በማንበብ በመመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርት እየገመገመ ነው...", { id: "ai-eval" });
         const res = await apiService.evaluateProposalWithAi(candidate.proposalId);
-        evalData = res.evaluation;
-        toast.success("AI rubric evaluation completed!", { id: "ai-eval" });
+        evalData = res.evaluation || res;
+        toast.success("የ AI እቅድ ግምገማ በአማርኛ ተጠናቅቋል!", { id: "ai-eval" });
         await fetchDashboard();
       }
+
+      const rawCriteria = evalData?.criteria || {};
+      const stratObj = rawCriteria.strategicObjectives || evalData?.strategicObjectives || {
+        score: 3.5,
+        maxScore: 4,
+        feedback: "የእጩው ስትራቴጂካዊ ዓላማ ለካምፓሱ ተጨባጭ ጠቀሜታ አለው።",
+      };
+      const actObj = rawCriteria.actionability || evalData?.actionability || {
+        score: 3.5,
+        maxScore: 4,
+        feedback: "የድርጊት መርሃ ግብሮቹ ተግባራዊ አዋጭነት አላቸው።",
+      };
+      const timeObj = rawCriteria.timeline || rawCriteria.timelinePlanning || evalData?.timeline || {
+        score: 3.5,
+        maxScore: 4,
+        feedback: "የክንውን ምዕራፎቹ በግልጽ የጊዜ ሰሌዳ የተደራጁ ናቸው።",
+      };
+      const budObj = rawCriteria.budgetingClarity || rawCriteria.clarityBudgeting || evalData?.budgetingClarity || {
+        score: 2.5,
+        maxScore: 3,
+        feedback: "የበጀት አጠቃቀሙ ግልጽና ከመመሪያ ቁጥር 003/2012 ጋር የተጣጣመ ነው።",
+      };
+      const summaryText = evalData?.summary || evalData?.summaryFeedback || "በመመሪያ ቁጥር 003/2012 አንቀጽ 22 መሰረት የተገመገመ ስትራቴጂካዊ የሥራ አስፈፃሚ ሰነድ ነው።";
+
+      const totalVal = evalData?.totalScore !== undefined
+        ? Number(evalData.totalScore)
+        : Number((stratObj.score + actObj.score + timeObj.score + budObj.score).toFixed(1));
 
       setSelectedEvaluation({
         candidate,
         proposalId: candidate.proposalId,
         evaluation: evalData,
-        totalScore: evalData?.totalScore !== undefined ? evalData.totalScore : 12,
-        criteria: evalData?.criteria || {
-          strategicObjectives: { score: 3.5, maxScore: 4, feedback: "" },
-          actionability: { score: 3.5, maxScore: 4, feedback: "" },
-          timelinePlanning: { score: 3.5, maxScore: 4, feedback: "" },
-          clarityBudgeting: { score: 2.5, maxScore: 3, feedback: "" },
+        totalScore: totalVal,
+        criteria: {
+          strategicObjectives: stratObj,
+          actionability: actObj,
+          timeline: timeObj,
+          timelinePlanning: timeObj,
+          budgetingClarity: budObj,
+          clarityBudgeting: budObj,
         },
-        summaryFeedback: evalData?.summaryFeedback || "",
+        summary: summaryText,
+        summaryFeedback: summaryText,
         reviewNotes: evalData?.reviewNotes || "",
       });
     } catch (err) {
@@ -281,10 +311,15 @@ export function PresidentPage() {
       const res = await apiService.saveProposalScore(selectedEvaluation.proposalId, {
         totalScore: Number(selectedEvaluation.totalScore),
         criteria: selectedEvaluation.criteria,
-        summaryFeedback: selectedEvaluation.summaryFeedback,
+        strategicObjectives: selectedEvaluation.criteria.strategicObjectives,
+        actionability: selectedEvaluation.criteria.actionability,
+        timeline: selectedEvaluation.criteria.timeline,
+        budgetingClarity: selectedEvaluation.criteria.budgetingClarity,
+        summary: selectedEvaluation.summary || selectedEvaluation.summaryFeedback,
+        summaryFeedback: selectedEvaluation.summaryFeedback || selectedEvaluation.summary,
         reviewNotes: selectedEvaluation.reviewNotes,
       });
-      toast.success(res.message || "Proposal score officially approved and recorded!");
+      toast.success(res.message || "የዕቅዱ ውጤት በይፋ ጸድቆ ተመዝግቧል!");
       setSelectedEvaluation(null);
       await fetchDashboard();
     } catch (err) {
@@ -882,9 +917,9 @@ export function PresidentPage() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Directive No. 003/2012 Article 22 Rubric Evaluation</h3>
+                  <h3 className="text-lg font-bold text-gray-900">የዕቅድ ግምገማ እና የውጤት ማረጋገጫ (Directive 003/2012 Art. 22)</h3>
                   <p className="text-xs text-gray-500">
-                    Candidate: <span className="font-bold text-gray-800">{selectedEvaluation.candidate.name}</span> (Code: {selectedEvaluation.candidate.examCode} &bull; ID: {selectedEvaluation.candidate.studentId || selectedEvaluation.candidate.username})
+                    ዕጩ ተወዳዳሪ፡ <span className="font-bold text-gray-800">{selectedEvaluation.candidate.name}</span> &bull; የፈተና ኮድ፡ <span className="font-mono font-bold text-indigo-700">Code {selectedEvaluation.candidate.examCode}</span> &bull; መታወቂያ፡ <span className="font-mono font-bold text-indigo-700">{selectedEvaluation.candidate.studentId || selectedEvaluation.candidate.username}</span>
                   </p>
                 </div>
               </div>
@@ -892,13 +927,13 @@ export function PresidentPage() {
               {/* Total Score Banner */}
               <div className="p-4 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-200 rounded-2xl mb-5 flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Official Proposal Score</span>
+                  <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">አጠቃላይ የተሰጠ ውጤት / Official Proposal Score</span>
                   <div className="text-3xl font-black text-gray-900 mt-0.5">
-                    {selectedEvaluation.totalScore} <span className="text-lg font-semibold text-gray-500">/ 15.0 pts</span>
+                    {selectedEvaluation.totalScore} <span className="text-lg font-semibold text-gray-500">/ 15.0 ነጥብ (pts)</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-bold text-gray-500 block">Grade Weight (15%)</span>
+                  <span className="text-xs font-bold text-gray-500 block">የክብደት ድርሻ / Grade Weight (15%)</span>
                   <span className="text-xl font-bold text-indigo-700">
                     {((selectedEvaluation.totalScore / 15) * 100).toFixed(1)}%
                   </span>
@@ -911,7 +946,7 @@ export function PresidentPage() {
                 <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-900">
-                      1. Strategic Objectives & Campus Relevance (max 4.0 pts)
+                      1. ስትራቴጂካዊ ዓላማ እና ጠቀሜታ (4%) / Strategic Objectives & Campus Relevance (max 4.0 pts)
                     </span>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -932,8 +967,8 @@ export function PresidentPage() {
                           const newTotal = (
                             newCrit.strategicObjectives.score +
                             newCrit.actionability.score +
-                            newCrit.timelinePlanning.score +
-                            newCrit.clarityBudgeting.score
+                            (newCrit.timeline?.score ?? newCrit.timelinePlanning?.score ?? 0) +
+                            (newCrit.budgetingClarity?.score ?? newCrit.clarityBudgeting?.score ?? 0)
                           ).toFixed(1);
                           setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
                         }}
@@ -942,8 +977,8 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 4.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.strategicObjectives?.feedback || "Clear vision and relevance to campus needs."}
+                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.strategicObjectives?.feedback || "የእጩው ስትራቴጂካዊ ዓላማ ለካምፓሱ ተጨባጭ ጠቀሜታ አለው።"}
                   </p>
                 </div>
 
@@ -951,7 +986,7 @@ export function PresidentPage() {
                 <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-900">
-                      2. Actionability & Feasibility (max 4.0 pts)
+                      2. አፈጻጸም እና አዋጭነት (4%) / Actionability & Feasibility (max 4.0 pts)
                     </span>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -972,8 +1007,8 @@ export function PresidentPage() {
                           const newTotal = (
                             newCrit.strategicObjectives.score +
                             newCrit.actionability.score +
-                            newCrit.timelinePlanning.score +
-                            newCrit.clarityBudgeting.score
+                            (newCrit.timeline?.score ?? newCrit.timelinePlanning?.score ?? 0) +
+                            (newCrit.budgetingClarity?.score ?? newCrit.clarityBudgeting?.score ?? 0)
                           ).toFixed(1);
                           setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
                         }}
@@ -982,8 +1017,8 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 4.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.actionability?.feedback || "Practically executable steps and resource considerations."}
+                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.actionability?.feedback || "የድርጊት መርሃ ግብሮቹ ተግባራዊ አዋጭነት አላቸው።"}
                   </p>
                 </div>
 
@@ -991,7 +1026,7 @@ export function PresidentPage() {
                 <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-900">
-                      3. Realistic Timeline & Milestone Planning (max 4.0 pts)
+                      3. የጊዜ ሰሌዳ (4%) / Realistic Timeline & Milestone Planning (max 4.0 pts)
                     </span>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -999,21 +1034,26 @@ export function PresidentPage() {
                         min="0"
                         max="4"
                         step="0.5"
-                        value={selectedEvaluation.criteria?.timelinePlanning?.score ?? 0}
+                        value={selectedEvaluation.criteria?.timeline?.score ?? selectedEvaluation.criteria?.timelinePlanning?.score ?? 0}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
+                          const scoreVal = Math.min(4, Math.max(0, val));
                           const newCrit = {
                             ...selectedEvaluation.criteria,
+                            timeline: {
+                              ...(selectedEvaluation.criteria.timeline || {}),
+                              score: scoreVal,
+                            },
                             timelinePlanning: {
-                              ...selectedEvaluation.criteria.timelinePlanning,
-                              score: Math.min(4, Math.max(0, val)),
+                              ...(selectedEvaluation.criteria.timelinePlanning || {}),
+                              score: scoreVal,
                             },
                           };
                           const newTotal = (
                             newCrit.strategicObjectives.score +
                             newCrit.actionability.score +
-                            newCrit.timelinePlanning.score +
-                            newCrit.clarityBudgeting.score
+                            newCrit.timeline.score +
+                            (newCrit.budgetingClarity?.score ?? newCrit.clarityBudgeting?.score ?? 0)
                           ).toFixed(1);
                           setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
                         }}
@@ -1022,8 +1062,8 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 4.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.timelinePlanning?.feedback || "Structured chronological milestones and semester phases."}
+                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.timeline?.feedback || selectedEvaluation.criteria?.timelinePlanning?.feedback || "የክንውን ምዕራፎቹ በግልጽ የጊዜ ሰሌዳ የተደራጁ ናቸው።"}
                   </p>
                 </div>
 
@@ -1031,7 +1071,7 @@ export function PresidentPage() {
                 <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-gray-900">
-                      4. Clarity, Budgeting & Student Union Alignment (max 3.0 pts)
+                      4. በጀት እና አደረጃጀት (3%) / Clarity, Budgeting & Student Union Alignment (max 3.0 pts)
                     </span>
                     <div className="flex items-center gap-1.5">
                       <input
@@ -1039,21 +1079,26 @@ export function PresidentPage() {
                         min="0"
                         max="3"
                         step="0.5"
-                        value={selectedEvaluation.criteria?.clarityBudgeting?.score ?? 0}
+                        value={selectedEvaluation.criteria?.budgetingClarity?.score ?? selectedEvaluation.criteria?.clarityBudgeting?.score ?? 0}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
+                          const scoreVal = Math.min(3, Math.max(0, val));
                           const newCrit = {
                             ...selectedEvaluation.criteria,
+                            budgetingClarity: {
+                              ...(selectedEvaluation.criteria.budgetingClarity || {}),
+                              score: scoreVal,
+                            },
                             clarityBudgeting: {
-                              ...selectedEvaluation.criteria.clarityBudgeting,
-                              score: Math.min(3, Math.max(0, val)),
+                              ...(selectedEvaluation.criteria.clarityBudgeting || {}),
+                              score: scoreVal,
                             },
                           };
                           const newTotal = (
                             newCrit.strategicObjectives.score +
                             newCrit.actionability.score +
-                            newCrit.timelinePlanning.score +
-                            newCrit.clarityBudgeting.score
+                            (newCrit.timeline?.score ?? newCrit.timelinePlanning?.score ?? 0) +
+                            newCrit.budgetingClarity.score
                           ).toFixed(1);
                           setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
                         }}
@@ -1062,22 +1107,28 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 3.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.clarityBudgeting?.feedback || "Professional clarity, budget awareness, and union charter alignment."}
+                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.budgetingClarity?.feedback || selectedEvaluation.criteria?.clarityBudgeting?.feedback || "የበጀት አጠቃቀሙ ግልጽና ከመመሪያ ቁጥር 003/2012 ጋር የተጣጣመ ነው።"}
                   </p>
                 </div>
 
                 {/* Overall Synthesis */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Qualitative Summary & Electoral Committee Notes
+                    አጠቃላይ የማጠቃለያ አስተያየት (በአማርኛ) / Qualitative Evaluation Summary
                   </label>
                   <textarea
                     rows="3"
-                    value={selectedEvaluation.summaryFeedback || ""}
-                    onChange={(e) => setSelectedEvaluation({ ...selectedEvaluation, summaryFeedback: e.target.value })}
-                    placeholder="Official evaluation commentary..."
-                    className="w-full px-3.5 py-2 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    value={selectedEvaluation.summary || selectedEvaluation.summaryFeedback || ""}
+                    onChange={(e) =>
+                      setSelectedEvaluation({
+                        ...selectedEvaluation,
+                        summary: e.target.value,
+                        summaryFeedback: e.target.value,
+                      })
+                    }
+                    placeholder="አጠቃላይ አስተያየትዎን እዚህ ያስገቡ..."
+                    className="w-full px-3.5 py-2 text-xs font-sans border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1090,7 +1141,7 @@ export function PresidentPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-purple-700 hover:bg-purple-50 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  {evaluatingId === selectedEvaluation.proposalId ? "Re-Evaluating..." : "Re-Run AI Rubric Analysis"}
+                  {evaluatingId === selectedEvaluation.proposalId ? "በመገምገም ላይ..." : "እንደገና በ AI ገምግም / Re-Run Evaluation"}
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -1099,7 +1150,7 @@ export function PresidentPage() {
                     onClick={() => setSelectedEvaluation(null)}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50"
                   >
-                    Cancel
+                    ይቅር / Cancel
                   </button>
                   <button
                     type="button"
@@ -1108,7 +1159,7 @@ export function PresidentPage() {
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
                   >
                     <Check className="w-4 h-4" />
-                    {savingScore ? "Saving Score..." : "Accept & Save Official Score"}
+                    {savingScore ? "በማስቀመጥ ላይ..." : "ውጤቱን አጽድቅና መዝግብ / Accept & Save"}
                   </button>
                 </div>
               </div>
