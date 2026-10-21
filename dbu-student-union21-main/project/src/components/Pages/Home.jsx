@@ -38,11 +38,12 @@ export const Home = () => {
 	const { user } = useAuth();
 	const navigate = useNavigate();
 
-	// Redirect admin users directly to dashboard — carousel is for public guests only
-	if (user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true)) {
-		navigate('/dashboard', { replace: true });
-		return null;
-	}
+	// Redirect admin users directly to dashboard via effect — carousel is for public guests only
+	useEffect(() => {
+		if (user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true)) {
+			navigate('/dashboard', { replace: true });
+		}
+	}, [user, navigate]);
 
 	const scrollToSection = (id) => {
 		const el = document.getElementById(id);
@@ -321,6 +322,10 @@ const DEFAULT_CAROUSEL_SLIDES = [
 		{ number: stats.serviceBranches, label: "Service Branches" },
 		{ number: stats.satisfactionRate, label: "Satisfaction Rate" },
 	];
+
+	if (user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true)) {
+		return null;
+	}
 
 	return (
 		<div className="min-h-screen bg-gray-50">

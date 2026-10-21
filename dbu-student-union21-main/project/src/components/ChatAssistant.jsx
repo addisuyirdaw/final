@@ -13,13 +13,6 @@ const toPlainText = (text = '') =>
 const ChatAssistant = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-
-  if (
-    location.pathname === '/submit-proposal' ||
-    location.pathname === '/proposal-submission'
-  ) {
-    return null;
-  }
   const [messages, setMessages] = useState([
     { role: 'assistant', text: "I am your assistance what can I help you?" }
   ]);
@@ -37,6 +30,13 @@ const ChatAssistant = () => {
       scrollToBottom();
     }
   }, [messages, isOpen, isLoading]);
+
+  if (
+    location.pathname === '/submit-proposal' ||
+    location.pathname === '/proposal-submission'
+  ) {
+    return null;
+  }
 
   const sendMessage = async (text) => {
     if (!text.trim()) return;
