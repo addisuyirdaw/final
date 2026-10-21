@@ -235,6 +235,8 @@ const handleUpdateDeadline = async (req, res) => {
 
 router.put('/admin/deadline', protect, presidentOnly, handleUpdateDeadline);
 router.post('/admin/deadline', protect, presidentOnly, handleUpdateDeadline);
+router.put('/president/deadline', protect, presidentOnly, handleUpdateDeadline);
+router.post('/president/deadline', protect, presidentOnly, handleUpdateDeadline);
 
 // ============================================================================
 // 3. GET /api/proposals/my-status
@@ -630,16 +632,26 @@ router.get('/download/:proposalId', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Proposal document not found.' });
     }
 
-    // Authorization Guard: Proposal owner OR President
+    // Authorization Guard: Proposal owner OR Student Union President (dbu10101020)
     const isOwner = req.user.username && proposal.candidateUsername &&
       req.user.username.toLowerCase() === proposal.candidateUsername.toLowerCase();
-    const isPresident = req.user.role === 'president' ||
-      req.user.role === 'council_president';
+    const isOtherAdmin =
+      req.user.username === 'dbu10101030' ||
+      req.user.username === 'dbu10101011' ||
+      req.user.username === 'dbu10101040' ||
+      (req.user.role === 'admin' && req.user.username !== 'dbu10101020') ||
+      (req.user.role === 'system_admin' && req.user.username !== 'dbu10101020');
+
+    const isPresident =
+      (req.user.username === 'dbu10101020' ||
+       req.user.role === 'president' ||
+       req.user.role === 'council_president') &&
+      !isOtherAdmin;
 
     if (!isOwner && !isPresident) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied: You are not authorized to view or download this candidate proposal.',
+        message: 'Access denied: Proposal management and document downloads are strictly restricted to the candidate owner and the Student Union President (dbu10101020). Other administrators are not authorized.',
       });
     }
 
@@ -687,7 +699,7 @@ router.get('/download/:proposalId', protect, async (req, res) => {
 // 6. GET /api/proposals/admin/dashboard
 // President Only: View all eligible candidates and their submission status
 // ============================================================================
-router.get('/admin/dashboard', protect, presidentOnly, async (req, res) => {
+const handlePresidentDashboard = async (req, res) => {
   try {
     const { candidates, election } = await getAuthorizedCandidates();
     const settings = await getProposalSettings();
@@ -813,6 +825,9 @@ router.get('/admin/dashboard', protect, presidentOnly, async (req, res) => {
     console.error('President proposal dashboard error:', error);
     res.status(500).json({ success: false, message: 'Failed to retrieve proposal dashboard data.' });
   }
-});
+};
+
+router.get('/admin/dashboard', protect, presidentOnly, handlePresidentDashboard);
+router.get('/president/dashboard', protect, presidentOnly, handlePresidentDashboard);
 
 module.exports = router;

@@ -44,6 +44,7 @@ import { BudgetDashboard } from "./components/Budget/BudgetDashboard";
 import { MicroGrantPortal } from "./components/Budget/MicroGrantPortal";
 import { EventsPage } from "./components/Pages/EventsPage";
 import { PresidentRoute } from "./components/Auth/PresidentRoute";
+import { PresidentPage } from "./components/President/PresidentPage";
 import { ProposalSubmission } from "./components/Pages/ProposalSubmission";
 import { ProposalsAdmin } from "./components/Admin/ProposalsAdmin";
 import "./index.css";
@@ -217,11 +218,31 @@ function AppContent() {
             }
           />
           <Route
+            path="/president"
+            element={
+              <ProtectedRoute>
+                <PresidentRoute>
+                  <PresidentPage />
+                </PresidentRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/president/proposals"
+            element={
+              <ProtectedRoute>
+                <PresidentRoute>
+                  <PresidentPage />
+                </PresidentRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/proposals"
             element={
               <ProtectedRoute>
                 <PresidentRoute>
-                  <ProposalsAdmin />
+                  <Navigate to="/president" replace />
                 </PresidentRoute>
               </ProtectedRoute>
             }

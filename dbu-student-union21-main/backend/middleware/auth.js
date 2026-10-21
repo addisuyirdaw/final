@@ -288,7 +288,7 @@ const clubLeader = async (req, res, next) => {
 	}
 };
 
-// Narrowly scoped authorization check: Only the Student Union President
+// Narrowly scoped authorization check: Strictly Student Union President (dbu10101020)
 const presidentOnly = (req, res, next) => {
 	if (!req.user) {
 		return res.status(401).json({
@@ -296,9 +296,19 @@ const presidentOnly = (req, res, next) => {
 			message: "Authentication required.",
 		});
 	}
+
+	const isOtherAdmin =
+		req.user.username === 'dbu10101030' ||
+		req.user.username === 'dbu10101011' ||
+		req.user.username === 'dbu10101040' ||
+		(req.user.role === 'admin' && req.user.username !== 'dbu10101020') ||
+		(req.user.role === 'system_admin' && req.user.username !== 'dbu10101020');
+
 	const isPresident =
-		req.user.role === 'president' ||
-		req.user.role === 'council_president';
+		(req.user.username === 'dbu10101020' ||
+		 req.user.role === 'president' ||
+		 req.user.role === 'council_president') &&
+		!isOtherAdmin;
 
 	if (isPresident) {
 		return next();
@@ -306,7 +316,7 @@ const presidentOnly = (req, res, next) => {
 
 	return res.status(403).json({
 		success: false,
-		message: "Access denied. Only the Student Union President is authorized to access proposal management and deadline settings.",
+		message: "Access denied. Candidate proposal management and deadline control is strictly restricted to the Student Union President (dbu10101020). Other administrators are not authorized.",
 	});
 };
 

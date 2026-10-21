@@ -1238,14 +1238,14 @@ class ApiService {
   }
 
   async updateProposalDeadline(deadlineData) {
-    return this.request('/proposals/admin/deadline', {
+    return this.request('/proposals/president/deadline', {
       method: 'PUT',
       body: JSON.stringify(deadlineData),
     });
   }
 
   async getPresidentProposalDashboard() {
-    return this.request('/proposals/admin/dashboard');
+    return this.request('/proposals/president/dashboard');
   }
 
   async downloadProposalFile(proposalId, version, fileName) {

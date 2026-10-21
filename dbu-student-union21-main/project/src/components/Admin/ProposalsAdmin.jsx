@@ -32,10 +32,24 @@ import toast from "react-hot-toast";
 export function ProposalsAdmin() {
   const { user } = useAuth();
 
-  // Strict Presidential Guard: Non-president candidates or students are redirected to submit-proposal
-  const isPresident = user && (user.role === "president" || user.role === "council_president");
+  // Strict Presidential Guard: ONLY Student Union President (dbu10101020) can control proposals
+  const isOtherAdmin =
+    user &&
+    (user.username === "dbu10101030" ||
+      user.username === "dbu10101011" ||
+      user.username === "dbu10101040" ||
+      (user.role === "admin" && user.username !== "dbu10101020") ||
+      (user.role === "system_admin" && user.username !== "dbu10101020"));
+
+  const isPresident =
+    user &&
+    (user.username === "dbu10101020" ||
+      user.role === "president" ||
+      user.role === "council_president") &&
+    !isOtherAdmin;
+
   if (!isPresident) {
-    return <Navigate to="/submit-proposal" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const [loading, setLoading] = useState(true);

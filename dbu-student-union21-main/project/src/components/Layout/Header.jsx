@@ -146,19 +146,27 @@ export function Header() {
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
-				...(user && (user.role === 'president' || user.role === 'council_president')
+				...(user &&
+				(user.username === 'dbu10101020' || user.role === 'president' || user.role === 'council_president') &&
+				user.username !== 'dbu10101030' &&
+				user.username !== 'dbu10101011' &&
+				user.username !== 'dbu10101040' &&
+				user.role !== 'admin' &&
+				user.role !== 'system_admin'
 					? [
 						{
-							name: "Proposal Management",
-							href: "/admin/proposals",
+							name: "President Page",
+							href: "/president",
 						},
 					  ]
-					: [
+					: !user?.isAdmin && user?.role !== 'admin' && user?.role !== 'system_admin' && user?.username !== 'dbu10101030' && user?.username !== 'dbu10101011' && user?.username !== 'dbu10101040'
+					? [
 						{
 							name: "Submit Proposal",
 							href: "/submit-proposal",
 						},
-					  ]),
+					  ]
+					: []),
 				{ name: "My Profile", href: "/profile" },
 			]
 			: []),
@@ -321,7 +329,10 @@ export function Header() {
 										</span>
 									)}
 								</div>
-								{user && (user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true) && (
+								{user &&
+								(user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true) &&
+								user.username !== 'dbu10101020' &&
+								user.role !== 'president' && (
 									<Link
 										to="/admin"
 										className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-blue-700 transition-colors whitespace-nowrap font-medium"
@@ -329,12 +340,18 @@ export function Header() {
 										Admin Panel
 									</Link>
 								)}
-								{user && (user.role === 'president' || user.role === 'council_president') && (
+								{user &&
+								(user.username === 'dbu10101020' || user.role === 'president' || user.role === 'council_president') &&
+								user.username !== 'dbu10101030' &&
+								user.username !== 'dbu10101011' &&
+								user.username !== 'dbu10101040' &&
+								user.role !== 'admin' &&
+								user.role !== 'system_admin' && (
 									<Link
-										to="/admin/proposals"
-										className="bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-indigo-800 transition-colors font-semibold shadow-sm whitespace-nowrap"
+										to="/president"
+										className="bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-indigo-800 transition-colors font-semibold shadow-sm whitespace-nowrap flex items-center gap-1"
 									>
-										📜 Proposal Management
+										🏛️ President Page
 									</Link>
 								)}
 
