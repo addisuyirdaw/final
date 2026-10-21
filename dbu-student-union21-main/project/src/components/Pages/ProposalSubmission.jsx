@@ -25,11 +25,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
 
-// ── Official 16 Exam Codes from Electoral Board Notice ──────────────────────
-const OFFICIAL_16_CODES = [
-  "16", "23", "02", "32", "37", "38", "22", "19", "04", "30", "24", "20", "03", "36", "34", "15"
-];
-
 // ── Countdown Timer Component for Proposal Submissions ──────────────────────
 const ProposalCountdown = ({ deadline, onDeadlineReached }) => {
   const [timeLeft, setTimeLeft] = useState({
@@ -215,7 +210,7 @@ export function ProposalSubmission() {
   const handleVerifyExamCode = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!examCode.trim()) {
-      toast.error("Please enter your candidate verification code from the official 16 exam codes.");
+      toast.error("Please enter your candidate exam verification code.");
       return;
     }
 
@@ -326,37 +321,10 @@ export function ProposalSubmission() {
                 </div>
               </div>
 
-              {/* Official 16 Authorized Candidate Codes from Electoral Board */}
-              <div className="bg-gradient-to-r from-sky-50 via-indigo-50/60 to-blue-50 border border-sky-200/80 rounded-xl p-4 sm:p-5">
-                <div className="flex items-center gap-2 mb-2 text-sky-950 font-bold text-xs uppercase tracking-wider">
-                  <Award className="w-4 h-4 text-sky-700" />
-                  Official Authorized 16 Candidate Codes (from Stamped Notice):
-                </div>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2 my-2">
-                  {OFFICIAL_16_CODES.map((code) => (
-                    <button
-                      type="button"
-                      key={code}
-                      onClick={() => setExamCode(code)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all shadow-xs border ${
-                        examCode.trim() === code || examCode.trim() === String(parseInt(code, 10))
-                          ? "bg-indigo-700 text-white border-indigo-700 ring-2 ring-indigo-300"
-                          : "bg-white text-indigo-900 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/50"
-                      }`}
-                    >
-                      Code {code}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-sky-800 leading-relaxed mt-2">
-                  📌 <strong>Whitelist Notice:</strong> Only the 16 shortlisted candidates holding these official exam codes are authorized to submit proposals. Leading zeros (e.g. <code className="font-bold">2</code> or <code className="font-bold">02</code>) and prefixes (e.g. <code className="font-bold">DBU-</code>, <code className="font-bold">016R</code>) are normalized automatically.
-                </p>
-              </div>
-
-              {/* Input: Final Exam Verification Code */}
+              {/* Input: Candidate Personal Exam Verification Code */}
               <div>
                 <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
-                  Candidate Verification Code (from the 16 Official Codes) <span className="text-red-500">*</span>
+                  Candidate Exam Verification Code <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -367,12 +335,12 @@ export function ProposalSubmission() {
                     required
                     value={examCode}
                     onChange={(e) => setExamCode(e.target.value)}
-                    placeholder="Enter one of the 16 codes (e.g. 16, 02, 23, 37, 04)"
+                    placeholder="Enter your confidential candidate exam code (e.g. 16, 02)"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 uppercase font-semibold"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  💡 Type your exam code (e.g. <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">16</code>, <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">02</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">2</code>). Anti-hijacking binds this code directly to your student ID upon first claim.
+                  💡 Enter the official verification code issued to you by the campus electoral board. Anti-hijacking binds this code directly to your student ID upon first verification.
                 </p>
               </div>
 
