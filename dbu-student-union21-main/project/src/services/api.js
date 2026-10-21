@@ -68,8 +68,12 @@ class ApiService {
           sessionStorage.removeItem("user");
           sessionStorage.removeItem("token");
           sessionStorage.clear();
-          // Only redirect if not already on login page to avoid loops
-          if (!window.location.pathname.includes('/login')) {
+          // Only redirect if not already on login page or proposal submission page to avoid loops
+          if (
+            !window.location.pathname.includes('/login') &&
+            !window.location.pathname.includes('/submit-proposal') &&
+            !window.location.pathname.includes('/proposal-submission')
+          ) {
             window.location.href = "/login";
           }
         }
@@ -1255,9 +1259,10 @@ class ApiService {
   async downloadProposalFile(proposalId, version, fileName) {
     const url = `${this.baseURL}/proposals/download/${proposalId}${version ? `?version=${version}` : ''}`;
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token') || user.token;
     const response = await fetch(url, {
       headers: {
-        ...(user.token && { Authorization: `Bearer ${user.token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
     if (!response.ok) {

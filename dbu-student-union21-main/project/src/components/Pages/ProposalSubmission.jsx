@@ -1,172 +1,186 @@
 /** @format */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FileText,
   Upload,
-  Clock,
   CheckCircle,
   AlertCircle,
-  Shield,
   Download,
-  History,
-  Calendar,
+  Copy,
+  Check,
+  ShieldCheck,
   User,
+  Key,
   ArrowRight,
   FileCheck,
-  RefreshCw,
-  Key,
-  Unlock,
-  Sparkles,
-  Award,
-  Lock,
+  RotateCcw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
 
-// ── Countdown Timer Component for Proposal Submissions ──────────────────────
-const ProposalCountdown = ({ deadline, onDeadlineReached }) => {
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-    isExpired: false,
-  });
+export function ProposalSubmission() {
+  const { user } = useAuth();
+  const fileInputRef = useRef(null);
+
+  // Core Flow Step: 'loading' | 'verify' | 'upload' | 'receipt'
+  const [step, setStep] = useState("loading");
+
+  // Verification Inputs
+  const [studentIdInput, setStudentIdInput] = useState("");
+  const [examCode, setExamCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
+  // Verified Candidate Details
+  const [candidate, setCandidate] = useState(null);
+
+  // Upload Step State
+  const [file, setFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  // Receipt / Confirmation State
+  const [receipt, setReceipt] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Deadline Settings
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    if (!deadline) return;
+    checkInitialStatus();
+  }, []);
 
-    const targetDate = new Date(deadline);
+  const checkInitialStatus = async () => {
+    try {
+      const data = await apiService.getProposalStatus().catch(() => null);
 
-    const updateTimer = () => {
-      const now = new Date();
-      const diff = targetDate.getTime() - now.getTime();
+      if (data?.settings) {
+        setSettings(data.settings);
+      }
 
-      if (diff <= 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
-        if (onDeadlineReached) onDeadlineReached();
+      // Pre-fill student ID if logged in user has one
+      if (user?.username) {
+        const clean = user.username.replace(/^(?:dbu[-_/\s]*)?/i, "").trim();
+        setStudentIdInput((prev) => prev || clean || user.username);
+      }
+
+      // If already verified and has submission receipt
+      if (data?.isEligible && data?.proposal) {
+        setCandidate(data.candidate);
+        setReceipt({
+          referenceNumber: data.proposal.latestReferenceNumber,
+          submittedAt: data.proposal.latestSubmittedAt,
+          fileName: data.proposal.currentFile?.fileName || "proposal.pdf",
+          candidateExamCode: data.proposal.candidateExamCode || data.candidate?.examCode,
+          studentId: data.candidate?.studentId || user?.username,
+          proposalId: data.proposal.id || data.proposal._id,
+        });
+        setStep("receipt");
         return;
       }
 
-      setTimeLeft({
-        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((diff / (1000 * 60)) % 60),
-        seconds: Math.floor((diff / 1000) % 60),
-        isExpired: false,
-      });
-    };
+      // If already verified as eligible candidate but hasn't submitted yet
+      if (data?.isEligible && data?.candidate) {
+        setCandidate(data.candidate);
+        setStep("upload");
+        return;
+      }
 
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [deadline, onDeadlineReached]);
-
-  if (timeLeft.isExpired) {
-    return (
-      <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 mb-8 text-center shadow-sm">
-        <div className="flex items-center justify-center gap-2 text-red-800 font-bold text-lg uppercase tracking-wider">
-          <Clock className="w-5 h-5 text-red-600" />
-          Submission Window Closed
-        </div>
-        <p className="text-red-600 text-sm mt-1">The deadline has passed. New submissions or replacements are now disabled.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-sky-900 border border-indigo-700/50 text-white rounded-2xl p-6 mb-8 shadow-md relative overflow-hidden">
-      <div className="absolute top-3 right-4 flex items-center gap-2">
-        <span className="relative flex h-3 w-3">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-        </span>
-        <span className="text-emerald-300 font-bold uppercase text-xs tracking-wider">Submissions Open</span>
-      </div>
-
-      <div className="flex items-center gap-2 text-sky-200 font-semibold mb-3 uppercase tracking-widest text-xs">
-        <Clock className="w-4 h-4 text-sky-300" /> Time Remaining Until Final Deadline:
-      </div>
-
-      <div className="grid grid-cols-4 gap-3 max-w-md">
-        {[
-          { label: "Days", val: timeLeft.days },
-          { label: "Hours", val: timeLeft.hours },
-          { label: "Min", val: timeLeft.minutes },
-          { label: "Sec", val: timeLeft.seconds },
-        ].map((unit, i) => (
-          <div key={i} className="flex flex-col items-center">
-            <div className="bg-white/10 backdrop-blur-md px-3 py-2 sm:px-4 sm:py-3 rounded-xl border border-white/20 text-2xl sm:text-3xl font-black text-white shadow-inner w-full text-center">
-              {String(unit.val).padStart(2, "0")}
-            </div>
-            <span className="text-[11px] uppercase tracking-wider font-bold text-sky-200 mt-1">{unit.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-export function ProposalSubmission() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [statusData, setStatusData] = useState(null);
-  const [file, setFile] = useState(null);
-  const [note, setNote] = useState("");
-  const [dragOver, setDragOver] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-
-  // Candidate Exam Code + University Student ID Verification State
-  const [examCode, setExamCode] = useState("");
-  const [studentIdInput, setStudentIdInput] = useState("");
-  const [position, setPosition] = useState("Sira Asfetsami");
-  const [verifyingCode, setVerifyingCode] = useState(false);
-  const [showRevisionForm, setShowRevisionForm] = useState(false);
-
-  useEffect(() => {
-    fetchStatus();
-    if (user?.username && !studentIdInput) {
-      const clean = user.username.replace(/^(?:dbu[-_/\s]*)?/i, '').trim();
-      setStudentIdInput(clean || user.username);
-    }
-  }, [user]);
-
-  const fetchStatus = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getProposalStatus();
-      setStatusData(data);
+      // Otherwise, present the simplified verification form
+      setStep("verify");
     } catch (err) {
-      console.error("Error fetching proposal status:", err);
-      toast.error("Failed to load proposal status.");
+      console.warn("Status check note:", err.message);
+      setStep("verify");
+    }
+  };
+
+  // ── Step 1: Verification ──────────────────────────────────────────────────
+  const handleVerify = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const cleanStudentId = studentIdInput.trim();
+    const cleanExamCode = examCode.trim();
+
+    if (!cleanStudentId) {
+      toast.error("እባክዎ የተማሪ መታወቂያ ቁጥርዎን ያስገቡ (Please enter University Student ID)");
+      return;
+    }
+    if (!cleanExamCode) {
+      toast.error("እባክዎ የፈተና መለያ ኮድዎን ያስገቡ (Please enter Candidate Exam Code)");
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      const res = await apiService.verifyCandidateExamCode(
+        cleanExamCode,
+        "Sira Asfetsami",
+        cleanStudentId
+      );
+
+      // Save token if returned for seamless unauthenticated session
+      if (res.token) {
+        localStorage.setItem("token", res.token);
+      }
+      if (res.user) {
+        localStorage.setItem("user", JSON.stringify(res.user));
+      }
+
+      setCandidate(res.candidate);
+
+      // If candidate has already submitted previously, reveal receipt directly
+      if (res.proposal) {
+        setReceipt({
+          referenceNumber: res.proposal.latestReferenceNumber,
+          submittedAt: res.proposal.latestSubmittedAt,
+          fileName: res.proposal.currentFile?.fileName || "proposal.pdf",
+          candidateExamCode: res.proposal.candidateExamCode || res.candidate?.examCode,
+          studentId: res.candidate?.studentId || cleanStudentId,
+          proposalId: res.proposal.id || res.proposal._id,
+        });
+        setStep("receipt");
+        toast.success("ሰነድዎ ቀደም ሲል ገቢ ተደርጓል! (Found existing confirmed proposal)");
+        return;
+      }
+
+      // Reveal Upload Step
+      setStep("upload");
+      toast.success(res.message || "ማረጋገጫው ተሳክቷል! (Candidate verified successfully)");
+    } catch (err) {
+      console.error("Verification error:", err);
+      toast.error(
+        err.message ||
+          "ማረጋገጥ አልተቻለም፡ ያስገቡት የፈተና ኮድ ከተማሪ መታወቂያው ጋር አይዛመድም። (Verification failed. Exam code does not match this Student ID)"
+      );
     } finally {
-      setLoading(false);
+      setVerifying(false);
     }
   };
 
-  const handleFileChange = (selectedFile) => {
-    if (!selectedFile) return;
+  // ── Step 2: File Handling & Submission ────────────────────────────────────
+  const handleFileSelected = (selected) => {
+    if (!selected) return;
 
-    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("Invalid file format. Please upload a PDF (.pdf) file.");
+    if (!selected.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("እባክዎ የ PDF ሰነድ ብቻ ይጫኑ (.pdf files only)");
       return;
     }
 
-    if (selectedFile.size > 15 * 1024 * 1024) {
-      toast.error("File size exceeds 15 MB limit. Please compress your PDF.");
+    if (selected.size > 15 * 1024 * 1024) {
+      toast.error("የሰነዱ መጠን ከ 15 MB መብለጥ የለበትም (Maximum file size is 15 MB)");
       return;
     }
 
-    setFile(selectedFile);
+    setFile(selected);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmitProposal = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
     if (!file) {
-      toast.error("Please choose a proposal PDF document to submit.");
+      toast.error("እባክዎ ያዘጋጁትን የፕሮፖዛል PDF ሰነድ ይምረጡ (Please choose a proposal PDF)");
       return;
     }
 
@@ -174,579 +188,483 @@ export function ProposalSubmission() {
       setSubmitting(true);
       const formData = new FormData();
       formData.append("proposalFile", file);
-      const activeCode = statusData?.candidate?.examCode || examCode;
-      if (activeCode) {
-        formData.append("examCode", activeCode.trim());
-      }
-      const activeStudentId = statusData?.candidate?.studentId || studentIdInput;
-      if (activeStudentId) {
-        formData.append("studentId", activeStudentId.trim());
-      }
-      if (note.trim()) {
-        formData.append("note", note.trim());
-      }
+
+      const activeCode = candidate?.examCode || examCode;
+      if (activeCode) formData.append("examCode", activeCode.trim());
+
+      const activeStudentId = candidate?.studentId || studentIdInput;
+      if (activeStudentId) formData.append("studentId", activeStudentId.trim());
 
       const res = await apiService.submitProposal(formData);
-      toast.success(res.message || "Proposal submitted successfully!");
-      setFile(null);
-      setNote("");
-      setShowRevisionForm(false);
-      await fetchStatus();
+
+      setReceipt({
+        referenceNumber: res.referenceNumber,
+        submittedAt: res.submittedAt || new Date().toISOString(),
+        fileName: res.fileName || file.name,
+        candidateExamCode: res.candidateExamCode || activeCode,
+        studentId: res.studentId || activeStudentId,
+        proposalId: res.proposal?.id || res.proposal?._id,
+      });
+
+      setStep("receipt");
+      toast.success(res.message || "ሰነድዎ በተሳካ ሁኔታ ገቢ ተደርጓል!");
     } catch (err) {
       console.error("Submission error:", err);
-      toast.error(err.message || "Failed to submit proposal.");
-      if (err.message && err.message.includes("already been submitted")) {
-        await fetchStatus();
+      toast.error(err.message || "ሰነዱን ማስገባት አልተቻለም። እባክዎ እንደገና ይሞክሩ።");
+      // If already submitted, refresh status to show receipt
+      if (err.message && err.message.toLowerCase().includes("already")) {
+        checkInitialStatus();
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDownload = async (proposalId, version, fileName) => {
+  // ── Step 3: Receipt Download & Copy ───────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    if (!receipt?.proposalId) {
+      toast.error("የሰነድ መለያ ቁጥር አልተገኘም (Missing proposal ID)");
+      return;
+    }
+
     try {
       setDownloading(true);
-      await apiService.downloadProposalFile(proposalId, version, fileName);
-      toast.success("Proposal download started.");
+      await apiService.downloadProposalFile(
+        receipt.proposalId,
+        1,
+        receipt.fileName || `proposal_code_${receipt.candidateExamCode}.pdf`
+      );
+      toast.success("ሰነዱ እየወረደ ነው... (Download started)");
     } catch (err) {
       console.error("Download error:", err);
-      toast.error(err.message || "Failed to download proposal.");
+      toast.error(err.message || "ሰነዱን ማውረድ አልተቻለም (Failed to download proposal)");
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleVerifyExamCode = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!studentIdInput.trim()) {
-      toast.error("Please enter your University Student ID.");
-      return;
-    }
-    if (!examCode.trim()) {
-      toast.error("Please enter your Candidate Exam Code.");
-      return;
-    }
+  const copyRefNumber = () => {
+    if (!receipt?.referenceNumber) return;
+    navigator.clipboard.writeText(receipt.referenceNumber);
+    setCopied(true);
+    toast.success("የማመሳከሪያ ቁጥሩ ተቀድቷል (Reference number copied)");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
+  // Format Ethiopian EAT Date & Time
+  const formatReceiptDate = (isoString) => {
+    if (!isoString) return "";
     try {
-      setVerifyingCode(true);
-      const res = await apiService.verifyCandidateExamCode(
-        examCode.trim(),
-        "Sira Asfetsami",
-        studentIdInput.trim()
+      const d = new Date(isoString);
+      return (
+        d.toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+          timeZone: "Africa/Addis_Ababa",
+        }) + " (EAT)"
       );
-      toast.success(res.message || "Candidate verified! Welcome to the proposal submission portal.");
-      await fetchStatus();
-    } catch (err) {
-      console.error("Verification error:", err);
-      toast.error(err.message || "Verification failed. The entered Exam Code does not match this University Student ID.");
-    } finally {
-      setVerifyingCode(false);
+    } catch {
+      return isoString;
     }
   };
 
-  if (loading) {
+  // ── Initial Loading Spinner ───────────────────────────────────────────────
+  if (step === "loading") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center pt-20">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Verifying candidate eligibility and deadline...</p>
+          <div className="w-12 h-12 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600 text-sm font-medium">
+            የማስረከቢያ ገጹ በመጫን ላይ ነው...
+          </p>
         </div>
       </div>
     );
   }
 
-  // ── INELIGIBLE CANDIDATE VIEW ─────────────────────────────────────────────
-  if (!statusData?.isEligible) {
-    const isPresident = user && (user.role === 'president' || user.role === 'council_president');
+  return (
+    <div className="w-full min-h-screen flex items-center justify-center p-3 sm:p-6 my-auto">
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden relative transition-all">
+        {/* Top Accent Gradient Bar */}
+        <div className="h-2 bg-gradient-to-r from-sky-600 via-indigo-600 to-emerald-500 w-full" />
 
-    return (
-      <div className="min-h-screen bg-gray-50 pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto space-y-6">
-          {/* President Access Helper */}
-          {isPresident && (
-            <div className="bg-indigo-900 text-white rounded-2xl p-6 sm:p-8 shadow-lg border border-indigo-800">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 text-2xl">
-                  👑
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-indigo-700 text-white text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      Presidential Privileges Active
-                    </span>
+        <div className="p-6 sm:p-8">
+          {/* DBU Student Union Logo & Header */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white border border-slate-100 shadow-md p-2 mb-3">
+              <img
+                src="/images/dblogo.png"
+                alt="DBU Student Union Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.src = "/image.png/dbu-logo.png";
+                }}
+              />
+            </div>
+
+            <h1 className="text-lg sm:text-xl font-black text-gray-900 leading-snug tracking-tight">
+              የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ
+            </h1>
+            <p className="text-xs sm:text-sm font-bold text-sky-800 mt-1 uppercase tracking-wide">
+              Executive Committee Proposal Submission
+            </p>
+            <div className="flex items-center justify-center gap-1.5 mt-1.5 text-[11px] text-gray-500 font-medium">
+              <span>መመሪያ ቁጥር 003/2012 አንቀጽ 22</span>
+              <span>&bull;</span>
+              <span>Debre Berhan University</span>
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {/* ────────────────────────────────────────────────────────────── */}
+            {/* 1. VERIFICATION STEP                                           */}
+            {/* ────────────────────────────────────────────────────────────── */}
+            {step === "verify" && (
+              <motion.div
+                key="step-verify"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <form onSubmit={handleVerify} className="space-y-4">
+                  {/* Input 1: University Student ID */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                      1. የተማሪ መታወቂያ ቁጥር / University Student ID <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <User className="w-5 h-5 text-sky-600" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={studentIdInput}
+                        onChange={(e) => setStudentIdInput(e.target.value)}
+                        placeholder="e.g. 1801228"
+                        className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-mono font-bold text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-100 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      በዩኒቨርሲቲው የተመዘገቡበት የመታወቂያ ቁጥር (e.g. 1801228)
+                    </p>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold leading-tight">
-                    Welcome, {user?.name || "Student Union President"}
-                  </h2>
-                  <p className="text-indigo-200 text-sm sm:text-base leading-relaxed">
-                    This page is the <strong>Candidate Portal</strong> where verified candidates upload proposal documents. As the <strong>Student Union President</strong>, you have exclusive access to the <strong>Proposal Management Dashboard</strong> to set submission deadlines, view the candidate submission statuses, and download proposals.
-                  </p>
+
+                  {/* Input 2: Exam Code */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                      2. የፈተና መለያ ኮድ / Candidate Exam Code <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                        <Key className="w-5 h-5 text-sky-600" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={examCode}
+                        onChange={(e) => setExamCode(e.target.value)}
+                        placeholder="e.g. 16, 23, 02, 32"
+                        className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-mono font-black text-gray-900 uppercase placeholder:text-gray-400 placeholder:font-normal focus:bg-white focus:border-sky-600 focus:ring-4 focus:ring-sky-100 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      በደብረ ብርሃን ዩኒቨርሲቲ ምርጫ ቦርድ የተሰጠዎት ይፋዊ የፈተና ኮድ
+                    </p>
+                  </div>
+
+                  {/* Verification Button */}
                   <div className="pt-2">
-                    <a
-                      href="/admin/proposals"
-                      className="inline-flex items-center gap-2 px-5 py-3 bg-white text-indigo-900 rounded-xl font-bold text-sm hover:bg-indigo-50 shadow-md transition-all transform hover:-translate-y-0.5"
+                    <button
+                      type="submit"
+                      disabled={verifying}
+                      className="w-full py-4 px-6 bg-sky-700 hover:bg-sky-800 active:scale-[0.99] text-white rounded-2xl font-black text-base shadow-lg shadow-sky-700/25 transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                     >
-                      📜 Open Proposal Management Dashboard <ArrowRight className="w-4 h-4" />
-                    </a>
+                      {verifying ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>በማረጋገጥ ላይ... / Verifying...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>አረጋግጥ / Verify Identity</span>
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
+                </form>
+              </motion.div>
+            )}
 
-          {/* Candidate Self-Verification Card for 2019 Top Performers */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden text-left">
-
-            {/* Header banner */}
-            <div className="bg-gradient-to-r from-sky-900 via-indigo-900 to-blue-900 text-white p-6 sm:p-8">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-xl">
-                  ⚙️
-                </span>
-                <span className="bg-sky-400/20 text-sky-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-sky-400/30">
-                  Directive No. 003/2012 &bull; Executive Committee
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Executive Committee Candidate Verification
-              </h1>
-              <p className="text-sky-100 text-xs sm:text-sm mt-2 max-w-2xl leading-relaxed">
-                If you were shortlisted among the top performers running for the <strong>Executive Committee (ዋና ሥራ አስፈጻሚ / Sira Asfetsami)</strong>, verify your credentials below using your official <strong>Student ID</strong> and <strong>Exam Verification Code</strong> to unlock your strategic proposal submission.
-              </p>
-            </div>
-
-            {/* Form body */}
-            <form onSubmit={handleVerifyExamCode} className="p-6 sm:p-8 space-y-6">
-              {/* Verified Identity Readout */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" /> Verified Student Identity (Active Account)
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
-                  <div>
-                    <span className="text-gray-500 block text-xs">Student ID / Username:</span>
-                    <span className="font-mono font-bold text-gray-900">{user?.username}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block text-xs">Full Name:</span>
-                    <span className="font-bold text-gray-900">{user?.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 block text-xs">Department &amp; Year:</span>
-                    <span className="font-semibold text-gray-800">{user?.department || "General"} &bull; {user?.year || "4th Year"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dual Verification Fields: University Student ID + Candidate Exam Code */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* 1. University Student ID */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
-                    University Student ID <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                      <User className="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      value={studentIdInput}
-                      onChange={(e) => setStudentIdInput(e.target.value)}
-                      placeholder="e.g. 1801228 (or DBU1801228)"
-                      className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 font-semibold"
-                    />
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-1.5">
-                    Your official university student registration ID (e.g. 1801228).
-                  </p>
-                </div>
-
-                {/* 2. Candidate Exam Code */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
-                    Candidate Exam Code <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                      <Key className="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <input
-                      type="text"
-                      required
-                      value={examCode}
-                      onChange={(e) => setExamCode(e.target.value)}
-                      placeholder="e.g. 16, 02, 23, 32"
-                      className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 uppercase font-semibold"
-                    />
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-1.5">
-                    Official candidate exam code (e.g. 16, 23, 02, 32).
-                  </p>
-                </div>
-              </div>
-
-              {/* Dedicated Executive Committee Position Display (Directive No. 003/2012) */}
-              <div>
-                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5">
-                  Nominated Candidate Position / Category
-                </label>
-                <div className="p-4 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                      ⚙️
+            {/* ────────────────────────────────────────────────────────────── */}
+            {/* 2. SEAMLESS SUBMISSION STEP                                    */}
+            {/* ────────────────────────────────────────────────────────────── */}
+            {step === "upload" && (
+              <motion.div
+                key="step-upload"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-5"
+              >
+                {/* Candidate Verified Badge */}
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <ShieldCheck className="w-6 h-6" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-gray-900 text-sm sm:text-base">
-                          Sira Asfetsami (ሥራ አስፈፃሚ)
+                        <span className="font-extrabold text-gray-900 text-sm">
+                          {candidate?.name || "እጩ ተወዳዳሪ"}
                         </span>
-                        <span className="bg-indigo-200/80 text-indigo-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
-                          Executive Committee
+                        <span className="bg-emerald-200/80 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                          Code {candidate?.examCode || examCode}
                         </span>
                       </div>
-                      <p className="text-xs text-indigo-900 font-medium mt-0.5">
-                        Strategic Proposal Submission (Evaluated for 15% pre-council score)
+                      <p className="text-xs text-emerald-800 font-semibold mt-0.5">
+                        የተረጋገጠ እጩ (Verified) &bull; ሥራ አስፈፃሚ (Executive)
                       </p>
                     </div>
                   </div>
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-white rounded-lg border border-indigo-200 text-xs font-bold text-indigo-800 shadow-sm">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Authorized Role
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCandidate(null);
+                      setFile(null);
+                      setStep("verify");
+                    }}
+                    className="text-xs text-emerald-700 hover:text-emerald-900 font-bold underline p-1"
+                  >
+                    ቀይር
+                  </button>
                 </div>
 
-                <div className="mt-2.5 bg-blue-50 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2.5">
-                  <span className="text-base leading-none">⚖️</span>
-                  <p className="leading-relaxed">
-                    <strong>Directive No. 003/2012 Articles 22 &amp; 28 Notice:</strong> Proposal submissions are exclusively designated for Executive Committee (ዋና ሥራ አስፈጻሚ) contestants. Afegubaye candidates are evaluated solely through the written exam (20%), interview (20%), and council speech (60%) without submitting a strategic proposal.
+                <form onSubmit={handleSubmitProposal} className="space-y-5">
+                  {/* Single File Dropzone */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragActive(true);
+                    }}
+                    onDragLeave={() => setDragActive(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragActive(false);
+                      if (e.dataTransfer.files?.[0]) {
+                        handleFileSelected(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center transition-all cursor-pointer select-none ${
+                      dragActive
+                        ? "border-emerald-500 bg-emerald-50/60 scale-[1.01]"
+                        : file
+                        ? "border-emerald-500 bg-emerald-50/40"
+                        : "border-slate-300 hover:border-emerald-400 bg-slate-50/70"
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      disabled={submitting}
+                      onChange={(e) => handleFileSelected(e.target.files?.[0])}
+                      className="hidden"
+                    />
+
+                    {file ? (
+                      <div className="flex flex-col items-center">
+                        <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-2 shadow-inner">
+                          <FileCheck className="w-8 h-8" />
+                        </div>
+                        <p className="font-extrabold text-gray-900 text-sm truncate max-w-xs">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-emerald-700 font-semibold mt-1">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB &bull; ሰነዱ ለመላክ ዝግጁ ነው
+                        </p>
+                        <span className="mt-3 inline-block text-xs font-bold text-sky-700 underline">
+                          ሌላ ሰነድ ለመምረጥ እዚህ ይጫኑ
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <div className="w-14 h-14 bg-sky-100 text-sky-700 rounded-2xl flex items-center justify-center mb-3">
+                          <Upload className="w-7 h-7" />
+                        </div>
+                        <p className="font-black text-gray-900 text-sm sm:text-base leading-snug">
+                          ያዘጋጁትን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          ሰነድዎን ለመምረጥ እዚህ ጠቅ ያድርጉ ወይም ጎትተው ያስቀምጡ
+                        </p>
+                        <div className="inline-flex items-center gap-2 mt-3 px-3 py-1 bg-white rounded-full border border-slate-200 text-[11px] font-bold text-slate-600">
+                          <span>PDF ብቻ</span>
+                          <span>&bull;</span>
+                          <span>እስከ 15 MB</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Green Submit Button */}
+                  <div>
+                    <button
+                      type="submit"
+                      disabled={!file || submitting}
+                      className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl font-black text-base shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>ፕሮፖዛሉ በመግባት ላይ ነው...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-5 h-5" />
+                          <span>ፕሮፖዛሉን አስገባ / Submit Proposal</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {/* ────────────────────────────────────────────────────────────── */}
+            {/* 3. INSTANT RECEIPT STEP                                        */}
+            {/* ────────────────────────────────────────────────────────────── */}
+            {step === "receipt" && receipt && (
+              <motion.div
+                key="step-receipt"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-5"
+              >
+                {/* Success Header */}
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3 shadow-inner">
+                    <CheckCircle className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-emerald-800 tracking-tight">
+                    ሰነድዎ በተሳካ ሁኔታ ገቢ ተደርጓል!
+                  </h2>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Official Proposal Confirmed &amp; Sealed into Electoral Registry
                   </p>
                 </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <button
-                  type="submit"
-                  disabled={verifyingCode}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50"
-                >
-                  {verifyingCode ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Verifying Candidate Credentials...
-                    </>
-                  ) : (
-                    <>
-                      <Unlock className="w-4 h-4" /> Verify &amp; Proceed to Upload Proposal &rarr;
-                    </>
+                {/* Instant Receipt Box */}
+                <div className="bg-slate-50 border-2 border-emerald-500/50 rounded-2xl p-5 space-y-3.5 text-xs text-gray-700">
+                  {/* Reference Tracking Number */}
+                  <div className="bg-white border border-emerald-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-sm">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                        የማመሳከሪያ ቁጥር / Reference Tracking Number
+                      </span>
+                      <span className="font-mono font-black text-emerald-900 text-base tracking-wide select-all">
+                        {receipt.referenceNumber}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={copyRefNumber}
+                      className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                      title="Copy Reference Number"
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Candidate Code & Student ID */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                        የፈተና ኮድ / Exam Code
+                      </span>
+                      <span className="font-black text-gray-900 text-sm">
+                        Code {receipt.candidateExamCode || "VERIFIED"}
+                      </span>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                        የተማሪ መታወቂያ / Student ID
+                      </span>
+                      <span className="font-mono font-bold text-gray-900 text-sm">
+                        {receipt.studentId || "VERIFIED"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Submission Timestamp */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                      የተረከበበት ሰዓት / Submission Timestamp
+                    </span>
+                    <span className="font-bold text-gray-900 text-xs">
+                      {formatReceiptDate(receipt.submittedAt)}
+                    </span>
+                  </div>
+
+                  {/* Document Name */}
+                  {receipt.fileName && (
+                    <div className="text-[11px] text-gray-500 pt-1 flex items-center gap-1.5 truncate">
+                      <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <span className="truncate">ሰነድ፡ {receipt.fileName}</span>
+                    </div>
                   )}
-                </button>
-
-                <a
-                  href="/dashboard"
-                  className="text-xs text-gray-500 hover:text-gray-800 font-semibold transition-colors"
-                >
-                  Return to Student Dashboard &rarr;
-                </a>
-              </div>
-            </form>
-
-            {/* Assistance Footer */}
-            <div className="bg-amber-50/70 border-t border-amber-100 p-5 text-xs text-amber-900 leading-relaxed">
-              <p>
-                <strong>Need Help with your Candidate Exam Code?</strong> Candidate verification codes were issued to the 16 top performers of the 2019 batch during the university final exam. If you were shortlisted but have not received your code, please visit the <strong>Student Union President Office</strong> or the <strong>Campus Electoral Board</strong> to verify your record.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const { candidate, proposal, settings } = statusData;
-  const isDeadlineSet = Boolean(settings?.deadline);
-  const isOpen = Boolean(settings?.isOpen);
-
-  return (
-    <div className="min-h-screen bg-slate-50 pt-20 pb-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 mb-2">
-                🏛️ DBU Student Union Election 2026
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                Executive Committee Proposal Submission (ሥራ አስፈፃሚ)
-              </h1>
-              <p className="text-gray-600 text-sm mt-1">
-                Strategic proposal repository for Executive Committee candidates under Directive No. 003/2012 (Articles 22 &amp; 28).
-              </p>
-            </div>
-            <button
-              onClick={fetchStatus}
-              className="inline-flex items-center gap-1.5 self-start sm:self-center px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh Status
-            </button>
-          </div>
-        </div>
-
-        {/* Candidate Profile Verification Card */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-sky-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-              <User className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-gray-900">{candidate?.name}</h3>
-                <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded-full">
-                  Verified Candidate
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {candidate?.position} &bull; {candidate?.department} &bull; ID: {candidate?.username}
-              </p>
-            </div>
-          </div>
-          <div className="text-right text-xs text-gray-500 border-t sm:border-t-0 pt-2 sm:pt-0">
-            <p className="font-semibold text-gray-700">Official Position</p>
-            <p className="text-sky-700 font-bold">{candidate?.position || "Student Union Candidate"}</p>
-          </div>
-        </div>
-
-        {/* Deadline Status & Countdown */}
-        {isDeadlineSet ? (
-          <ProposalCountdown deadline={settings.deadline} onDeadlineReached={fetchStatus} />
-        ) : (
-          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 mb-8 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-2 text-amber-800 font-bold text-lg">
-              <Clock className="w-5 h-5 text-amber-600" />
-              Deadline Not Set
-            </div>
-            <p className="text-amber-700 text-sm mt-1">
-              Submissions are currently disabled until the Student Union President configures the official closing deadline.
-            </p>
-          </div>
-        )}
-
-        {/* Existing Submission Receipt / Locked Screen */}
-        {proposal && (
-          <div className="bg-white rounded-2xl border-2 border-emerald-500 shadow-md p-6 sm:p-8 mb-8 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600"></div>
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-              <div className="flex items-start gap-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 shadow-inner">
-                  <CheckCircle className="w-8 h-8 text-emerald-600" />
                 </div>
+
+                {/* Download PDF Action Button */}
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">Official Proposal Confirmed</h3>
-                    <span className="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 border border-emerald-300">
-                      <Lock className="w-3.5 h-3.5" /> Locked &bull; Sealed
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-xl leading-relaxed">
-                    Your strategic proposal document has been officially recorded and locked in the Electoral Board registry.
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={downloading}
+                    className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl font-black text-sm sm:text-base shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {downloading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>በማውረድ ላይ...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-5 h-5" />
+                        <span>የተጫነውን ሰነድ ይመልከቱ (Download My PDF)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Official Directive Seal Footer */}
+                <div className="text-center pt-2">
+                  <p className="text-[11px] text-gray-500">
+                    መመሪያ ቁጥር 003/2012 አንቀጽ 22 &bull; የሰነዱ ምዝገባ በይፋ ተጠናቋል።
                   </p>
                 </div>
-              </div>
-              <button
-                onClick={() => handleDownload(proposal.id, proposal.currentVersion, proposal.currentFile?.fileName)}
-                disabled={downloading}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-              >
-                <Download className="w-4 h-4" /> Download Submitted PDF
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/80 border border-emerald-200 rounded-xl p-5 text-xs mb-5">
-              <div>
-                <span className="text-gray-500 block uppercase text-[10px] font-bold tracking-wider">Official Reference Code:</span>
-                <span className="font-mono font-black text-emerald-900 text-base">{proposal.latestReferenceNumber}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block uppercase text-[10px] font-bold tracking-wider">Candidate Exam Code:</span>
-                <span className="font-mono font-black text-indigo-900 text-base">
-                  Code {proposal.candidateExamCode || candidate?.examCode || "VERIFIED"}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500 block uppercase text-[10px] font-bold tracking-wider">Registration Timestamp:</span>
-                <span className="font-bold text-gray-800 text-xs">
-                  {new Date(proposal.latestSubmittedAt).toLocaleString("en-US", {
-                    timeZone: "Africa/Addis_Ababa",
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}{" "}
-                  (EAT)
-                </span>
-              </div>
-              <div className="sm:col-span-3 pt-2 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <span className="text-gray-600 block text-xs">
-                  <strong>Archived Document:</strong> {proposal.currentFile?.fileName} ({(proposal.currentFile?.fileSize / 1024 / 1024).toFixed(2)} MB)
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                  <Shield className="w-3.5 h-3.5" /> PDF Magic Bytes Verified (%PDF-)
-                </span>
-              </div>
-            </div>
-
-            {/* Strict Duplicate Prevention & One-Time Submission Enforcement Banner */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-700 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center flex-shrink-0 font-bold">
-                <Lock className="w-4 h-4 text-slate-700" />
-              </div>
-              <div className="leading-relaxed">
-                <p className="font-bold text-slate-900">Submission Completed &amp; Permanently Locked:</p>
-                <p className="mt-0.5 text-slate-600">
-                  Under the Ethiopian Higher Education Student Union Election Directive (Directive No. 003/2012) and Electoral Board regulations, proposal submissions are strictly limited to a single final document. Duplicate submissions or replacement uploads for this candidate code are strictly prohibited.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Upload Form (Active ONLY when no proposal has been submitted yet) */}
-        {!proposal && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
-            <div className="mb-5 border-b border-gray-100 pb-4">
-              <h2 className="text-lg font-bold text-gray-900">
-                Submit Official PDF Proposal
-              </h2>
-              <p className="text-xs text-gray-500 mt-1">
-                Attach your completed executive manifesto or strategic proposal. Only valid PDF files up to 15 MB are accepted. Submissions are strictly one-time.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Drag & Drop Upload Zone */}
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  if (e.dataTransfer.files?.[0]) {
-                    handleFileChange(e.dataTransfer.files[0]);
-                  }
-                }}
-                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-                  dragOver
-                    ? "border-sky-500 bg-sky-50/50"
-                    : file
-                    ? "border-emerald-400 bg-emerald-50/30"
-                    : "border-gray-300 hover:border-gray-400 bg-gray-50/50"
-                }`}
-              >
-                <input
-                  id="proposal-pdf-input"
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  disabled={!isOpen || submitting}
-                  onChange={(e) => handleFileChange(e.target.files?.[0])}
-                  className="hidden"
-                />
-
-                {file ? (
-                  <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
-                      <FileCheck className="w-8 h-8" />
-                    </div>
-                    <p className="font-bold text-gray-900 text-sm">{file.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{(file.size / 1024 / 1024).toFixed(2)} MB &bull; Ready to submit</p>
-                    <label
-                      htmlFor="proposal-pdf-input"
-                      className="mt-3 text-xs font-semibold text-sky-700 hover:text-sky-900 cursor-pointer underline"
-                    >
-                      Choose a different PDF
-                    </label>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 bg-sky-100 text-sky-700 rounded-2xl flex items-center justify-center mb-3">
-                      <Upload className="w-7 h-7" />
-                    </div>
-                    <label
-                      htmlFor="proposal-pdf-input"
-                      className={`font-bold text-sm text-sky-700 hover:text-sky-800 cursor-pointer underline ${
-                        !isOpen ? "pointer-events-none opacity-50" : ""
-                      }`}
-                    >
-                      Click to browse PDF file
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">or drag and drop your proposal document here</p>
-                    <div className="flex items-center gap-3 mt-4 text-[11px] text-gray-400 uppercase font-semibold tracking-wider">
-                      <span>PDF Only</span>
-                      <span>&bull;</span>
-                      <span>Max 15 MB</span>
-                      <span>&bull;</span>
-                      <span>One-Time Submission</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Optional Note / Version description */}
-              <div>
-                <label htmlFor="proposal-note" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                  Proposal Document Title or Note (Optional)
-                </label>
-                <input
-                  id="proposal-note"
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  disabled={!isOpen || submitting}
-                  placeholder="e.g., Executive Proposal for Student Welfare & Academic Reform"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-gray-100"
-                />
-              </div>
-
-              {/* Submit Action */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                <div className="text-xs text-gray-500">
-                  {isOpen ? (
-                    <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
-                      <CheckCircle className="w-4 h-4 text-emerald-600" />
-                      Submissions close at: {settings.deadlineEthiopia}
-                    </span>
-                  ) : (
-                    <span className="text-red-600 font-semibold flex items-center gap-1.5">
-                      <AlertCircle className="w-4 h-4" />
-                      Submissions are currently locked.
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!isOpen || submitting || !file}
-                  className="w-full sm:w-auto px-6 py-3 bg-sky-700 hover:bg-sky-800 text-white rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Submitting Final Proposal...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Submit Final Proposal
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
 }
+
+export default ProposalSubmission;

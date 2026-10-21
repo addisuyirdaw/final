@@ -249,19 +249,11 @@ function AppContent() {
           />
           <Route
             path="/proposal-submission"
-            element={
-              <ProtectedRoute>
-                <ProposalSubmission />
-              </ProtectedRoute>
-            }
+            element={<ProposalSubmission />}
           />
           <Route
             path="/submit-proposal"
-            element={
-              <ProtectedRoute>
-                <ProposalSubmission />
-              </ProtectedRoute>
-            }
+            element={<ProposalSubmission />}
           />
           <Route path="/executives" element={<Executives />} />
           <Route path="/student-union" element={<Union />} />

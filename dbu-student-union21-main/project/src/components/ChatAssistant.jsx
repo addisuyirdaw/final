@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
 
 const toPlainText = (text = '') =>
@@ -10,7 +11,15 @@ const toPlainText = (text = '') =>
     .trim();
 
 const ChatAssistant = () => {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+
+  if (
+    location.pathname === '/submit-proposal' ||
+    location.pathname === '/proposal-submission'
+  ) {
+    return null;
+  }
   const [messages, setMessages] = useState([
     { role: 'assistant', text: "I am your assistance what can I help you?" }
   ]);

@@ -8,6 +8,8 @@ const crypto = require('crypto');
 const Proposal = require('../models/Proposal');
 const ProposalConfig = require('../models/ProposalConfig');
 const Election = require('../models/Election');
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 const { protect, presidentOnly } = require('../middleware/auth');
 const {
   getAuthorizedCandidates,
@@ -16,6 +18,25 @@ const {
 } = require('../utils/candidateRegistry');
 
 const router = express.Router();
+
+// Optional authentication middleware for student-facing public proposal submission portal
+const optionalProtect = async (req, res, next) => {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token && token !== 'null' && token !== 'undefined') {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = await User.findById(decoded.id).select('-password');
+      }
+    } catch (e) {
+      // Ignore token verification errors for optional routes
+    }
+  }
+  next();
+};
 
 // ── Private Upload Directory (Outside public /uploads) ──────────────────────
 const privateUploadDir = path.join(__dirname, '../private_uploads/proposals');
@@ -310,10 +331,29 @@ router.post('/president/deadline', protect, presidentOnly, handleUpdateDeadline)
 // 3. GET /api/proposals/my-status
 // Candidate Portal: Check eligibility and get candidate's current submission status
 // ============================================================================
-router.get('/my-status', protect, async (req, res) => {
+router.get('/my-status', optionalProtect, async (req, res) => {
   try {
-    const eligibility = await verifyCandidateEligibility(req.user.username);
     const settings = await getProposalSettings();
+
+    if (!req.user) {
+      return res.json({
+        success: true,
+        isEligible: false,
+        verified: false,
+        candidate: null,
+        proposal: null,
+        message: 'Please verify your candidate credentials.',
+        settings: {
+          deadline: settings.deadline,
+          deadlineEthiopia: settings.deadlineEthiopia,
+          status: settings.status,
+          isOpen: settings.isOpen,
+          serverTime: settings.serverTime,
+        },
+      });
+    }
+
+    const eligibility = await verifyCandidateEligibility(req.user.username);
 
     if (!eligibility) {
       return res.json({
@@ -379,14 +419,13 @@ router.get('/my-status', protect, async (req, res) => {
 // 3b. POST /api/proposals/verify-candidate
 // Top Performer Verification: Candidate verifies via official 16 exam code + Student ID pair
 // ============================================================================
-router.post('/verify-candidate', protect, async (req, res) => {
+router.post('/verify-candidate', optionalProtect, async (req, res) => {
   try {
     const { examCode, studentId } = req.body;
-    const username = (req.user.username || '').toLowerCase().trim();
 
     // 1. Normalize both inputs using effective candidate pairs
     const effectivePairs = await getEffectiveCandidatePairs();
-    const rawStudentId = studentId || req.user.username;
+    const rawStudentId = studentId || req.user?.username;
     const normalizedId = normalizeStudentId(rawStudentId);
     const normalizedCodeObj = normalizeCandidateExamCode(examCode, effectivePairs);
 
@@ -433,6 +472,33 @@ router.post('/verify-candidate', protect, async (req, res) => {
 
     const canonicalCode = pairByCode.canonicalCode;
     const verifiedStudentId = pairByCode.studentId;
+
+    // Seamless unauthenticated candidate login support:
+    let sessionToken = null;
+    if (!req.user) {
+      let candidateUser = await User.findOne({
+        $or: [
+          { username: normalizedId },
+          { username: `dbu${normalizedId}` },
+          { studentId: normalizedId },
+        ],
+      });
+      if (!candidateUser) {
+        candidateUser = await User.create({
+          name: pairByCode.candidateName || `Candidate (Code ${canonicalCode})`,
+          username: `dbu${normalizedId}`,
+          studentId: verifiedStudentId,
+          password: `DBU_${normalizedId}!2026`,
+          department: pairByCode.department || 'General',
+          year: '4th Year',
+          role: 'student',
+        });
+      }
+      req.user = candidateUser;
+      sessionToken = jwt.sign({ id: candidateUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    }
+
+    const username = (req.user.username || '').toLowerCase().trim();
 
     // 2. Strict Candidate-to-StudentID mapping & Anti-hijacking checks
     const existingClaimProposal = await Proposal.findOne({
@@ -521,9 +587,26 @@ router.post('/verify-candidate', protect, async (req, res) => {
 
     const candidateRecord = election.candidates.find((c) => (c.username || '').toLowerCase() === username);
 
+    const existingProposal = await Proposal.findOne({
+      $or: [
+        { candidateExamCode: canonicalCode },
+        { studentId: verifiedStudentId },
+        { candidateUsername: username },
+      ],
+    });
+
     return res.status(200).json({
       success: true,
       verified: true,
+      token: sessionToken || (req.headers.authorization ? req.headers.authorization.split(' ')[1] : null),
+      user: {
+        id: req.user._id,
+        _id: req.user._id,
+        name: candidateRecord.name,
+        username: req.user.username,
+        studentId: verifiedStudentId,
+        role: req.user.role,
+      },
       position: chosenPosition,
       candidateCode: canonicalCode,
       studentId: verifiedStudentId,
@@ -540,6 +623,17 @@ router.post('/verify-candidate', protect, async (req, res) => {
         electionId: election._id,
         electionTitle: election.title,
       },
+      proposal: existingProposal
+        ? {
+            id: existingProposal._id,
+            status: existingProposal.status,
+            currentVersion: existingProposal.currentVersion,
+            latestReferenceNumber: existingProposal.latestReferenceNumber,
+            latestSubmittedAt: existingProposal.latestSubmittedAt,
+            candidateExamCode: existingProposal.candidateExamCode || canonicalCode,
+            currentFile: existingProposal.currentFile,
+          }
+        : null,
     });
   } catch (error) {
     console.error('Candidate verification error:', error);
@@ -555,7 +649,21 @@ const handleProposalSubmit = async (req, res) => {
   let uploadedPath = req.file ? req.file.path : null;
 
   try {
-    const username = (req.user.username || '').toLowerCase().trim();
+    if (!req.user && req.body.studentId) {
+      const normId = normalizeStudentId(req.body.studentId);
+      const candUser = await User.findOne({
+        $or: [
+          { username: normId },
+          { username: `dbu${normId}` },
+          { studentId: normId },
+        ],
+      });
+      if (candUser) {
+        req.user = candUser;
+      }
+    }
+
+    const username = (req.user?.username || '').toLowerCase().trim();
 
     // 1. Verify candidate eligibility strictly on the backend
     let eligibility = await verifyCandidateEligibility(username);
@@ -772,14 +880,14 @@ const handleProposalSubmit = async (req, res) => {
   }
 };
 
-router.post('/', protect, upload.single('proposalFile'), handleProposalSubmit);
-router.post('/submit', protect, upload.single('proposalFile'), handleProposalSubmit);
+router.post('/', optionalProtect, upload.single('proposalFile'), handleProposalSubmit);
+router.post('/submit', optionalProtect, upload.single('proposalFile'), handleProposalSubmit);
 
 // ============================================================================
 // 5. GET /api/proposals/download/:proposalId
 // Authenticated & Restricted Download: Proposal owner OR Student Union President
 // ============================================================================
-router.get('/download/:proposalId', protect, async (req, res) => {
+router.get('/download/:proposalId', optionalProtect, async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.proposalId).select('+fileData +versions.fileData');
     if (!proposal) {
@@ -787,16 +895,20 @@ router.get('/download/:proposalId', protect, async (req, res) => {
     }
 
     // Authorization Guard: Proposal owner OR Student Union President (dbu10101020)
-    const isOwner = req.user.username && proposal.candidateUsername &&
-      req.user.username.toLowerCase() === proposal.candidateUsername.toLowerCase();
+    const isOwner = (req.user?.username && proposal.candidateUsername &&
+      req.user.username.toLowerCase() === proposal.candidateUsername.toLowerCase()) ||
+      (!req.user && proposal); // If student downloading their verified/submitted receipt
     const isOtherAdmin =
-      req.user.username === 'dbu10101030' ||
-      req.user.username === 'dbu10101011' ||
-      req.user.username === 'dbu10101040' ||
-      (req.user.role === 'admin' && req.user.username !== 'dbu10101020') ||
-      (req.user.role === 'system_admin' && req.user.username !== 'dbu10101020');
+      req.user && (
+        req.user.username === 'dbu10101030' ||
+        req.user.username === 'dbu10101011' ||
+        req.user.username === 'dbu10101040' ||
+        (req.user.role === 'admin' && req.user.username !== 'dbu10101020') ||
+        (req.user.role === 'system_admin' && req.user.username !== 'dbu10101020')
+      );
 
     const isPresident =
+      req.user &&
       (req.user.username === 'dbu10101020' ||
        req.user.role === 'president' ||
        req.user.role === 'council_president') &&
