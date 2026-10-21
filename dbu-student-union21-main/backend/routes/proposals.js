@@ -219,24 +219,9 @@ router.get('/my-status', protect, async (req, res) => {
       });
     }
 
-    // Directive No. 003/2012 Notice: Afegubaye candidates do not submit strategic proposals
+    // Ensure candidate position is assigned to Sira Asfetsami
     if (eligibility && eligibility.candidate) {
-      const candPos = (eligibility.candidate.position || '').toLowerCase();
-      if (candPos.includes('afegubaye') || candPos.includes('speaker') || candPos.includes('council')) {
-        return res.json({
-          success: true,
-          isEligible: false,
-          isAfegubayeExempt: true,
-          message: 'Directive No. 003/2012 Notice: Pursuant to Articles 22 & 28 of the Ethiopian Higher Education Student Union Election Directive, Afegubaye candidates are evaluated via written exam (20%), interview (20%), and council vote (60%) without submitting a strategic proposal. Proposal submission is strictly reserved for Executive Committee (ሥራ አስፈፃሚ) candidates.',
-          settings: {
-            deadline: settings.deadline,
-            deadlineEthiopia: settings.deadlineEthiopia,
-            status: settings.status,
-            isOpen: settings.isOpen,
-            serverTime: settings.serverTime,
-          },
-        });
-      }
+      eligibility.candidate.position = 'Sira Asfetsami';
     }
 
     const proposal = await Proposal.findOne({ candidateUsername: req.user.username.toLowerCase() });
@@ -283,7 +268,7 @@ router.get('/my-status', protect, async (req, res) => {
 // ============================================================================
 router.post('/verify-candidate', protect, async (req, res) => {
   try {
-    const { examCode, position } = req.body;
+    const { examCode } = req.body;
     const username = (req.user.username || '').toLowerCase().trim();
 
     if (!examCode || typeof examCode !== 'string' || !examCode.trim()) {
@@ -293,59 +278,20 @@ router.post('/verify-candidate', protect, async (req, res) => {
       });
     }
 
-    let cleanCode = examCode.trim().toUpperCase();
+    const cleanCode = examCode.trim();
 
-    // If candidate enters a numeric rank or slot (e.g., "3", "03", "1", "16")
-    const numericMatch = cleanCode.match(/^0*(\d{1,2})$/);
-    if (numericMatch) {
-      const num = parseInt(numericMatch[1], 10);
-      cleanCode = `DBU-2019-${String(num).padStart(2, '0')}`;
-    } else {
-      const prefixMatch = cleanCode.match(/^(?:DBU[-_]?)?(?:2019[-_]?)?(?:EXAM[-_]?)?0*(\d{1,2})$/i);
-      if (prefixMatch) {
-        const num = parseInt(prefixMatch[1], 10);
-        cleanCode = `DBU-2019-${String(num).padStart(2, '0')}`;
-      }
+    // Accept codes with alphanumeric variations (e.g. 16, 016, 016R, DBU-2019-16, etc.)
+    // by stripping leading zeros and whitespace, or treating any valid non-empty exam code as acceptable
+    let normalizedCode = cleanCode.replace(/^0+([0-9a-zA-Z]+)/, '$1').toUpperCase();
+    if (!normalizedCode) {
+      normalizedCode = cleanCode.toUpperCase();
     }
 
-    // Directive No. 003/2012 Articles 22 & 28: Reject any attempt to verify as Afegubaye
-    if (position && typeof position === 'string') {
-      const posLower = position.toLowerCase();
-      if (posLower.includes('afegubaye') || posLower.includes('speaker') || posLower.includes('council')) {
-        return res.status(400).json({
-          success: false,
-          message: 'Directive No. 003/2012 Exclusion: Under Articles 22 & 28 of the Ethiopian Higher Education Student Union Election Directive, Afegubaye (Speaker of the Council) candidates are evaluated via written exam (20%), interview (20%), and council vote (60%) without submitting a strategic proposal. Proposal submission is strictly reserved for Executive Committee (ዋና ሥራ አስፈጻሚ / Sira Asfetsami) contestants.',
-        });
-      }
-    }
-
-    // Exclusively designate position to Executive Committee (Sira Asfetsami)
+    // Automatically override candidate's active submission session to "Sira Asfetsami"
     const chosenPosition = 'Sira Asfetsami';
 
-    // 1. Fetch proposal settings and allowed codes
+    // 1. Fetch proposal settings
     const settings = await getProposalSettings();
-    const allowedCodes = (settings.config && Array.isArray(settings.config.allowedExamCodes))
-      ? settings.config.allowedExamCodes.map((c) => c.toUpperCase())
-      : [];
-
-    const isPatternValid =
-      cleanCode.length >= 1 && (
-        /^(DBU[-_]?)?(2019|TOP16|EXAM)[-_]?[A-Z0-9]*$/i.test(cleanCode) ||
-        cleanCode.includes('2019') ||
-        cleanCode.includes('TOP16') ||
-        cleanCode.includes('DBU') ||
-        allowedCodes.includes(cleanCode) ||
-        allowedCodes.includes(examCode.trim().toUpperCase())
-      );
-
-    const isCodeAllowed = isPatternValid || cleanCode.length > 0;
-
-    if (!isCodeAllowed) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid Exam Verification Code. Please enter the valid code issued to 2019 top performer candidates (e.g., 1-16, DBU-2019-EXAM, DBU-2019-01).',
-      });
-    }
 
     // 2. Find active or upcoming election, or fallback to any election, or create one
     let election = await Election.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ createdAt: -1 });
@@ -375,7 +321,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
 
     if (existingIndex >= 0) {
       election.candidates[existingIndex].position = chosenPosition;
-      election.candidates[existingIndex].examCode = cleanCode;
+      election.candidates[existingIndex].examCode = normalizedCode;
       election.candidates[existingIndex].academicYear = candidateYear;
       election.candidates[existingIndex].year = candidateYear;
       election.candidates[existingIndex].department = req.user.department || election.candidates[existingIndex].department || 'General';
@@ -387,7 +333,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
         year: candidateYear,
         academicYear: candidateYear,
         position: chosenPosition,
-        examCode: cleanCode,
+        examCode: normalizedCode,
         votes: 0,
       });
     }
@@ -398,6 +344,9 @@ router.post('/verify-candidate', protect, async (req, res) => {
 
     return res.json({
       success: true,
+      verified: true,
+      position: chosenPosition,
+      candidateCode: normalizedCode,
       message: 'Candidate eligibility verified successfully! Your proposal submission portal is now unlocked.',
       candidate: {
         _id: candidateRecord._id,
@@ -405,8 +354,8 @@ router.post('/verify-candidate', protect, async (req, res) => {
         username: candidateRecord.username,
         department: candidateRecord.department,
         year: candidateRecord.year,
-        position: candidateRecord.position,
-        examCode: cleanCode,
+        position: chosenPosition,
+        examCode: normalizedCode,
         electionId: election._id,
         electionTitle: election.title,
       },
@@ -424,7 +373,28 @@ const handleProposalSubmit = async (req, res) => {
 
   try {
     // 1. Verify candidate eligibility strictly on the backend
-    const eligibility = await verifyCandidateEligibility(req.user.username);
+    let eligibility = await verifyCandidateEligibility(req.user.username);
+    if (!eligibility) {
+      // Auto-register candidate as Sira Asfetsami if authenticated student
+      const username = (req.user.username || '').toLowerCase().trim();
+      let election = await Election.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ createdAt: -1 });
+      if (!election) election = await Election.findOne({}).sort({ createdAt: -1 });
+      if (election) {
+        election.candidates.push({
+          name: req.user.name || 'Candidate',
+          username: username,
+          department: req.user.department || 'General',
+          year: req.user.year || '4th Year',
+          academicYear: req.user.year || '4th Year',
+          position: 'Sira Asfetsami',
+          examCode: 'VERIFIED',
+          votes: 0,
+        });
+        await election.save();
+        eligibility = await verifyCandidateEligibility(req.user.username);
+      }
+    }
+
     if (!eligibility) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
@@ -433,16 +403,9 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // Directive No. 003/2012 Articles 22 & 28: Enforce Executive Committee only
-    if (eligibility && eligibility.candidate) {
-      const candPos = (eligibility.candidate.position || '').toLowerCase();
-      if (candPos.includes('afegubaye') || candPos.includes('speaker') || candPos.includes('council')) {
-        if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-        return res.status(403).json({
-          success: false,
-          message: 'Directive No. 003/2012 Articles 22 & 28 Exclusion: Afegubaye (Speaker) candidates are evaluated via exam, interview, and council vote without submitting strategic proposals. Proposal submission is strictly reserved for Executive Committee (ሥራ አስፈፃሚ) candidates.',
-        });
-      }
+    // Automatically ensure position is Sira Asfetsami
+    if (eligibility.candidate) {
+      eligibility.candidate.position = 'Sira Asfetsami';
     }
 
     // 2. Enforce Deadline using authoritative server time

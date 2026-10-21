@@ -1219,10 +1219,10 @@ class ApiService {
     return this.request('/proposals/my-status');
   }
 
-  async verifyCandidateExamCode(examCode, position) {
+  async verifyCandidateExamCode(examCode, position = 'Sira Asfetsami') {
     return this.request('/proposals/verify-candidate', {
       method: 'POST',
-      body: JSON.stringify({ examCode, position }),
+      body: JSON.stringify({ examCode, position: position || 'Sira Asfetsami' }),
     });
   }
 

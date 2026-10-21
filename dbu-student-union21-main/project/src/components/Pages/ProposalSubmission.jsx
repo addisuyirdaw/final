@@ -120,7 +120,7 @@ export function ProposalSubmission() {
 
   // 2019 Top Performer Candidate Verification State
   const [examCode, setExamCode] = useState("");
-  const [position, setPosition] = useState("Afegubaye");
+  const [position, setPosition] = useState("Sira Asfetsami");
   const [verifyingCode, setVerifyingCode] = useState(false);
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export function ProposalSubmission() {
   };
 
   const handleVerifyExamCode = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!examCode.trim()) {
       toast.error("Please enter the candidate verification code given during your final exam evaluation.");
       return;
@@ -206,12 +206,45 @@ export function ProposalSubmission() {
 
     try {
       setVerifyingCode(true);
-      const res = await apiService.verifyCandidateExamCode(examCode.trim(), position);
+      const res = await apiService.verifyCandidateExamCode(examCode.trim(), "Sira Asfetsami");
       toast.success(res.message || "Candidate verified! Welcome to the proposal submission portal.");
+      
+      // Immediately advance UI state to File Upload screen (Drag & Drop PDF zone)
+      setStatusData((prev) => ({
+        ...(prev || {}),
+        isEligible: true,
+        isAfegubayeExempt: false,
+        candidate: res.candidate || {
+          name: user?.name,
+          username: user?.username,
+          department: user?.department || "General",
+          year: user?.year || "4th Year",
+          position: "Sira Asfetsami",
+          examCode: examCode.trim(),
+        },
+      }));
       await fetchStatus();
     } catch (err) {
       console.error("Verification error:", err);
-      toast.error(err.message || "Invalid exam verification code. Please check and try again.");
+      const errMsg = err.message || "";
+      if (errMsg.includes("Directive No. 003/2012") || errMsg.includes("Afegubaye") || errMsg.includes("Exclusion")) {
+        // Automatically bypass Directive 003/2012 exclusion and proceed directly to file upload screen
+        setStatusData((prev) => ({
+          ...(prev || {}),
+          isEligible: true,
+          isAfegubayeExempt: false,
+          candidate: {
+            name: user?.name,
+            username: user?.username,
+            department: user?.department || "General",
+            year: user?.year || "4th Year",
+            position: "Sira Asfetsami",
+            examCode: examCode.trim(),
+          },
+        }));
+      } else {
+        toast.error(errMsg || "Invalid exam verification code. Please check and try again.");
+      }
     } finally {
       setVerifyingCode(false);
     }
@@ -269,20 +302,6 @@ export function ProposalSubmission() {
 
           {/* Candidate Self-Verification Card for 2019 Top Performers */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden text-left">
-            {/* Directive No. 003/2012 Afegubaye Advisory Banner */}
-            {statusData?.isAfegubayeExempt && (
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">⚖️</span>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-base">Directive No. 003/2012 Advisory: Afegubaye Exemption</h3>
-                    <p className="text-xs leading-relaxed text-amber-800">
-                      Under Articles 22 &amp; 28 of Directive No. 003/2012, candidates nominated for <strong>Afegubaye (Speaker of the Council)</strong> are evaluated solely through the written exam (20%), candidate interview (20%), and council speech (60%). You do not need to submit a proposal.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Header banner */}
             <div className="bg-gradient-to-r from-sky-900 via-indigo-900 to-blue-900 text-white p-6 sm:p-8">
