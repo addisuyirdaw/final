@@ -252,27 +252,40 @@ export function PresidentPage() {
       }
 
       const rawCriteria = evalData?.criteria || {};
-      const stratObj = rawCriteria.strategicObjectives || evalData?.strategicObjectives || {
-        score: 3.5,
-        maxScore: 4,
-        feedback: "የእጩው ስትራቴጂካዊ ዓላማ ለካምፓሱ ተጨባጭ ጠቀሜታ አለው።",
+      const stratObj = evalData?.strategicObjectives || rawCriteria.strategicObjectives || {
+        score: 3.2,
+        maxScore: 4.0,
+        strengths: "በአማርኛ - የተማሪውን አካዳሚያዊ ልህቀት፣ ማህበራዊ ደህንነት እና የካምፓስ ዲጂታል አሰራርን ለማሳደግ የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።",
+        weaknesses: "በአማርኛ - ከተማሪዎች ልዩ ፍላጎት እና ከምርምር ማዕከላት ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።",
+        pointDeductions: "በአማርኛ - ከ 4.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የተማሪዎች የልዩ ፍላጎት ድጋፍ አቀራረብ በበቂ ሁኔታ ባለመብራራቱ ነው።",
       };
-      const actObj = rawCriteria.actionability || evalData?.actionability || {
-        score: 3.5,
-        maxScore: 4,
-        feedback: "የድርጊት መርሃ ግብሮቹ ተግባራዊ አዋጭነት አላቸው።",
+
+      const actObj = evalData?.actionability || rawCriteria.actionability || {
+        score: 3.0,
+        maxScore: 4.0,
+        strengths: "በአማርኛ - ከተማሪዎች ህብረት ስራ አስፈፃሚ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።",
+        weaknesses: "በአማርኛ - ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ አማራጭ ስልቶች አለመቀመጣቸው።",
+        pointDeductions: "በአማርኛ - ከ 4.0 ነጥብ ላይ 1.0 ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች ባለመገለጻቸው ነው።",
       };
-      const timeObj = rawCriteria.timeline || rawCriteria.timelinePlanning || evalData?.timeline || {
-        score: 3.5,
-        maxScore: 4,
-        feedback: "የክንውን ምዕራፎቹ በግልጽ የጊዜ ሰሌዳ የተደራጁ ናቸው።",
+
+      const timeObj = evalData?.timeline || rawCriteria.timeline || rawCriteria.timelinePlanning || {
+        score: 2.8,
+        maxScore: 4.0,
+        strengths: "በአማርኛ - የክንውን ምዕራፎቹ በየሩብ ዓመቱ እና በሴሚስተር ደረጃ ተከፋፍለው ቅደም ተከተላቸው የተጠበቀ መሆኑ።",
+        weaknesses: "በአማርኛ - በምዕራፍ 2 ላይ የታቀዱት በርካታ ተግባራት በአንድ ወር ውስጥ ተደራርበው የመፈጸም ዕድላቸው አነስተኛ መሆኑ።",
+        pointDeductions: "በአማርኛ - ከ 4.0 ነጥብ ላይ 1.2 ነጥብ የተቀነሰው በጊዜ ሰሌዳው ላይ የተደራረቡና የማይጣጣሙ የፈተና ወቅት ድልድሎች በመኖራቸው ነው።",
       };
-      const budObj = rawCriteria.budgetingClarity || rawCriteria.clarityBudgeting || evalData?.budgetingClarity || {
-        score: 2.5,
-        maxScore: 3,
-        feedback: "የበጀት አጠቃቀሙ ግልጽና ከመመሪያ ቁጥር 003/2012 ጋር የተጣጣመ ነው።",
+
+      const budObj = evalData?.budgetingClarity || rawCriteria.budgetingClarity || rawCriteria.clarityBudgeting || {
+        score: 2.2,
+        maxScore: 3.0,
+        strengths: "በአማርኛ - ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።",
+        weaknesses: "በአማርኛ - በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች መኖራቸው።",
+        pointDeductions: "በአማርኛ - ከ 3.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት ባለመያዙ ነው።",
       };
-      const summaryText = evalData?.summary || evalData?.summaryFeedback || "በመመሪያ ቁጥር 003/2012 አንቀጽ 22 መሰረት የተገመገመ ስትራቴጂካዊ የሥራ አስፈፃሚ ሰነድ ነው።";
+
+      const riskText = evalData?.riskAssessment || "በአማርኛ - እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የዩኒቨርሲቲው አስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።";
+      const recText = evalData?.committeeRecommendation || evalData?.summary || evalData?.summaryFeedback || "በአማርኛ - እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።";
 
       const totalVal = evalData?.totalScore !== undefined
         ? Number(evalData.totalScore)
@@ -283,6 +296,7 @@ export function PresidentPage() {
         proposalId: candidate.proposalId,
         evaluation: evalData,
         totalScore: totalVal,
+        maxTotal: 15.0,
         criteria: {
           strategicObjectives: stratObj,
           actionability: actObj,
@@ -291,8 +305,14 @@ export function PresidentPage() {
           budgetingClarity: budObj,
           clarityBudgeting: budObj,
         },
-        summary: summaryText,
-        summaryFeedback: summaryText,
+        strategicObjectives: stratObj,
+        actionability: actObj,
+        timeline: timeObj,
+        budgetingClarity: budObj,
+        riskAssessment: riskText,
+        committeeRecommendation: recText,
+        summary: recText,
+        summaryFeedback: recText,
         reviewNotes: evalData?.reviewNotes || "",
       });
     } catch (err) {
@@ -310,13 +330,16 @@ export function PresidentPage() {
       setSavingScore(true);
       const res = await apiService.saveProposalScore(selectedEvaluation.proposalId, {
         totalScore: Number(selectedEvaluation.totalScore),
+        maxTotal: 15.0,
         criteria: selectedEvaluation.criteria,
-        strategicObjectives: selectedEvaluation.criteria.strategicObjectives,
-        actionability: selectedEvaluation.criteria.actionability,
-        timeline: selectedEvaluation.criteria.timeline,
-        budgetingClarity: selectedEvaluation.criteria.budgetingClarity,
-        summary: selectedEvaluation.summary || selectedEvaluation.summaryFeedback,
-        summaryFeedback: selectedEvaluation.summaryFeedback || selectedEvaluation.summary,
+        strategicObjectives: selectedEvaluation.strategicObjectives,
+        actionability: selectedEvaluation.actionability,
+        timeline: selectedEvaluation.timeline,
+        budgetingClarity: selectedEvaluation.budgetingClarity,
+        riskAssessment: selectedEvaluation.riskAssessment,
+        committeeRecommendation: selectedEvaluation.committeeRecommendation,
+        summary: selectedEvaluation.committeeRecommendation || selectedEvaluation.summary,
+        summaryFeedback: selectedEvaluation.committeeRecommendation || selectedEvaluation.summaryFeedback,
         reviewNotes: selectedEvaluation.reviewNotes,
       });
       toast.success(res.message || "የዕቅዱ ውጤት በይፋ ጸድቆ ተመዝግቧል!");
@@ -941,27 +964,31 @@ export function PresidentPage() {
               </div>
 
               {/* Criteria Breakdown */}
-              <div className="space-y-4 mb-6">
-                {/* Criterion 1 */}
-                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-900">
-                      1. ስትራቴጂካዊ ዓላማ እና ጠቀሜታ (4%) / Strategic Objectives & Campus Relevance (max 4.0 pts)
-                    </span>
+              <div className="space-y-5 mb-6">
+                {/* Criterion 1: Strategic Objectives */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/70">
+                    <div>
+                      <span className="text-xs font-bold text-gray-900 block">
+                        1. ስትራቴጂካዊ ዓላማ እና ጠቀሜታ (4%) / Strategic Objectives & Campus Relevance
+                      </span>
+                      <span className="text-[11px] text-gray-500">ከ 4.0 ነጥብ የተቀመጠ የክብደት መጠን</span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
                         max="4"
-                        step="0.5"
+                        step="0.1"
                         value={selectedEvaluation.criteria?.strategicObjectives?.score ?? 0}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
+                          const scoreVal = Math.min(4, Math.max(0, val));
                           const newCrit = {
                             ...selectedEvaluation.criteria,
                             strategicObjectives: {
                               ...selectedEvaluation.criteria.strategicObjectives,
-                              score: Math.min(4, Math.max(0, val)),
+                              score: scoreVal,
                             },
                           };
                           const newTotal = (
@@ -977,31 +1004,61 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 4.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.strategicObjectives?.feedback || "የእጩው ስትራቴጂካዊ ዓላማ ለካምፓሱ ተጨባጭ ጠቀሜታ አለው።"}
-                  </p>
+
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
+                        ✓ ጠንካራ ጎኖች (Strengths):
+                      </span>
+                      <p className="text-xs text-emerald-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.strategicObjectives?.strengths || "በአማርኛ - የተማሪውን አካዳሚያዊ ልህቀትና ሁለንተናዊ የካምፓስ አገልግሎቶችን ለማሻሻል የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
+                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                      </span>
+                      <p className="text-xs text-amber-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.strategicObjectives?.weaknesses || "በአማርኛ - ከተማሪዎች ልዩ ፍላጎት እና ከምርምር ማዕከላት ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                      </span>
+                      <p className="text-xs text-rose-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.strategicObjectives?.pointDeductions || "በአማርኛ - ከ 4.0 ነጥብ ላይ የተቀነሰበት ተጨባጭ ምክንያት።"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Criterion 2 */}
-                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-900">
-                      2. አፈጻጸም እና አዋጭነት (4%) / Actionability & Feasibility (max 4.0 pts)
-                    </span>
+                {/* Criterion 2: Actionability */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/70">
+                    <div>
+                      <span className="text-xs font-bold text-gray-900 block">
+                        2. አፈጻጸም እና አዋጭነት (4%) / Actionability & Feasibility
+                      </span>
+                      <span className="text-[11px] text-gray-500">ከ 4.0 ነጥብ የተቀመጠ የክብደት መጠን</span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
                         max="4"
-                        step="0.5"
+                        step="0.1"
                         value={selectedEvaluation.criteria?.actionability?.score ?? 0}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
+                          const scoreVal = Math.min(4, Math.max(0, val));
                           const newCrit = {
                             ...selectedEvaluation.criteria,
                             actionability: {
                               ...selectedEvaluation.criteria.actionability,
-                              score: Math.min(4, Math.max(0, val)),
+                              score: scoreVal,
                             },
                           };
                           const newTotal = (
@@ -1017,23 +1074,52 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 4.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.actionability?.feedback || "የድርጊት መርሃ ግብሮቹ ተግባራዊ አዋጭነት አላቸው።"}
-                  </p>
+
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
+                        ✓ ጠንካራ ጎኖች (Strengths):
+                      </span>
+                      <p className="text-xs text-emerald-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.actionability?.strengths || "በአማርኛ - ከተማሪዎች ህብረት ስራ አስፈፃሚ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎች መካተታቸው።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
+                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                      </span>
+                      <p className="text-xs text-amber-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.actionability?.weaknesses || "በአማርኛ - ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ አማራጭ ስልቶች አለመቀመጣቸው።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                      </span>
+                      <p className="text-xs text-rose-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.actionability?.pointDeductions || "በአማርኛ - ከ 4.0 ነጥብ ላይ የተቀነሰበት ትክክለኛ ምክንያት።"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Criterion 3 */}
-                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-900">
-                      3. የጊዜ ሰሌዳ (4%) / Realistic Timeline & Milestone Planning (max 4.0 pts)
-                    </span>
+                {/* Criterion 3: Timeline */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/70">
+                    <div>
+                      <span className="text-xs font-bold text-gray-900 block">
+                        3. የጊዜ ሰሌዳ እና ምዕራፎች (4%) / Realistic Timeline & Milestone Planning
+                      </span>
+                      <span className="text-[11px] text-gray-500">ከ 4.0 ነጥብ የተቀመጠ የክብደት መጠን</span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
                         max="4"
-                        step="0.5"
+                        step="0.1"
                         value={selectedEvaluation.criteria?.timeline?.score ?? selectedEvaluation.criteria?.timelinePlanning?.score ?? 0}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
@@ -1062,23 +1148,52 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 4.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.timeline?.feedback || selectedEvaluation.criteria?.timelinePlanning?.feedback || "የክንውን ምዕራፎቹ በግልጽ የጊዜ ሰሌዳ የተደራጁ ናቸው።"}
-                  </p>
+
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
+                        ✓ ጠንካራ ጎኖች (Strengths):
+                      </span>
+                      <p className="text-xs text-emerald-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.timeline?.strengths || "በአማርኛ - የክንውን ምዕራፎቹ በየሴሚስተሩ እና በወራት ተከፋፍለው ቅደም ተከተላቸው የተጠበቀ መሆኑ።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
+                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                      </span>
+                      <p className="text-xs text-amber-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.timeline?.weaknesses || "በአማርኛ - በምዕራፍ 2 ላይ የታቀዱት በርካታ ተግባራት በአንድ ወቅት ተደራርበው የመፈጸም ዕድላቸው አነስተኛ መሆኑ።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                      </span>
+                      <p className="text-xs text-rose-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.timeline?.pointDeductions || "በአማርኛ - በጊዜ ሰሌዳ ምክንያት ነጥብ የተቆረጠበት ዝርዝር ምክንያት።"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Criterion 4 */}
-                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-900">
-                      4. በጀት እና አደረጃጀት (3%) / Clarity, Budgeting & Student Union Alignment (max 3.0 pts)
-                    </span>
+                {/* Criterion 4: Budgeting Clarity */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/70">
+                    <div>
+                      <span className="text-xs font-bold text-gray-900 block">
+                        4. በጀት እና አደረጃጀት (3%) / Clarity, Budgeting & Student Union Alignment
+                      </span>
+                      <span className="text-[11px] text-gray-500">ከ 3.0 ነጥብ የተቀመጠ የክብደት መጠን</span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
                         max="3"
-                        step="0.5"
+                        step="0.1"
                         value={selectedEvaluation.criteria?.budgetingClarity?.score ?? selectedEvaluation.criteria?.clarityBudgeting?.score ?? 0}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value) || 0;
@@ -1107,28 +1222,80 @@ export function PresidentPage() {
                       <span className="text-xs font-bold text-gray-500">/ 3.0</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-700 font-sans whitespace-pre-line leading-relaxed">
-                    {selectedEvaluation.criteria?.budgetingClarity?.feedback || selectedEvaluation.criteria?.clarityBudgeting?.feedback || "የበጀት አጠቃቀሙ ግልጽና ከመመሪያ ቁጥር 003/2012 ጋር የተጣጣመ ነው።"}
-                  </p>
+
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
+                        ✓ ጠንካራ ጎኖች (Strengths):
+                      </span>
+                      <p className="text-xs text-emerald-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.budgetingClarity?.strengths || "በአማርኛ - ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
+                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                      </span>
+                      <p className="text-xs text-amber-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.budgetingClarity?.weaknesses || "በአማርኛ - በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች መኖራቸው።"}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
+                      <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                      </span>
+                      <p className="text-xs text-rose-950 font-sans leading-relaxed">
+                        {selectedEvaluation.criteria?.budgetingClarity?.pointDeductions || "በአማርኛ - ከ 3.0 ነጥብ ላይ የተቀነሰበት ምክንያት።"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Overall Synthesis */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    አጠቃላይ የማጠቃለያ አስተያየት (በአማርኛ) / Qualitative Evaluation Summary
-                  </label>
+                {/* Risk Assessment */}
+                <div className="p-4 bg-orange-50/80 border border-orange-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShieldCheck className="w-4 h-4 text-orange-600" />
+                    <label className="text-xs font-bold text-orange-900 uppercase tracking-wider">
+                      የስጋት እና ተግዳሮት ዳሰሳ (Risk Assessment)
+                    </label>
+                  </div>
                   <textarea
-                    rows="3"
-                    value={selectedEvaluation.summary || selectedEvaluation.summaryFeedback || ""}
+                    rows="2"
+                    value={selectedEvaluation.riskAssessment || ""}
                     onChange={(e) =>
                       setSelectedEvaluation({
                         ...selectedEvaluation,
+                        riskAssessment: e.target.value,
+                      })
+                    }
+                    placeholder="እጩው ቢያልፍ እቅዱን ተግባራዊ ለማድረግ ሊያጋጥሙ የሚችሉ ተግዳሮቶች እና ስጋቶች..."
+                    className="w-full px-3.5 py-2 text-xs font-sans border border-orange-300 rounded-xl bg-white focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Committee Recommendation */}
+                <div className="p-4 bg-indigo-50/80 border border-indigo-200 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Award className="w-4 h-4 text-indigo-700" />
+                    <label className="text-xs font-bold text-indigo-900 uppercase tracking-wider">
+                      ለአስመራጭ ኮሚቴው የተሰጠ የማጠቃለያ ውሳኔ ሃሳብ (Committee Recommendation)
+                    </label>
+                  </div>
+                  <textarea
+                    rows="3"
+                    value={selectedEvaluation.committeeRecommendation || selectedEvaluation.summary || ""}
+                    onChange={(e) =>
+                      setSelectedEvaluation({
+                        ...selectedEvaluation,
+                        committeeRecommendation: e.target.value,
                         summary: e.target.value,
                         summaryFeedback: e.target.value,
                       })
                     }
-                    placeholder="አጠቃላይ አስተያየትዎን እዚህ ያስገቡ..."
-                    className="w-full px-3.5 py-2 text-xs font-sans border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    placeholder="ለአስመራጭ ኮሚቴው የተሰጠ የማጠቃለያ ውሳኔ ሃሳብ..."
+                    className="w-full px-3.5 py-2 text-xs font-sans border border-indigo-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>

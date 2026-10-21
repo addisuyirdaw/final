@@ -100,8 +100,12 @@ export function ProposalSubmission() {
   const handleVerify = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    const cleanStudentId = studentIdInput.trim();
-    const cleanExamCode = examCode.trim();
+    // 1. Normalize user inputs: trim whitespace and handle both 'DBU...' and raw numbers
+    const rawExamCode = String(examCode || "").trim();
+    const rawStudentId = String(studentIdInput || "").trim();
+
+    const cleanExamCode = rawExamCode.replace(/^0+/, "") || rawExamCode; // '02' -> '2'
+    const cleanStudentId = rawStudentId.toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, "").trim(); // 'dbu1801228' -> '1801228'
 
     if (!cleanStudentId) {
       toast.error("እባክዎ የተማሪ መታወቂያ ቁጥርዎን ያስገቡ (Please enter University Student ID)");
@@ -111,6 +115,11 @@ export function ProposalSubmission() {
       toast.error("እባክዎ የፈተና መለያ ኮድዎን ያስገቡ (Please enter Candidate Exam Code)");
       return;
     }
+
+    // 2. Clear any stale local state before new verification
+    setCandidate(null);
+    setReceipt(null);
+    setFile(null);
 
     try {
       setVerifying(true);
