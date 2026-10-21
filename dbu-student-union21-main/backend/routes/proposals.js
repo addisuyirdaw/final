@@ -715,63 +715,58 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
       });
     }
 
-    // Seamless unauthenticated candidate login support:
-    let sessionToken = null;
-    if (!req.user) {
-      let candidateUser = await User.findOne({
-        $or: [
-          { username: verifiedStudentId },
-          { username: `dbu${verifiedStudentId}` },
-          { studentId: verifiedStudentId },
-        ],
+    // 1. Always resolve or create the genuine User account for this verified candidate studentId
+    let candidateUser = await User.findOne({
+      $or: [
+        { studentId: verifiedStudentId },
+        { studentId: `DBU${verifiedStudentId}` },
+        { username: verifiedStudentId.toLowerCase() },
+        { username: `dbu${verifiedStudentId.toLowerCase()}` },
+      ],
+    });
+
+    if (!candidateUser) {
+      candidateUser = await User.create({
+        name: candidate.name || candidate.candidateName || `Candidate (Code ${canonicalCode})`,
+        username: `dbu${verifiedStudentId.toLowerCase()}`,
+        studentId: verifiedStudentId,
+        password: `DBU_${verifiedStudentId}!2026`,
+        department: candidate.department || '',
+        year: candidate.year || '',
+        role: 'student',
       });
-      if (!candidateUser) {
-        candidateUser = await User.create({
-          name: candidate.name || candidate.candidateName || `Candidate (Code ${canonicalCode})`,
-          username: `dbu${verifiedStudentId}`,
-          studentId: verifiedStudentId,
-          password: `DBU_${verifiedStudentId}!2026`,
-          department: candidate.department || 'General',
-          year: '4th Year',
-          role: 'student',
-        });
-      }
-      req.user = candidateUser;
-      sessionToken = jwt.sign({ id: candidateUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     }
 
-    const username = (req.user.username || '').toLowerCase().trim();
+    req.user = candidateUser;
+    const sessionToken = jwt.sign({ id: candidateUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const username = (candidateUser.username || '').toLowerCase().trim();
 
-    // 2. Strict Candidate-to-StudentID mapping & Anti-hijacking checks
+    // 2. Strict Anti-hijacking checks:
+    // Ensure this exam code has not been claimed by a DIFFERENT student ID
     const existingClaimProposal = await Proposal.findOne({
-      $or: [
-        { candidateExamCode: canonicalCode },
-        { studentId: verifiedStudentId },
-      ],
-      candidateUsername: { $ne: username },
+      candidateExamCode: canonicalCode,
     });
     if (existingClaimProposal) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized. This exam code or student ID has already been claimed by another registered candidate.',
-      });
+      const existingCleanId = String(existingClaimProposal.studentId || '').trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '');
+      if (existingCleanId && existingCleanId !== verifiedStudentId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized. This exam code has been claimed by a different student ID.',
+        });
+      }
     }
 
     const electionsWithCandidate = await Election.find({
-      $or: [
-        { 'candidates.examCode': canonicalCode },
-        { 'candidates.studentId': verifiedStudentId },
-      ],
+      'candidates.examCode': canonicalCode,
     });
     for (const elec of electionsWithCandidate) {
       for (const cand of elec.candidates) {
-        if (
-          (cand.examCode === canonicalCode || cand.studentId === verifiedStudentId) &&
-          (cand.username || '').toLowerCase() !== username
-        ) {
+        const candExam = String(cand.examCode || '').trim().replace(/^0+/, '');
+        const candId = String(cand.studentId || '').trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '');
+        if (candExam === cleanExamCode && candId && candId !== verifiedStudentId) {
           return res.status(403).json({
             success: false,
-            message: 'Unauthorized. This exam code or student ID has already been claimed by another registered candidate.',
+            message: 'Unauthorized. This exam code is registered under a different student ID.',
           });
         }
       }
@@ -792,31 +787,35 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
         endDate: new Date(Date.now() + 86400000 * 30),
         status: 'active',
         candidates: [],
-        createdBy: req.user._id,
+        createdBy: candidateUser._id,
       });
     }
 
-    const candidateYear = (req.user.year && ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'].includes(req.user.year))
-      ? req.user.year
-      : '4th Year';
+    const candidateYear = (candidateUser.year && ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'].includes(candidateUser.year))
+      ? candidateUser.year
+      : '';
 
     const existingIndex = election.candidates.findIndex(
-      (c) => (c.username || '').toLowerCase() === username
+      (c) => (c.username || '').toLowerCase() === username ||
+             String(c.examCode).trim() === canonicalCode ||
+             String(c.studentId).trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '') === verifiedStudentId
     );
 
     if (existingIndex >= 0) {
+      election.candidates[existingIndex].name = candidateUser.name || election.candidates[existingIndex].name;
+      election.candidates[existingIndex].username = username;
       election.candidates[existingIndex].position = chosenPosition;
       election.candidates[existingIndex].examCode = canonicalCode;
       election.candidates[existingIndex].studentId = verifiedStudentId;
       election.candidates[existingIndex].academicYear = candidateYear;
       election.candidates[existingIndex].year = candidateYear;
-      election.candidates[existingIndex].department = req.user.department || election.candidates[existingIndex].department || 'General';
+      if (candidateUser.department) election.candidates[existingIndex].department = candidateUser.department;
     } else {
       election.candidates.push({
-        name: req.user.name || 'Candidate',
+        name: candidateUser.name || 'Candidate',
         username: username,
         studentId: verifiedStudentId,
-        department: req.user.department || 'General',
+        department: candidateUser.department || '',
         year: candidateYear,
         academicYear: candidateYear,
         position: chosenPosition,
@@ -827,7 +826,15 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
 
     await election.save();
 
-    const candidateRecord = election.candidates.find((c) => (c.username || '').toLowerCase() === username);
+    const candidateRecord =
+      election.candidates.find((c) => (c.username || '').toLowerCase() === username) ||
+      election.candidates.find((c) => String(c.examCode).trim() === canonicalCode) ||
+      election.candidates[existingIndex] || {
+        _id: candidateUser._id,
+        name: candidateUser.name,
+        username: candidateUser.username,
+        studentId: verifiedStudentId,
+      };
 
     const existingProposal = await Proposal.findOne({
       $or: [

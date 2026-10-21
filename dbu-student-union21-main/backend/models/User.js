@@ -48,13 +48,12 @@ const userSchema = new mongoose.Schema(
 		},
 		department: {
 			type: String,
-			required: [true, "Please provide your department"],
 			trim: true,
+			default: "",
 		},
 		year: {
 			type: String,
-			required: [true, "Please provide your academic year"],
-			enum: ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"],
+			default: "",
 		},
 		isAdmin: {
 			type: Boolean,
