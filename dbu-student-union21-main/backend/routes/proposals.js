@@ -1196,6 +1196,7 @@ router.get('/download/:proposalId', optionalProtect, async (req, res) => {
 // ============================================================================
 const handlePresidentDashboard = async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     // 1. Ensure Candidate 20 proposal is seeded
     await ensureCandidate20Seeded();
 
