@@ -257,37 +257,37 @@ export function PresidentPage() {
       const stratObj = evalData?.strategicObjectives || rawCriteria.strategicObjectives || {
         score: 3.2,
         maxScore: 4.0,
-        strengths: "በአማርኛ - የተማሪውን አካዳሚያዊ ልህቀት፣ ማህበራዊ ደህንነት እና የካምፓስ ዲጂታል አሰራርን ለማሳደግ የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።",
-        weaknesses: "በአማርኛ - ከተማሪዎች ልዩ ፍላጎት እና ከምርምር ማዕከላት ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።",
-        pointDeductions: "በአማርኛ - ከ 4.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የተማሪዎች የልዩ ፍላጎት ድጋፍ አቀራረብ በበቂ ሁኔታ ባለመብራራቱ ነው።",
+        strengths: "የተማሪውን አካዳሚያዊ ልህቀትና ሁለንተናዊ የካምፓስ አገልግሎቶችን ለማሻሻል የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።",
+        weaknesses: "ከተማሪዎች ልዩ ፍላጎት፣ ከአካል ጉዳተኞች ተደራሽነትና ከሴቶች ተሳትፎ (33% ኮታ) ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።",
+        pointDeductions: "ከ 4.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የተማሪዎች የልዩ ፍላጎት ድጋፍ አቀራረብ በበቂ ሁኔታ ባለመብራራቱ ነው።",
       };
 
       const actObj = evalData?.actionability || rawCriteria.actionability || {
         score: 3.0,
         maxScore: 4.0,
-        strengths: "በአማርኛ - ከተማሪዎች ህብረት ስራ አስፈፃሚ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።",
-        weaknesses: "በአማርኛ - ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ አማራጭ ስልቶች አለመቀመጣቸው።",
-        pointDeductions: "በአማርኛ - ከ 4.0 ነጥብ ላይ 1.0 ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች ባለመገለጻቸው ነው።",
+        strengths: "ከተማሪዎች ህብረት ስራ አስፈፃሚ ህጋዊ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።",
+        weaknesses: "ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ ተለዋዋጭ አማራጭ ስልቶች አለመቀመጣቸው።",
+        pointDeductions: "ከ 4.0 ነጥብ ላይ 1.0 ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች ባለመገለጻቸው ነው።",
       };
 
       const timeObj = evalData?.timeline || rawCriteria.timeline || rawCriteria.timelinePlanning || {
         score: 2.8,
         maxScore: 4.0,
-        strengths: "በአማርኛ - የክንውን ምዕራፎቹ በየሩብ ዓመቱ እና በሴሚስተር ደረጃ ተከፋፍለው ቅደም ተከተላቸው የተጠበቀ መሆኑ።",
-        weaknesses: "በአማርኛ - በምዕራፍ 2 ላይ የታቀዱት በርካታ ተግባራት በአንድ ወር ውስጥ ተደራርበው የመፈጸም ዕድላቸው አነስተኛ መሆኑ።",
-        pointDeductions: "በአማርኛ - ከ 4.0 ነጥብ ላይ 1.2 ነጥብ የተቀነሰው በጊዜ ሰሌዳው ላይ የተደራረቡና የማይጣጣሙ የፈተና ወቅት ድልድሎች በመኖራቸው ነው።",
+        strengths: "የመጀመሪያዎቹ 100 ቀናት የትኩረት አቅጣጫዎች እና የሩብ ዓመት ምዕራፎች ቅደም ተከተል መጠበቁ።",
+        weaknesses: "በጊዜ ሰሌዳው ውስጥ የተማሪዎች የመካከለኛና የማጠቃለያ ፈተና ወቅቶች ከግምት ባለመግባታቸውና የፈተና ወቅት ማካካሻ እቅድ ባለመቀመጡ።",
+        pointDeductions: "ከ 4.0 ነጥብ ላይ 1.2 ነጥብ የተቀነሰው በጊዜ ሰሌዳው ላይ የተደራረቡና ከፈተና ወቅት ጋር የማይጣጣሙ ድልድሎች በመኖራቸው ነው።",
       };
 
       const budObj = evalData?.budgetingClarity || rawCriteria.budgetingClarity || rawCriteria.clarityBudgeting || {
         score: 2.2,
         maxScore: 3.0,
-        strengths: "በአማርኛ - ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።",
-        weaknesses: "በአማርኛ - በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች መኖራቸው።",
-        pointDeductions: "በአማርኛ - ከ 3.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት ባለመያዙ ነው።",
+        strengths: "ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የውስጥ ኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።",
+        weaknesses: "በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና የህብረቱ ውስጣዊ የኦዲት ስርዓት በዝርዝር አለመብራራቱ።",
+        pointDeductions: "ከ 3.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት ባለመያዙ ነው።",
       };
 
-      const riskText = evalData?.riskAssessment || "በአማርኛ - እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የዩኒቨርሲቲው አስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።";
-      const recText = evalData?.committeeRecommendation || evalData?.summary || evalData?.summaryFeedback || "በአማርኛ - እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።";
+      const riskText = evalData?.riskAssessment || "እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የዩኒቨርሲቲው አስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።";
+      const recText = evalData?.committeeRecommendation || evalData?.summary || evalData?.summaryFeedback || "እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።";
 
       const totalVal = evalData?.totalScore !== undefined
         ? Number(evalData.totalScore)
@@ -946,9 +946,16 @@ export function PresidentPage() {
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">የዕቅድ ግምገማ እና የውጤት ማረጋገጫ (Directive 003/2012 Art. 22)</h3>
-                  <p className="text-xs text-gray-500">
-                    ዕጩ ተወዳዳሪ፡ <span className="font-bold text-gray-800">{selectedEvaluation.candidate.name}</span> &bull; የፈተና ኮድ፡ <span className="font-mono font-bold text-indigo-700">Code {selectedEvaluation.candidate.examCode}</span> &bull; መታወቂያ፡ <span className="font-mono font-bold text-indigo-700">{selectedEvaluation.candidate.studentId || selectedEvaluation.candidate.username}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-900">የዕቅድ ግምገማ እና የውጤት ማረጋገጫ (Directive 003/2012 Art. 22)</h3>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-sm">
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                      Double-Blind Evaluated (Directive 003/2012 Art. 22)
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    የተገመገመው እጩ፡ <span className="font-mono font-bold text-indigo-800">Candidate (Code {selectedEvaluation.candidate.examCode || selectedEvaluation.candidateExamCode || 'XX'})</span>
+                    <span className="ml-2 text-[11px] text-gray-400 font-sans">(ስም እና መታወቂያ በገለልተኝነት የተሰወረ / Identity Blinded)</span>
                   </p>
                 </div>
               </div>
@@ -1014,28 +1021,28 @@ export function PresidentPage() {
                   <div className="space-y-2">
                     <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
                       <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
-                        ✓ ጠንካራ ጎኖች (Strengths):
+                        ✓ ጠንካራ ጎኖች (STRENGTHS)
                       </span>
                       <p className="text-xs text-emerald-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.strategicObjectives?.strengths || "በአማርኛ - የተማሪውን አካዳሚያዊ ልህቀትና ሁለንተናዊ የካምፓስ አገልግሎቶችን ለማሻሻል የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።"}
+                        {selectedEvaluation.criteria?.strategicObjectives?.strengths || "የተማሪውን አካዳሚያዊ ልህቀትና ሁለንተናዊ የካምፓስ አገልግሎቶችን ለማሻሻል የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
                       <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
-                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                        ⚠️ ክፍተቶች እና ጉድለቶች (WEAKNESSES)
                       </span>
                       <p className="text-xs text-amber-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.strategicObjectives?.weaknesses || "በአማርኛ - ከተማሪዎች ልዩ ፍላጎት እና ከምርምር ማዕከላት ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።"}
+                        {selectedEvaluation.criteria?.strategicObjectives?.weaknesses || "ከተማሪዎች ልዩ ፍላጎት፣ ከአካል ጉዳተኞች ተደራሽነትና ከሴቶች ተሳትፎ (33% ኮታ) ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
                       <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
-                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (POINT DEDUCTIONS)
                       </span>
                       <p className="text-xs text-rose-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.strategicObjectives?.pointDeductions || "በአማርኛ - ከ 4.0 ነጥብ ላይ የተቀነሰበት ተጨባጭ ምክንያት።"}
+                        {selectedEvaluation.criteria?.strategicObjectives?.pointDeductions || "ከ 4.0 ነጥብ ላይ የተቀነሰበት ተጨባጭ ምክንያት።"}
                       </p>
                     </div>
                   </div>
@@ -1084,28 +1091,28 @@ export function PresidentPage() {
                   <div className="space-y-2">
                     <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
                       <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
-                        ✓ ጠንካራ ጎኖች (Strengths):
+                        ✓ ጠንካራ ጎኖች (STRENGTHS)
                       </span>
                       <p className="text-xs text-emerald-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.actionability?.strengths || "በአማርኛ - ከተማሪዎች ህብረት ስራ አስፈፃሚ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎች መካተታቸው።"}
+                        {selectedEvaluation.criteria?.actionability?.strengths || "ከተማሪዎች ህብረት ስራ አስፈፃሚ ህጋዊ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
                       <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
-                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                        ⚠️ ክፍተቶች እና ጉድለቶች (WEAKNESSES)
                       </span>
                       <p className="text-xs text-amber-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.actionability?.weaknesses || "በአማርኛ - ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ አማራጭ ስልቶች አለመቀመጣቸው።"}
+                        {selectedEvaluation.criteria?.actionability?.weaknesses || "ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ ተለዋዋጭ አማራጭ ስልቶች አለመቀመጣቸው።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
                       <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
-                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (POINT DEDUCTIONS)
                       </span>
                       <p className="text-xs text-rose-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.actionability?.pointDeductions || "በአማርኛ - ከ 4.0 ነጥብ ላይ የተቀነሰበት ትክክለኛ ምክንያት።"}
+                        {selectedEvaluation.criteria?.actionability?.pointDeductions || "ከ 4.0 ነጥብ ላይ የተቀነሰበት ትክክለኛ ምክንያት።"}
                       </p>
                     </div>
                   </div>
@@ -1158,28 +1165,28 @@ export function PresidentPage() {
                   <div className="space-y-2">
                     <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
                       <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
-                        ✓ ጠንካራ ጎኖች (Strengths):
+                        ✓ ጠንካራ ጎኖች (STRENGTHS)
                       </span>
                       <p className="text-xs text-emerald-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.timeline?.strengths || "በአማርኛ - የክንውን ምዕራፎቹ በየሴሚስተሩ እና በወራት ተከፋፍለው ቅደም ተከተላቸው የተጠበቀ መሆኑ።"}
+                        {selectedEvaluation.criteria?.timeline?.strengths || "የመጀመሪያዎቹ 100 ቀናት የትኩረት አቅጣጫዎች እና የሩብ ዓመት ምዕራፎች ቅደም ተከተል መጠበቁ።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
                       <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
-                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                        ⚠️ ክፍተቶች እና ጉድለቶች (WEAKNESSES)
                       </span>
                       <p className="text-xs text-amber-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.timeline?.weaknesses || "በአማርኛ - በምዕራፍ 2 ላይ የታቀዱት በርካታ ተግባራት በአንድ ወቅት ተደራርበው የመፈጸም ዕድላቸው አነስተኛ መሆኑ።"}
+                        {selectedEvaluation.criteria?.timeline?.weaknesses || "በጊዜ ሰሌዳው ውስጥ የተማሪዎች የመካከለኛና የማጠቃለያ ፈተና ወቅቶች ከግምት ባለመግባታቸውና የፈተና ወቅት ማካካሻ እቅድ ባለመቀመጡ።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
                       <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
-                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (POINT DEDUCTIONS)
                       </span>
                       <p className="text-xs text-rose-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.timeline?.pointDeductions || "በአማርኛ - በጊዜ ሰሌዳ ምክንያት ነጥብ የተቆረጠበት ዝርዝር ምክንያት።"}
+                        {selectedEvaluation.criteria?.timeline?.pointDeductions || "ከ 4.0 ነጥብ ላይ የተቀነሰበት ዝርዝር ምክንያት።"}
                       </p>
                     </div>
                   </div>
@@ -1232,28 +1239,28 @@ export function PresidentPage() {
                   <div className="space-y-2">
                     <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl">
                       <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
-                        ✓ ጠንካራ ጎኖች (Strengths):
+                        ✓ ጠንካራ ጎኖች (STRENGTHS)
                       </span>
                       <p className="text-xs text-emerald-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.budgetingClarity?.strengths || "በአማርኛ - ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።"}
+                        {selectedEvaluation.criteria?.budgetingClarity?.strengths || "ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የውስጥ ኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl">
                       <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-0.5">
-                        ⚠ ክፍተቶች እና ጉድለቶች (Weaknesses):
+                        ⚠️ ክፍተቶች እና ጉድለቶች (WEAKNESSES)
                       </span>
                       <p className="text-xs text-amber-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.budgetingClarity?.weaknesses || "በአማርኛ - በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች መኖራቸው።"}
+                        {selectedEvaluation.criteria?.budgetingClarity?.weaknesses || "በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና የህብረቱ ውስጣዊ የኦዲት ስርዓት በዝርዝር አለመብራራቱ።"}
                       </p>
                     </div>
 
                     <div className="p-2.5 bg-rose-50/80 border border-rose-200 rounded-xl">
                       <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-0.5">
-                        ✕ ነጥብ የተቀነሰበት ምክንያት (Point Deductions):
+                        ✕ ነጥብ የተቀነሰበት ምክንያት (POINT DEDUCTIONS)
                       </span>
                       <p className="text-xs text-rose-950 font-sans leading-relaxed">
-                        {selectedEvaluation.criteria?.budgetingClarity?.pointDeductions || "በአማርኛ - ከ 3.0 ነጥብ ላይ የተቀነሰበት ምክንያት።"}
+                        {selectedEvaluation.criteria?.budgetingClarity?.pointDeductions || "ከ 3.0 ነጥብ ላይ የተቀነሰበት ምክንያት።"}
                       </p>
                     </div>
                   </div>

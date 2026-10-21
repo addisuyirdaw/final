@@ -135,6 +135,9 @@ const proposalSchema = new mongoose.Schema(
     evaluation: {
       totalScore: { type: Number, min: 0, max: 15 },
       maxTotal: { type: Number, default: 15.0 },
+      isDoubleBlind: { type: Boolean, default: true },
+      evaluationToken: { type: String, default: '' },
+      rubricVersion: { type: String, default: 'Directive 003/2012 Art. 22 (Calibrated 4-Tier)' },
       strategicObjectives: {
         score: { type: Number, default: 0 },
         maxScore: { type: Number, default: 4 },

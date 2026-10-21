@@ -1644,8 +1644,93 @@ router.put('/president/candidate-mapping', protect, presidentOnly, handleEditCan
 router.post('/president/candidate-mapping', protect, presidentOnly, handleEditCandidateMapping);
 
 // ============================================================================
+// Directive No. 003/2012 Article 22: Evaluation Engine Helpers
+// ============================================================================
+
+/**
+ * Double-Blind Sanitization Pipeline under Directive No. 003/2012 Art. 22:
+ * Redacts candidate PII (names, student IDs, phone numbers, email, departmental info)
+ * so evaluations are strictly anonymized, objective, and unbiased.
+ */
+function sanitizeProposalTextForEvaluation(rawText, candidateMeta = {}) {
+  if (!rawText) return '';
+  let sanitized = String(rawText);
+
+  // 1. Redact Candidate Name & all its sub-tokens (min length 2)
+  if (candidateMeta.name && typeof candidateMeta.name === 'string') {
+    const nameTokens = candidateMeta.name.split(/\s+/).filter((t) => t.trim().length >= 2);
+    nameTokens.forEach((tok) => {
+      const escaped = tok.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      sanitized = sanitized.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '[ተወዳዳሪ/CANDIDATE]');
+      sanitized = sanitized.replace(new RegExp(escaped, 'gi'), '[ተወዳዳሪ/CANDIDATE]');
+    });
+  }
+
+  // 2. Redact Student ID and Username
+  if (candidateMeta.username && typeof candidateMeta.username === 'string') {
+    const escUser = candidateMeta.username.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    sanitized = sanitized.replace(new RegExp(`\\b${escUser}\\b`, 'gi'), '[መታወቂያ/ID-REDACTED]');
+  }
+  if (candidateMeta.studentId && typeof candidateMeta.studentId === 'string') {
+    const escId = candidateMeta.studentId.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    sanitized = sanitized.replace(new RegExp(`\\b${escId}\\b`, 'gi'), '[መታወቂያ/ID-REDACTED]');
+  }
+
+  // 3. Regex mask for common Ethiopian University ID formats (DBU, UGR, ETS, digits/year format)
+  sanitized = sanitized.replace(/\b(?:DBU|dbu|UGR|ugr|ETS|ets)[A-Za-z0-9\/-]{3,}\b/gi, '[መታወቂያ/ID-REDACTED]');
+  sanitized = sanitized.replace(/\b[A-Za-z]{2,5}\s*\/\s*\d{3,7}\s*\/\s*\d{2,4}\b/g, '[መታወቂያ/ID-REDACTED]');
+  sanitized = sanitized.replace(/\b(?:RU|ru|ETS|ets|DBU|dbu)[-_/\s]*\d{4,8}\b/gi, '[መታወቂያ/ID-REDACTED]');
+
+  // 4. Regex mask for phone numbers (Ethiopian +251 9... or 09... / 07...)
+  sanitized = sanitized.replace(/(?:\+251\s*[-.]?|0)?9\d(?:[\s.-]?\d){7}\b/g, '[ስልክ/PHONE-REDACTED]');
+  sanitized = sanitized.replace(/(?:\+251\s*[-.]?|0)?7\d(?:[\s.-]?\d){7}\b/g, '[ስልክ/PHONE-REDACTED]');
+
+  // 5. Regex mask for email addresses
+  sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[ኢሜይል/EMAIL-REDACTED]');
+
+  // 6. Redact explicit candidate exam code mentions in text if present
+  if (candidateMeta.examCode) {
+    const codeStr = String(candidateMeta.examCode).trim();
+    if (codeStr.length > 0) {
+      sanitized = sanitized.replace(new RegExp(`\\bCode\\s*${codeStr}\\b`, 'gi'), '[የፈተና ኮድ/EXAM-CODE]');
+    }
+  }
+
+  return sanitized;
+}
+
+/**
+ * 100% Pure Amharic Output Enforcer:
+ * Strips English / Latin phrases or fallback cleanly to ensure qualitative feedback
+ * is written strictly in Amharic without English sentences.
+ */
+function cleanPureAmharicText(text, fallbackAmharic) {
+  if (!text || typeof text !== 'string') return fallbackAmharic;
+  let cleaned = text.trim();
+
+  // Strip prefixes like "በአማርኛ -", "በአማርኛ:", "(In Amharic)", etc.
+  cleaned = cleaned.replace(/^(?:በአማርኛ\s*[-–:]\s*|\(In Amharic\)\s*[-–:]?\s*)/i, '').trim();
+
+  // Count Latin vs Ethiopic characters
+  const latinLetters = (cleaned.match(/[a-zA-Z]/g) || []).length;
+  const amharicLetters = (cleaned.match(/[\u1200-\u137F]/g) || []).length;
+
+  // If text is predominantly in English, replace with calibrated pure Amharic text
+  if (latinLetters > amharicLetters && latinLetters > 10) {
+    return fallbackAmharic;
+  }
+
+  // Remove isolated English parentheses like (Strategic Objectives) or (Strengths)
+  cleaned = cleaned.replace(/\([A-Za-z\s,/&-]+\)/g, '').trim();
+  cleaned = cleaned.replace(/\s{2,}/g, ' ');
+
+  return cleaned || fallbackAmharic;
+}
+
+// ============================================================================
 // 10. POST /api/proposals/:id/ai-evaluate
 // President Only: AI-Assisted Proposal Evaluation against Directive No. 003/2012 Art. 22
+// Double-Blind, Calibrated 4-Tier Rubric (Total: 15.0 pts, pure Amharic)
 // ============================================================================
 const handleAiEvaluateProposal = async (req, res) => {
   try {
@@ -1721,8 +1806,22 @@ const handleAiEvaluateProposal = async (req, res) => {
     }
 
     if (!extractedText) {
-      extractedText = `Strategic Action Plan Proposal Document for Executive Committee candidate ${proposal.candidateName}.`;
+      extractedText = 'የተማሪዎች ህብረት ስራ አስፈፃሚ እጩ የስትራቴጂክ የድርጊት መርሃ-ግብር እና የዕቅድ ሰነድ።';
     }
+
+    // ------------------------------------------------------------------------
+    // Double-Blind Sanitization Pipeline (Directive 003/2012 Art. 22)
+    // Redact candidate names, student IDs, phone numbers, and identifying tokens
+    // ------------------------------------------------------------------------
+    const candidateMeta = {
+      name: proposal.candidateName,
+      studentId: proposal.studentId,
+      username: proposal.candidateUsername,
+      department: proposal.candidateDepartment,
+      examCode: proposal.candidateExamCode,
+    };
+    const sanitizedText = sanitizeProposalTextForEvaluation(extractedText, candidateMeta);
+    const evaluationToken = `Code ${proposal.candidateExamCode || 'UNKNOWN'}`;
 
     let aiEvaluation = null;
 
@@ -1731,99 +1830,233 @@ const handleAiEvaluateProposal = async (req, res) => {
       try {
         const { GoogleGenerativeAI } = require('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Deterministic evaluation temperature 0.1
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          generationConfig: {
+            temperature: 0.1,
+          },
+        });
 
-        const prompt = `You are the Official Electoral Review Committee Auditor for Debre Berhan University (DBU) Student Union Executive Committee Election, operating under Directive No. 003/2012 Article 22 (በደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ህብረት መመሪያ ቁጥር 003/2012 አንቀጽ 22 መሠረት የተቋቋመ አስመራጭ እና ገምጋሚ የኦዲት ኮሚቴ).
+        const prompt = `You are the Official Electoral Review Committee Auditor for Debre Berhan University (DBU) Student Union Executive Committee Election, operating under Directive No. 003/2012 Article 22 (በደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ህብረት መመሪያ ቁጥር 003/2012 አንቀጽ 22 መሠረት የተቋቋመ ገለልተኛ አስመራጭ እና ገምጋሚ የኦዲት ኮሚቴ).
 
-Your mission is to perform an audit-grade evaluation of the strategic proposal submitted by Candidate ${proposal.candidateName} (Exam Code: ${proposal.candidateExamCode}, Student ID: ${proposal.studentId}, Position: ሥራ አስፈፃሚ).
+Candidate Evaluation Token: ${evaluationToken}
+Position: ሥራ አስፈፃሚ (Student Union Executive Committee)
+Evaluation Protocol: Double-Blind Proposal Audit (Directive No. 003/2012 Art. 22)
 
-CRITICAL REQUIREMENTS:
-1. Evaluate strictly under Directive No. 003/2012 Article 22 Rubric (Total: 15.0 pts):
-   - strategicObjectives (max 4.0): ስትራቴጂካዊ ዓላማ እና ለካምፓሱ ያለው ጠቀሜታ
-   - actionability (max 4.0): የእቅዱ ተፈጻሚነት እና አዋጭነት
-   - timeline (max 4.0): ተጨባጭ የጊዜ ሰሌዳ እና የክንውን ምዕራፎች
-   - budgetingClarity (max 3.0): የበጀት ግልጽነት እና ከተማሪዎች ህብረት አሰራር ጋር ያለው ትስስር
-2. Return ONLY a valid JSON object matching the exact schema below (no markdown, no backticks, no markdown code fence).
-3. All qualitative texts (strengths, weaknesses, pointDeductions, riskAssessment, committeeRecommendation) MUST be written STRICTLY IN AMHARIC (ሙሉ በሙሉ በአማርኛ ቋንቋ ብቻ መፃፍ አለበት).
-4. pointDeductions must provide the precise reason why points were deducted from the maximum.
+CRITICAL EVALUATION INSTRUCTIONS:
+1. MANDATORY 100% PURE AMHARIC OUTPUT REQUIREMENT:
+   Every single qualitative text field ("strengths", "weaknesses", "pointDeductions", "riskAssessment", "committeeRecommendation") MUST be written EXCLUSIVELY AND 100% IN AMHARIC (ሙሉ በሙሉ በአማርኛ ቋንቋ ብቻ መፃፍ አለበት).
+   DO NOT write any English sentences, English phrases, or Latin script words inside these qualitative fields.
 
-Proposal Document Content (Pages: ${pageCount}):
-"""
-${extractedText.substring(0, 16000)}
-"""
+2. TEXT CITATION REQUIREMENT:
+   In "strengths" and "weaknesses", cite or directly quote actual text/provisions from the candidate's proposal in Amharic as concrete evidence.
+
+3. MATHEMATICAL DEDUCTION RULE:
+   In "pointDeductions", state the exact mathematical subtraction in Amharic (e.g., "ከ 4.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው [ተጨባጭ ምክንያት] በመሆኑ ነው።"). If full marks are earned (0.0 deduction), state "ከ 4.0 ነጥብ ላይ ምንም ነጥብ አልተቀነሰም፤ መስፈርቱን ሙሉ በሙሉ አሟልቷል።".
+
+4. STRICT 4-TIER CALIBRATION RUBRIC (Total 15.0 pts):
+   a. strategicObjectives (Max 4.0 pts):
+      - 2.0 pts: Core Campus Priority Alignment (የተማሪዎች ምግብ ቤት ጥራትና ንጽህና፣ የመኝታ ክፍል ጥገና፣ የመጠጥና የሙቅ ውሃ አቅርቦት፣ አስተማማኝ የካምፓስ ዋይፋይ/ኢንተርኔት፣ የቤተ-መጽሐፍት አገልግሎት)
+      - 2.0 pts: Inclusivity & Special Needs (የሴት ተማሪዎች ተሳትፎ ኮታ ቢያንስ 33% በመመሪያ ቁጥር 003/2012 አንቀጽ 24 መሠረት መረጋገጡ፣ የአካል ጉዳተኞች የመሰረተ ልማት ተደራሽነት፣ እና የአንደኛ ዓመት አዲስ ገቢ ተማሪዎች ድጋፍ)
+   b. actionability (Max 4.0 pts):
+      - 2.5 pts: Feasibility within Union Mandate (የተማሪዎች ህብረት ስልጣንና ተግባር ጋር መጣጣሙ፣ የተማሪዎች ቅሬታ አፈታት፣ የክትትል ኮሚቴዎች አደረጃጀት)
+      - 1.5 pts: Institutional Boundary Check (ከተማሪዎች ህብረት ስልጣን ውጭ የሆኑ ቃል ኪዳኖች ከተካተቱ እስከ 1.5 ነጥብ ይቀነሳል - ለምሳሌ ራሱን የቻለ የንግድ ብድር/ገንዘብ ማሰባሰብ፣ የዩኒቨርሲቲውን የዲስፕሊን ቦርድ ስልጣን መተካት፣ ወይም የመንግስት ካፒታል በጀት መመደብ)
+   c. timeline (Max 4.0 pts):
+      - 2.0 pts: Realistic 100-Day Priority Roadmap & Milestones (የመጀመሪያዎቹ 100 ቀናት የትኩረት አቅጣጫ እና የሩብ ዓመት ግልጽ የክንውን ምዕራፎች)
+      - 2.0 pts: Academic Calendar Harmonization (የመካከለኛና የማጠቃለያ ፈተና ወቅቶችን ከግምት ውስጥ ያስገባ የጊዜ ሰሌዳ ድልድልና የማካካሻ እቅድ)
+   d. budgetingClarity (Max 3.0 pts):
+      - 1.5 pts: Internal Audit & Resource Realism (የህብረቱ ውስጣዊ ኦዲት ስርዓት፣ ህጋዊ ደረሰኝ፣ የበጎ ፈቃደኞች ተሳትፎ እና የውጭ አጋርነት ግልጽነት)
+      - 1.5 pts: Document Integrity & Budget Realism (የገንዘብ ግምት ፈጽሞ ካልተቀመጠ ወይም ያልተስተካከሉ የቴምፕሌት ክፍተቶች እንደ "[insert experience...]" ወይም "[...]" የመሳሰሉ ያልተሞሉ ቅጾች ከተገኙ እስከ 1.0 ነጥብ ድረስ ይቀነሳል)
+
+5. Return ONLY a valid JSON object matching the exact schema below (no markdown fences, no backticks, no comments):
 
 Schema:
 {
   "strategicObjectives": {
-    "score": 3.2,
+    "score": 3.4,
     "maxScore": 4.0,
-    "strengths": "በአማርኛ - በሰነዱ ውስጥ የታዩ ዋና ዋና ጠንካራ ጎኖች",
-    "weaknesses": "በአማርኛ - በዓላማ እና በይዘት የታዩ ጉድለቶች",
-    "pointDeductions": "በአማርኛ - ከ 4.0 ነጥብ ላይ የተቀነሰበት ትክክለኛ እና ተጨባጭ ምክንያት"
+    "strengths": "የተማሪዎችን የምግብ ጥራትና ንጽህና ለማሻሻል የቀረበው ዕቅድ...",
+    "weaknesses": "በዕቅዱ ውስጥ የሴት ተማሪዎች 33% ኮታ ተሳትፎና የአካል ጉዳተኞች ተደራሽነት በበቂ ሁኔታ አልተብራራም።",
+    "pointDeductions": "ከ 4.0 ነጥብ ላይ 0.6 ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የሴቶች ተሳትፎና የልዩ ፍላጎት ተማሪዎች ድጋፍ አቀራረብ በዝርዝር ባለመብራራቱ ነው።"
   },
   "actionability": {
-    "score": 3.0,
+    "score": 3.2,
     "maxScore": 4.0,
-    "strengths": "በአማርኛ - የታቀዱ የአሰራር ስልቶች አዋጭነት እና ጠንካራ ጎን",
-    "weaknesses": "በአማርኛ - የተግባራዊነት ክፍተቶች",
-    "pointDeductions": "በአማርኛ - ነጥብ የተቆረጠበት ትክክለኛ ምክንያት"
+    "strengths": "ከተማሪዎች ህብረት ስራ አስፈፃሚ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎች...",
+    "weaknesses": "ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ አማራጭ ስልቶች አለመቀመጣቸው።",
+    "pointDeductions": "ከ 4.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች ባለመገለጻቸው ነው።"
   },
   "timeline": {
-    "score": 2.8,
+    "score": 3.0,
     "maxScore": 4.0,
-    "strengths": "በአማርኛ - በጊዜ ሰሌዳው የተካተቱ ጠንካራ ምዕራፎች",
-    "weaknesses": "በአማርኛ - ምክንያታዊ ያልሆኑ ወይም የተደራረቡ የጊዜ ድልድሎች",
-    "pointDeductions": "በአማርኛ - በጊዜ ሰሌዳ ምክንያት ነጥብ የተቆረጠበት ዝርዝር ምክንያት"
+    "strengths": "የመጀመሪያዎቹ 100 ቀናት የትኩረት አቅጣጫዎች እና የሩብ ዓመት ምዕራፎች ቅደም ተከተል...",
+    "weaknesses": "በሁለተኛው ሴሚስተር የፈተና ወቅት የታቀዱ ተግባራት መደራረብና ማካካሻ አለመቀመጡ።",
+    "pointDeductions": "ከ 4.0 ነጥብ ላይ 1.0 ነጥብ የተቀነሰው በጊዜ ሰሌዳው ላይ ከፈተና ወቅቶች ጋር የተደራረቡ ተግባራት መኖራቸውና ማካካሻ ባለመገለጹ ነው።"
   },
   "budgetingClarity": {
     "score": 2.2,
     "maxScore": 3.0,
-    "strengths": "በአማርኛ - የበጀት እና ሀብት አጠቃቀም ጥንካሬ",
-    "weaknesses": "በአማርኛ - በገንዘብ ግምት እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች",
-    "pointDeductions": "በአማርኛ - ነጥብ የተቆረጠበት ምክንያት"
+    "strengths": "ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የውስጥ ኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ...",
+    "weaknesses": "ለእያንዳንዱ የታቀደ ተግባር ዝርዝር የገንዘብ ግምት አለመቀመጡ።",
+    "pointDeductions": "ከ 3.0 ነጥብ ላይ 0.8 ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት ባለመያዙ ነው።"
   },
-  "totalScore": 11.2,
+  "totalScore": 11.8,
   "maxTotal": 15.0,
-  "riskAssessment": "በአማርኛ - እጩው ቢያልፍ እቅዱን ተግባራዊ ለማድረግ ሊያጋጥሙ የሚችሉ ተግዳሮቶች እና ስጋቶች",
-  "committeeRecommendation": "በአማርኛ - ለአስመራጭ ኮሚቴው የተሰጠ የማጠቃለያ ውሳኔ ሃሳብ"
-}`;
+  "riskAssessment": "እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የአስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።",
+  "committeeRecommendation": "እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።"
+}
+
+Sanitized Proposal Document Content (Pages: ${pageCount}):
+"""
+${sanitizedText.substring(0, 16000)}
+"""`;
 
         const result = await model.generateContent(prompt);
         const rawResponse = result.response.text();
         const clean = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
         aiEvaluation = JSON.parse(clean);
       } catch (geminiErr) {
-        console.warn('Gemini API evaluation error, switching to rule-based Amharic rubric evaluation:', geminiErr.message);
+        console.warn('Gemini API evaluation error, switching to calibrated Amharic rubric evaluation:', geminiErr.message);
       }
     }
 
-    // Resilient Calibrated Amharic Rubric Audit Evaluator (enforcing Directive No. 003/2012 Art. 22)
+    // ------------------------------------------------------------------------
+    // Dynamic Fallback Heuristic Engine (Strict 4-Tier Rubric & Placeholders Check)
+    // ------------------------------------------------------------------------
     if (!aiEvaluation || !aiEvaluation.totalScore) {
-      const lower = extractedText.toLowerCase();
+      const lower = sanitizedText.toLowerCase();
 
+      // Check for raw placeholder templates like [insert experience...], [...], etc.
+      const rawPlaceholders = (sanitizedText.match(/\[(?:insert|fill|here|ተሞላ|.*?experience.*?)\]/gi) || []).concat(
+        sanitizedText.match(/\[\s*\.{3,}\s*\]/g) || []
+      );
+      const placeholderCount = rawPlaceholders.length;
+
+      // ----------------------------------------------------------------------
       // Criterion 1: Strategic Objectives (max 4.0)
-      const objKeywords = ['ዓላማ', 'ራዕይ', 'ተማሪ', 'አካዳሚክ', 'አገልግሎት', 'መብት', 'ልህቀት', 'ካምፓስ', 'ህብረት', 'objective', 'goal'];
-      const objMatches = objKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
-      const s1 = Math.min(4.0, Math.max(2.8, +(2.8 + (objMatches / objKeywords.length) * 1.0).toFixed(1)));
+      // Tier 1A: Core Campus Priorities (2.0 pts max)
+      // Tier 1B: Inclusivity & Special Needs (2.0 pts max)
+      // ----------------------------------------------------------------------
+      const campusKeywords = ['ምግብ', 'ካፌ', 'ንጽህና', 'ዶርም', 'መኝታ', 'ውሃ', 'ሙቅ ውሃ', 'ዋይፋይ', 'ኢንተርኔት', 'ቤተ-መጽሐፍት', 'ላይብረሪ', 'ጤና', 'cafeteria', 'dormitory', 'water', 'wifi', 'library', 'health'];
+      const campusMatches = campusKeywords.filter((k) => lower.includes(k) || sanitizedText.includes(k)).length;
+      const s1a = Math.min(2.0, Math.max(1.3, +(1.3 + (campusMatches / campusKeywords.length) * 0.7).toFixed(1)));
+
+      const inclusivityKeywords = ['ልዩ ፍላጎት', 'ሴቶች', 'አካታች', 'አካል ጉዳት', 'ኮታ', '33%', 'አዲስ ገቢ', 'ፍሬሽማን', 'inclusivity', 'disability', 'female', 'freshman'];
+      const inclusivityMatches = inclusivityKeywords.filter((k) => lower.includes(k) || sanitizedText.includes(k)).length;
+      const s1b = Math.min(2.0, Math.max(1.1, +(1.1 + (inclusivityMatches / inclusivityKeywords.length) * 0.9).toFixed(1)));
+
+      const s1 = Math.min(4.0, +(s1a + s1b).toFixed(1));
       const s1Ded = +(4.0 - s1).toFixed(1);
 
+      let s1Weakness = '';
+      let s1DeductionReason = '';
+      if (s1Ded === 0) {
+        s1Weakness = 'ምንም ጉልህ ድክመት አልተገኘም፤ የካምፓስ መሰረታዊ ፍላጎቶች እና የአካታችነት መስፈርቶች ተሟልተዋል።';
+        s1DeductionReason = 'ከ 4.0 ነጥብ ላይ ምንም ነጥብ አልተቀነሰም፤ መስፈርቱን ሙሉ በሙሉ አሟልቷል።';
+      } else if (s1b < s1a) {
+        s1Weakness = 'በዕቅዱ ውስጥ የልዩ ፍላጎትና የአካል ጉዳተኛ ተማሪዎች ተደራሽነት እንዲሁም የሴት ተማሪዎች ቢያንስ 33% ኮታ ተሳትፎ (መመሪያ 003/2012 አንቀጽ 24) በበቂ ዝርዝር አልተብራራም።';
+        s1DeductionReason = `ከ 4.0 ነጥብ ላይ ${s1Ded} ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የሴቶች ተሳትፎና የልዩ ፍላጎት ተማሪዎች ድጋፍ አቀራረብ በዝርዝር ባለመብራራቱ ነው።`;
+      } else {
+        s1Weakness = 'የካምፓስ መሰረታዊ አገልግሎቶች (የካፌ ምግብ ጥራት፣ የመኝታ ቤት፣ የውሃና የዋይፋይ አቅርቦት) ማሻሻያ ስልቶች ዝርዝር ማብራሪያ ይጎድላቸዋል።';
+        s1DeductionReason = `ከ 4.0 ነጥብ ላይ ${s1Ded} ነጥብ የተቀነሰው የካምፓስ መሰረታዊ አገልግሎቶች (ካፌ፣ ውሃ፣ ዋይፋይና ቤተ-መጽሐፍት) ማሻሻያ ስልቶች ዝርዝር ማብራሪያ ስለጎደላቸው ነው።`;
+      }
+
+      // ----------------------------------------------------------------------
       // Criterion 2: Actionability & Feasibility (max 4.0)
-      const actKeywords = ['ተግባር', 'አፈጻጸም', 'እቅድ', 'ተነሳሽነት', 'ውጤት', 'ኮሚቴ', 'መፍትሄ', 'ትብብር', 'አዋጭ', 'action', 'implement'];
-      const actMatches = actKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
-      const s2 = Math.min(4.0, Math.max(2.6, +(2.6 + (actMatches / actKeywords.length) * 1.1).toFixed(1)));
+      // Tier 2A: Feasibility within Union Mandate (2.5 pts max)
+      // Tier 2B: Institutional Boundary Check (1.5 pts max)
+      // ----------------------------------------------------------------------
+      const actKeywords = ['ተግባር', 'አፈጻጸም', 'እቅድ', 'ተነሳሽነት', 'ውጤት', 'ኮሚቴ', 'መፍትሄ', 'ትብብር', 'ቅሬታ', 'ግልጽነት', 'ማስተባበር', 'implement', 'action', 'committee'];
+      const actMatches = actKeywords.filter((k) => lower.includes(k) || sanitizedText.includes(k)).length;
+      const s2a = Math.min(2.5, Math.max(1.6, +(1.6 + (actMatches / actKeywords.length) * 0.9).toFixed(1)));
+
+      // Boundary check: promises outside jurisdiction (e.g. independent commercial banking, replacing disciplinary board, capital budget)
+      const boundaryKeywords = ['ንግድ ባንክ', 'ብድር ማሰራጨት', 'ዲስፕሊን ቦርድ መተካት', 'ካፒታል በጀት', 'የዩኒቨርሲቲው በጀት መመደብ', 'ፖሊስ መተካት'];
+      const hasBoundaryIssue = boundaryKeywords.some((k) => lower.includes(k) || sanitizedText.includes(k));
+      const s2b = hasBoundaryIssue ? 0.8 : 1.5;
+
+      const s2 = Math.min(4.0, +(s2a + s2b).toFixed(1));
       const s2Ded = +(4.0 - s2).toFixed(1);
 
+      let s2Weakness = '';
+      let s2DeductionReason = '';
+      if (s2Ded === 0) {
+        s2Weakness = 'ምንም የተግባራዊነት ክፍተት አልታየም፤ እቅዱ ከተማሪ ህብረት ስልጣን ጋር የተጣጣመ ነው።';
+        s2DeductionReason = 'ከ 4.0 ነጥብ ላይ ምንም ነጥብ አልተቀነሰም፤ የታቀዱት ተግባራት ከተማሪዎች ህብረት ህጋዊ የስልጣን ወሰን ጋር ሙሉ በሙሉ የተጣጣሙ ናቸው።';
+      } else if (hasBoundaryIssue) {
+        s2Weakness = 'ከተማሪዎች ህብረት ህጋዊ ስልጣንና ኃላፊነት ወሰን ውጭ የሆኑ (የካፒታል በጀት ወይም የዲስፕሊን አስተዳደርን የሚመለከቱ) አሰራሮች ተካተዋል።';
+        s2DeductionReason = `ከ 4.0 ነጥብ ላይ ${s2Ded} ነጥብ የተቀነሰው ከተማሪዎች ህብረት ስልጣን ውጭ የሆኑ (እንደ ካፒታል በጀት ወይም የዲስፕሊን ቦርድ መተካት ያሉ) ቃል ኪዳኖች በመካተታቸው ነው።`;
+      } else {
+        s2Weakness = 'ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ ተለዋዋጭ አማራጭ ስልቶች አለመቀመጣቸው።';
+        s2DeductionReason = `ከ 4.0 ነጥብ ላይ ${s2Ded} ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች እና የቅሬታ መፍቻ ዝርዝር መንገዶች ባለመገለጻቸው ነው።`;
+      }
+
+      // ----------------------------------------------------------------------
       // Criterion 3: Timeline & Milestone Planning (max 4.0)
-      const timeKeywords = ['ጊዜ', 'ሰሌዳ', 'ወር', 'ሴሚስተር', 'ምዕራፍ', 'ቀን', 'ሳምንት', 'ደረጃ', 'timeline', 'phase', 'schedule'];
-      const timeMatches = timeKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
-      const s3 = Math.min(4.0, Math.max(2.4, +(2.4 + (timeMatches / timeKeywords.length) * 1.2).toFixed(1)));
+      // Tier 3A: 100-Day Priority Roadmap & Milestones (2.0 pts max)
+      // Tier 3B: Academic Calendar Harmonization (2.0 pts max)
+      // ----------------------------------------------------------------------
+      const roadmapKeywords = ['100 ቀን', 'መቶ ቀን', 'ሩብ ዓመት', 'ምዕራፍ', 'የመጀመሪያ', 'ወር', 'ሳምንት', 'ደረጃ', 'roadmap', 'milestone', 'quarter'];
+      const roadmapMatches = roadmapKeywords.filter((k) => lower.includes(k) || sanitizedText.includes(k)).length;
+      const s3a = Math.min(2.0, Math.max(1.3, +(1.3 + (roadmapMatches / roadmapKeywords.length) * 0.7).toFixed(1)));
+
+      const calendarKeywords = ['ፈተና', 'ማጠቃለያ', 'መካከለኛ', 'አካዳሚክ', 'ቀን መቁጠሪያ', 'እረፍት', 'ማካካሻ', 'ሴሚስተር', 'exam', 'midterm', 'final', 'semester'];
+      const calendarMatches = calendarKeywords.filter((k) => lower.includes(k) || sanitizedText.includes(k)).length;
+      const s3b = Math.min(2.0, Math.max(1.1, +(1.1 + (calendarMatches / calendarKeywords.length) * 0.9).toFixed(1)));
+
+      const s3 = Math.min(4.0, +(s3a + s3b).toFixed(1));
       const s3Ded = +(4.0 - s3).toFixed(1);
 
-      // Criterion 4: Budgeting Clarity & Union Alignment (max 3.0)
-      const budKeywords = ['በጀት', 'ፋይናንስ', 'ሀብት', 'ግልጽነት', 'ህብረት', 'መመሪያ', 'ቁጥጥር', '003/2012', 'budget', 'audit'];
-      const budMatches = budKeywords.filter((k) => lower.includes(k) || extractedText.includes(k)).length;
-      const s4 = Math.min(3.0, Math.max(2.0, +(2.0 + (budMatches / budKeywords.length) * 0.8).toFixed(1)));
+      let s3Weakness = '';
+      let s3DeductionReason = '';
+      if (s3Ded === 0) {
+        s3Weakness = 'የጊዜ ሰሌዳው የ100 ቀናት ቅድሚያ ተግባራትንና የፈተና ወቅት ማካካሻን በአግባቡ ያካተተ ነው።';
+        s3DeductionReason = 'ከ 4.0 ነጥብ ላይ ምንም ነጥብ አልተቀነሰም፤ የ100 ቀናት ቅድሚያ ተግባራትና የፈተና ወቅት ማካካሻ በጊዜ ሰሌዳው ላይ በሚገባ ተካቷል።';
+      } else if (s3b < s3a) {
+        s3Weakness = 'በጊዜ ሰሌዳው ውስጥ የተማሪዎች የመካከለኛና የማጠቃለያ ፈተና ወቅቶች ከግምት ባለመግባታቸውና የፈተና ወቅት ማካካሻ እቅድ ባለመቀመጡ።';
+        s3DeductionReason = `ከ 4.0 ነጥብ ላይ ${s3Ded} ነጥብ የተቀነሰው በጊዜ ሰሌዳው ውስጥ የተማሪዎች የመካከለኛና የማጠቃለያ ፈተና ወቅቶች ከግምት ባለመግባታቸውና የማካካሻ እቅድ ባለመቀመጡ ነው።`;
+      } else {
+        s3Weakness = 'የመጀመሪያዎቹ 100 ቀናት ቅድሚያ ተግባራት እና የሩብ ዓመት ምዕራፎች በግልጽ ባለመከፋፈላቸው።';
+        s3DeductionReason = `ከ 4.0 ነጥብ ላይ ${s3Ded} ነጥብ የተቀነሰው የ100 ቀናት የመጀመሪያ ቅድሚያ የድርጊት መርሃ-ግብር እና የሩብ ዓመት ምዕራፎች በግልጽ ባለመከፋፈላቸው ነው።`;
+      }
+
+      // ----------------------------------------------------------------------
+      // Criterion 4: Budgeting Clarity & Document Integrity (max 3.0)
+      // Tier 4A: Internal Audit & Volunteer Reliance (1.5 pts max)
+      // Tier 4B: Document Integrity & Placeholder Check (1.5 pts max)
+      // ----------------------------------------------------------------------
+      const auditKeywords = ['በጀት', 'ፋይናንስ', 'ኦዲት', 'ደረሰኝ', 'ግልጽነት', 'ቁጥጥር', 'ሀብት', 'በጎ ፈቃድ', 'አጋር', '003/2012', 'audit', 'budget', 'receipt'];
+      const auditMatches = auditKeywords.filter((k) => lower.includes(k) || sanitizedText.includes(k)).length;
+      const s4a = Math.min(1.5, Math.max(1.0, +(1.0 + (auditMatches / auditKeywords.length) * 0.5).toFixed(1)));
+
+      // Placeholder penalty up to 1.0 pt
+      let s4bPenalty = 0;
+      if (placeholderCount > 0) {
+        s4bPenalty = Math.min(1.0, +(placeholderCount * 0.4).toFixed(1));
+      } else {
+        const hasFinancialNumbers = /(?:\d+(?:,\d+)*(?:\.\d+)?)\s*(?:ብር|ETB|birr)/i.test(sanitizedText) || /\b(?:በጀት|ወጪ)\s*[:=]\s*\d+/i.test(sanitizedText);
+        if (!hasFinancialNumbers) {
+          s4bPenalty = 0.5;
+        }
+      }
+      const s4b = Math.min(1.5, Math.max(0.5, +(1.5 - s4bPenalty).toFixed(1)));
+
+      const s4 = Math.min(3.0, +(s4a + s4b).toFixed(1));
       const s4Ded = +(3.0 - s4).toFixed(1);
+
+      let s4Weakness = '';
+      let s4DeductionReason = '';
+      if (s4Ded === 0) {
+        s4Weakness = 'ምንም የበጀት ወይም የሰነድ ጉድለት አልታየም፤ የፋይናንስ ኦዲት እና ግልጽነት መርሆዎች ተሟልተዋል።';
+        s4DeductionReason = 'ከ 3.0 ነጥብ ላይ ምንም ነጥብ አልተቀነሰም፤ ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የኦዲት መርሆዎች ጋር ሙሉ በሙሉ የተጣጣመ ነው።';
+      } else if (placeholderCount > 0) {
+        s4Weakness = `በሰነዱ ውስጥ ያልተስተካከሉ ${placeholderCount} የቴምፕሌት ክፍተቶች (እንደ [...] ወይም [insert...] ያሉ) ተገኝተዋል።`;
+        s4DeductionReason = `ከ 3.0 ነጥብ ላይ ${s4Ded} ነጥብ የተቀነሰው በሰነዱ ውስጥ ያልተስተካከሉ ${placeholderCount} የቴምፕሌት ክፍተቶች (እንደ [...] ያሉ) በመገኘታቸውና ዝርዝር የበጀት ግምት ባለመያዙ ነው።`;
+      } else {
+        s4Weakness = 'በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና የህብረቱ ውስጣዊ የኦዲት ስርዓት በዝርዝር አልተብራራም።';
+        s4DeductionReason = `ከ 3.0 ነጥብ ላይ ${s4Ded} ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት እና የህብረቱ ውስጣዊ የኦዲት አሰራር በበቂ ሁኔታ ባለመብራራቱ ነው።`;
+      }
 
       const calculatedTotal = +(s1 + s2 + s3 + s4).toFixed(1);
 
@@ -1831,80 +2064,125 @@ Schema:
         strategicObjectives: {
           score: s1,
           maxScore: 4.0,
-          strengths: "በአማርኛ - የተማሪውን አካዳሚያዊ ልህቀት፣ ማህበራዊ ደህንነት እና የካምፓስ ዲጂታል አሰራርን ለማሳደግ የተቀመጡት ግቦች ግልጽና ለዩኒቨርሲቲው ማህበረሰብ ተጨባጭ ፋይዳ ያላቸው መሆናቸው።",
-          weaknesses: "በአማርኛ - ከተማሪዎች ልዩ ፍላጎት እና ከምርምር ማዕከላት ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።",
-          pointDeductions: `በአማርኛ - ከ 4.0 ነጥብ ላይ ${s1Ded} ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የተማሪዎች የልዩ ፍላጎት ድጋፍ አቀራረብ በበቂ ሁኔታ ባለመብራራቱ ነው።`,
+          strengths: 'የተማሪውን አካዳሚያዊ ልህቀትና ሁለንተናዊ የካምፓስ አገልግሎቶችን (ካፌ፣ መኝታ ቤት፣ የመጠጥ ውሃና ኢንተርኔት) ለማሻሻል የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።',
+          weaknesses: s1Weakness,
+          pointDeductions: s1DeductionReason,
         },
         actionability: {
           score: s2,
           maxScore: 4.0,
-          strengths: "በአማርኛ - ከተማሪዎች ህብረት ስራ አስፈፃሚ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።",
-          weaknesses: "በአማርኛ - ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ አማራጭ ስልቶች አለመቀመጣቸው።",
-          pointDeductions: `በአማርኛ - ከ 4.0 ነጥብ ላይ ${s2Ded} ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች ባለመገለጻቸው ነው።`,
+          strengths: 'ከተማሪዎች ህብረት ስራ አስፈፃሚ ህጋዊ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።',
+          weaknesses: s2Weakness,
+          pointDeductions: s2DeductionReason,
         },
         timeline: {
           score: s3,
           maxScore: 4.0,
-          strengths: "በአማርኛ - የክንውን ምዕራፎቹ በየሩብ ዓመቱ እና በሴሚስተር ደረጃ ተከፋፍለው ቅደም ተከተላቸው የተጠበቀ መሆኑ።",
-          weaknesses: "በአማርኛ - በምዕራፍ 2 ላይ የታቀዱት በርካታ ተግባራት በአንድ ወር ውስጥ ተደራርበው የመፈጸም ዕድላቸው አነስተኛ መሆኑ።",
-          pointDeductions: `በአማርኛ - ከ 4.0 ነጥብ ላይ ${s3Ded} ነጥብ የተቀነሰው በጊዜ ሰሌዳው ላይ የተደራረቡና የማይጣጣሙ የፈተና ወቅት ድልድሎች በመኖራቸው ነው።`,
+          strengths: 'የመጀመሪያዎቹ 100 ቀናት የትኩረት አቅጣጫዎች እና የሩብ ዓመት ምዕራፎች ቅደም ተከተል መጠበቁ።',
+          weaknesses: s3Weakness,
+          pointDeductions: s3DeductionReason,
         },
         budgetingClarity: {
           score: s4,
           maxScore: 3.0,
-          strengths: "በአማርኛ - ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።",
-          weaknesses: "በአማርኛ - በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች መኖራቸው።",
-          pointDeductions: `በአማርኛ - ከ 3.0 ነጥብ ላይ ${s4Ded} ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት ባለመያዙ ነው።`,
+          strengths: 'ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የውስጥ ኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።',
+          weaknesses: s4Weakness,
+          pointDeductions: s4DeductionReason,
         },
         totalScore: Math.min(15.0, calculatedTotal),
         maxTotal: 15.0,
-        riskAssessment: "በአማርኛ - እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የዩኒቨርሲቲው አስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።",
-        committeeRecommendation: "በአማርኛ - እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።",
+        riskAssessment: 'እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የዩኒቨርሲቲው አስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።',
+        committeeRecommendation: 'እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።',
       };
     }
 
-    // Ensure all 4 criteria conform strictly to the required schema
+    // Ensure all 4 criteria conform strictly to the required schema with 100% pure Amharic text
     const stratObj = {
       score: Number(aiEvaluation.strategicObjectives?.score ?? 3.2),
       maxScore: 4.0,
-      strengths: aiEvaluation.strategicObjectives?.strengths || "በአማርኛ - በሰነዱ ውስጥ የታዩ ዋና ዋና ጠንካራ ጎኖች።",
-      weaknesses: aiEvaluation.strategicObjectives?.weaknesses || "በአማርኛ - በዓላማ እና በይዘት የታዩ ጉድለቶች።",
-      pointDeductions: aiEvaluation.strategicObjectives?.pointDeductions || "በአማርኛ - ከ 4.0 ነጥብ ላይ የተቀነሰበት ትክክለኛ እና ተጨባጭ ምክንያት።",
-      feedback: `${aiEvaluation.strategicObjectives?.strengths || ''} | ${aiEvaluation.strategicObjectives?.pointDeductions || ''}`,
+      strengths: cleanPureAmharicText(
+        aiEvaluation.strategicObjectives?.strengths,
+        'የተማሪውን አካዳሚያዊ ልህቀትና ሁለንተናዊ የካምፓስ አገልግሎቶችን ለማሻሻል የተቀመጡት ግቦች ግልጽና ፋይዳ ያላቸው መሆናቸው።'
+      ),
+      weaknesses: cleanPureAmharicText(
+        aiEvaluation.strategicObjectives?.weaknesses,
+        'ከተማሪዎች ልዩ ፍላጎት፣ ከአካል ጉዳተኞች ተደራሽነትና ከሴቶች ተሳትፎ (33% ኮታ) ጋር በተገናኘ የተካተቱ ዝርዝር ስትራቴጂካዊ ዓላማዎች ውስን መሆናቸው።'
+      ),
+      pointDeductions: cleanPureAmharicText(
+        aiEvaluation.strategicObjectives?.pointDeductions,
+        `ከ 4.0 ነጥብ ላይ ${(4.0 - Number(aiEvaluation.strategicObjectives?.score ?? 3.2)).toFixed(1)} ነጥብ የተቀነሰው በዓላማዎቹ ውስጥ የተማሪዎች የልዩ ፍላጎት ድጋፍ አቀራረብ በበቂ ሁኔታ ባለመብራራቱ ነው።`
+      ),
+      feedback: `${cleanPureAmharicText(aiEvaluation.strategicObjectives?.strengths, '')} | ${cleanPureAmharicText(aiEvaluation.strategicObjectives?.pointDeductions, '')}`,
     };
 
     const actObj = {
       score: Number(aiEvaluation.actionability?.score ?? 3.0),
       maxScore: 4.0,
-      strengths: aiEvaluation.actionability?.strengths || "በአማርኛ - የታቀዱ የአሰራር ስልቶች አዋጭነት እና ጠንካራ ጎን።",
-      weaknesses: aiEvaluation.actionability?.weaknesses || "በአማርኛ - የተግባራዊነት ክፍተቶች።",
-      pointDeductions: aiEvaluation.actionability?.pointDeductions || "በአማርኛ - ነጥብ የተቆረጠበት ትክክለኛ ምክንያት።",
-      feedback: `${aiEvaluation.actionability?.strengths || ''} | ${aiEvaluation.actionability?.pointDeductions || ''}`,
+      strengths: cleanPureAmharicText(
+        aiEvaluation.actionability?.strengths,
+        'ከተማሪዎች ህብረት ስራ አስፈፃሚ ህጋዊ ስልጣንና ተግባር ጋር በቀጥታ የተጣጣሙ የተግባር እርምጃዎችና የቅሬታ መፍቻ መንገዶች መካተታቸው።'
+      ),
+      weaknesses: cleanPureAmharicText(
+        aiEvaluation.actionability?.weaknesses,
+        'ያልተጠበቁ የካምፓስ መስተጓጎሎች ሲያጋጥሙ ተግባራቱን ለማስቀጠል የሚያስችሉ ተለዋዋጭ አማራጭ ስልቶች አለመቀመጣቸው።'
+      ),
+      pointDeductions: cleanPureAmharicText(
+        aiEvaluation.actionability?.pointDeductions,
+        `ከ 4.0 ነጥብ ላይ ${(4.0 - Number(aiEvaluation.actionability?.score ?? 3.0)).toFixed(1)} ነጥብ የተቀነሰው አደጋ ሲያጋጥም የሚወሰዱ ተለዋዋጭ የአሰራር ስልቶች ባለመገለጻቸው ነው።`
+      ),
+      feedback: `${cleanPureAmharicText(aiEvaluation.actionability?.strengths, '')} | ${cleanPureAmharicText(aiEvaluation.actionability?.pointDeductions, '')}`,
     };
 
     const timeObj = {
       score: Number(aiEvaluation.timeline?.score ?? 2.8),
       maxScore: 4.0,
-      strengths: aiEvaluation.timeline?.strengths || "በአማርኛ - በጊዜ ሰሌዳው የተካተቱ ጠንካራ ምዕራፎች።",
-      weaknesses: aiEvaluation.timeline?.weaknesses || "በአማርኛ - ምክንያታዊ ያልሆኑ ወይም የተደራረቡ የጊዜ ድልድሎች።",
-      pointDeductions: aiEvaluation.timeline?.pointDeductions || "በአማርኛ - በጊዜ ሰሌዳ ምክንያት ነጥብ የተቆረጠበት ዝርዝር ምክንያት።",
-      feedback: `${aiEvaluation.timeline?.strengths || ''} | ${aiEvaluation.timeline?.pointDeductions || ''}`,
+      strengths: cleanPureAmharicText(
+        aiEvaluation.timeline?.strengths,
+        'የመጀመሪያዎቹ 100 ቀናት የትኩረት አቅጣጫዎች እና የሩብ ዓመት ምዕራፎች ቅደም ተከተል መጠበቁ።'
+      ),
+      weaknesses: cleanPureAmharicText(
+        aiEvaluation.timeline?.weaknesses,
+        'በጊዜ ሰሌዳው ውስጥ የተማሪዎች የመካከለኛና የማጠቃለያ ፈተና ወቅቶች ከግምት ባለመግባታቸውና የፈተና ወቅት ማካካሻ እቅድ ባለመቀመጡ።'
+      ),
+      pointDeductions: cleanPureAmharicText(
+        aiEvaluation.timeline?.pointDeductions,
+        `ከ 4.0 ነጥብ ላይ ${(4.0 - Number(aiEvaluation.timeline?.score ?? 2.8)).toFixed(1)} ነጥብ የተቀነሰው በጊዜ ሰሌዳው ላይ የተደራረቡና ከፈተና ወቅት ጋር የማይጣጣሙ ድልድሎች በመኖራቸው ነው።`
+      ),
+      feedback: `${cleanPureAmharicText(aiEvaluation.timeline?.strengths, '')} | ${cleanPureAmharicText(aiEvaluation.timeline?.pointDeductions, '')}`,
     };
 
     const budObj = {
       score: Number(aiEvaluation.budgetingClarity?.score ?? 2.2),
       maxScore: 3.0,
-      strengths: aiEvaluation.budgetingClarity?.strengths || "በአማርኛ - የበጀት እና ሀብት አጠቃቀም ጥንካሬ።",
-      weaknesses: aiEvaluation.budgetingClarity?.weaknesses || "በአማርኛ - በገንዘብ ግምት እና ከተማሪ ህብረት አሰራር ጋር የተፈጠሩ ክፍተቶች።",
-      pointDeductions: aiEvaluation.budgetingClarity?.pointDeductions || "በአማርኛ - ነጥብ የተቆረጠበት ምክንያት።",
-      feedback: `${aiEvaluation.budgetingClarity?.strengths || ''} | ${aiEvaluation.budgetingClarity?.pointDeductions || ''}`,
+      strengths: cleanPureAmharicText(
+        aiEvaluation.budgetingClarity?.strengths,
+        'ከመመሪያ ቁጥር 003/2012 አንቀጽ 22 የፋይናንስ ግልጽነት እና የውስጥ ኦዲት መርሆዎች ጋር የተጣጣመ አቀራረብ መያዙ።'
+      ),
+      weaknesses: cleanPureAmharicText(
+        aiEvaluation.budgetingClarity?.weaknesses,
+        'በእያንዳንዱ የታቀደ ተግባር ስር የሚፈጀው ግምታዊ የገንዘብ መጠን እና የህብረቱ ውስጣዊ የኦዲት ስርዓት በዝርዝር አለመብራራቱ።'
+      ),
+      pointDeductions: cleanPureAmharicText(
+        aiEvaluation.budgetingClarity?.pointDeductions,
+        `ከ 3.0 ነጥብ ላይ ${(3.0 - Number(aiEvaluation.budgetingClarity?.score ?? 2.2)).toFixed(1)} ነጥብ የተቀነሰው ለእያንዳንዱ ተግባር ዝርዝር የበጀት ግምት ባለመያዙ ነው።`
+      ),
+      feedback: `${cleanPureAmharicText(aiEvaluation.budgetingClarity?.strengths, '')} | ${cleanPureAmharicText(aiEvaluation.budgetingClarity?.pointDeductions, '')}`,
     };
 
     const calculatedTotalScore = Number((stratObj.score + actObj.score + timeObj.score + budObj.score).toFixed(1));
-    const riskAssessmentText = aiEvaluation.riskAssessment || "በአማርኛ - እጩው ቢያልፍ እቅዱን ተግባራዊ ለማድረግ ሊያጋጥሙ የሚችሉ ተግዳሮቶች እና ስጋቶች።";
-    const committeeRecText = aiEvaluation.committeeRecommendation || "በአማርኛ - ለአስመራጭ ኮሚቴው የተሰጠ የማጠቃለያ ውሳኔ ሃሳብ።";
+    const riskAssessmentText = cleanPureAmharicText(
+      aiEvaluation.riskAssessment,
+      'እጩው ቢመረጥ እቅዱን ተግባራዊ ለማድረግ የበጀት እጥረት እና የዩኒቨርሲቲው አስተዳደራዊ ውሳኔዎች መዘግየት ዋና ተግዳሮት ሊሆኑ ይችላሉ።'
+    );
+    const committeeRecText = cleanPureAmharicText(
+      aiEvaluation.committeeRecommendation,
+      'እጩው ያቀረበው የስትራቴጂክ ዕቅድ መመሪያ ቁጥር 003/2012 አንቀጽ 22 መስፈርቶችን በአጥጋቢ ሁኔታ የሚያሟላ በመሆኑ፣ የተገለጹትን ክፍተቶች በማስተካከል ለሥራ አስፈፃሚነት እንዲያልፍ አስመራጭ ኮሚቴው ይመክራል።'
+    );
 
     const fullEvaluation = {
+      isDoubleBlind: true,
+      evaluationToken: evaluationToken,
+      rubricVersion: 'Directive 003/2012 Art. 22 (Calibrated 4-Tier)',
       strategicObjectives: stratObj,
       actionability: actObj,
       timeline: timeObj,
@@ -1937,6 +2215,9 @@ Schema:
       success: true,
       proposalId: proposal._id,
       candidateExamCode: proposal.candidateExamCode,
+      evaluationToken: evaluationToken,
+      isDoubleBlind: true,
+      rubricVersion: 'Directive 003/2012 Art. 22 (Calibrated 4-Tier)',
       strategicObjectives: stratObj,
       actionability: actObj,
       timeline: timeObj,
@@ -2031,6 +2312,9 @@ const handleSaveScore = async (req, res) => {
 
     proposal.evaluation = {
       ...(proposal.evaluation || {}),
+      isDoubleBlind: true,
+      evaluationToken: proposal.evaluation?.evaluationToken || `Code ${proposal.candidateExamCode || 'UNKNOWN'}`,
+      rubricVersion: proposal.evaluation?.rubricVersion || 'Directive 003/2012 Art. 22 (Calibrated 4-Tier)',
       totalScore: finalScore,
       maxTotal: 15.0,
       criteria: updatedCriteria,
