@@ -42,26 +42,6 @@ import toast from "react-hot-toast";
 export function PresidentPage() {
   const { user } = useAuth();
 
-  // Strict Presidential Guard: ONLY Student Union President (dbu10101020) can control proposals
-  const isOtherAdmin =
-    user &&
-    (user.username === "dbu10101030" ||
-      user.username === "dbu10101011" ||
-      user.username === "dbu10101040" ||
-      (user.role === "admin" && user.username !== "dbu10101020") ||
-      (user.role === "system_admin" && user.username !== "dbu10101020"));
-
-  const isPresident =
-    user &&
-    (user.username === "dbu10101020" ||
-      user.role === "president" ||
-      user.role === "council_president") &&
-    !isOtherAdmin;
-
-  if (!isPresident) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,9 +73,31 @@ export function PresidentPage() {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [savingScore, setSavingScore] = useState(false);
 
+  // Strict Presidential Guard: ONLY Student Union President (dbu10101020) can control proposals
+  const isOtherAdmin =
+    user &&
+    (user.username === "dbu10101030" ||
+      user.username === "dbu10101011" ||
+      user.username === "dbu10101040" ||
+      (user.role === "admin" && user.username !== "dbu10101020") ||
+      (user.role === "system_admin" && user.username !== "dbu10101020"));
+
+  const isPresident =
+    user &&
+    (user.username === "dbu10101020" ||
+      user.role === "president" ||
+      user.role === "council_president") &&
+    !isOtherAdmin;
+
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    if (isPresident) {
+      fetchDashboard();
+    }
+  }, [isPresident]);
+
+  if (!isPresident) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const fetchDashboard = async () => {
     try {
