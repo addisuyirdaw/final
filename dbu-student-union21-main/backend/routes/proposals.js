@@ -72,17 +72,46 @@ function generateReferenceNumber(version = 1) {
   return `DBU-PROP-${year}-${random4}-V${version}`;
 }
 
-// ── Helper: Retrieve Proposal Configuration & Active Status ─────────────────
-const DEFAULT_2019_EXAM_CODES = [
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16',
-  '01', '02', '03', '04', '05', '06', '07', '08', '09',
-  'DBU-2019-EXAM',
-  'DBU2019-TOP16',
-  'DBU-2019-01', 'DBU-2019-02', 'DBU-2019-03', 'DBU-2019-04',
-  'DBU-2019-05', 'DBU-2019-06', 'DBU-2019-07', 'DBU-2019-08',
-  'DBU-2019-09', 'DBU-2019-10', 'DBU-2019-11', 'DBU-2019-12',
-  'DBU-2019-13', 'DBU-2019-14', 'DBU-2019-15', 'DBU-2019-16',
+// ── Official Authorized 16 Candidate Codes (from stamped notice) ──────────────
+const OFFICIAL_16_EXAM_CODES = [
+  '16', '23', '02', '32', '37', '38', '22', '19', '04', '30', '24', '20', '03', '36', '34', '15'
 ];
+
+/**
+ * Normalizes input exam codes:
+ * - Strips leading/trailing whitespace and common prefixes (DBU-, 2019-, EXAM-, etc.)
+ * - Extracts digits and strips letters or suffixes (e.g. "016R" -> 16, "DBU-02" -> 2, "02" -> 2)
+ * - Checks whether code matches one of the 16 authorized candidates
+ * - Returns canonical format matching official whitelist (e.g. "02", "03", "04", "16", etc.)
+ */
+function normalizeCandidateExamCode(rawInput) {
+  if (rawInput === undefined || rawInput === null) return null;
+  let clean = String(rawInput).trim();
+  if (!clean) return null;
+
+  // Strip prefixes like DBU-, 2019-, EXAM-, TOP16-
+  clean = clean.replace(/^(?:DBU[-_/\s]*)?(?:2019[-_/\s]*)?(?:EXAM[-_/\s]*)?(?:TOP16[-_/\s]*)?(?:CAND[-_/\s]*)?/i, '');
+  // Extract numeric digits, ignoring suffix letters like 'R' or spaces (e.g. "016R" -> 16, "02" -> 2)
+  const match = clean.match(/(\d+)/);
+  if (!match) return null;
+  const num = parseInt(match[1], 10);
+
+  // Find matching code in official 16 list
+  const canonical = OFFICIAL_16_EXAM_CODES.find((code) => parseInt(code, 10) === num);
+  if (!canonical) {
+    return {
+      isValid: false,
+      rawNumber: num,
+      canonicalCode: String(num),
+    };
+  }
+
+  return {
+    isValid: true,
+    rawNumber: num,
+    canonicalCode: canonical,
+  };
+}
 
 async function getProposalSettings() {
   let config = await ProposalConfig.findOne({ _key: 'proposal_settings' });
@@ -91,10 +120,10 @@ async function getProposalSettings() {
       _key: 'proposal_settings',
       deadline: null,
       timezone: 'Africa/Addis_Ababa',
-      allowedExamCodes: DEFAULT_2019_EXAM_CODES,
+      allowedExamCodes: OFFICIAL_16_EXAM_CODES,
     });
-  } else if (!config.allowedExamCodes || config.allowedExamCodes.length === 0) {
-    config.allowedExamCodes = DEFAULT_2019_EXAM_CODES;
+  } else {
+    config.allowedExamCodes = OFFICIAL_16_EXAM_CODES;
     await config.save();
   }
 
@@ -131,7 +160,7 @@ async function getProposalSettings() {
     isOpen,
     deadline: config.deadline,
     deadlineEthiopia: config.deadline ? formatEthiopiaTime(config.deadline) : 'Deadline not set',
-    allowedExamCodes: config.allowedExamCodes || DEFAULT_2019_EXAM_CODES,
+    allowedExamCodes: config.allowedExamCodes || OFFICIAL_16_EXAM_CODES,
     serverTime: now.toISOString(),
   };
 }
@@ -257,6 +286,7 @@ router.get('/my-status', protect, async (req, res) => {
             currentVersion: proposal.currentVersion,
             latestReferenceNumber: proposal.latestReferenceNumber,
             latestSubmittedAt: proposal.latestSubmittedAt,
+            candidateExamCode: proposal.candidateExamCode || (eligibility && eligibility.candidate ? eligibility.candidate.examCode : ''),
             currentFile: proposal.currentFile,
             versions: proposal.versions.map((v) => ({
               version: v.version,
@@ -276,7 +306,7 @@ router.get('/my-status', protect, async (req, res) => {
 
 // ============================================================================
 // 3b. POST /api/proposals/verify-candidate
-// Top Performer Verification: Candidate verifies via 2019 final exam code
+// Top Performer Verification: Candidate verifies via official 16 exam codes
 // ============================================================================
 router.post('/verify-candidate', protect, async (req, res) => {
   try {
@@ -290,22 +320,52 @@ router.post('/verify-candidate', protect, async (req, res) => {
       });
     }
 
-    const cleanCode = examCode.trim();
-
-    // Accept codes with alphanumeric variations (e.g. 16, 016, 016R, DBU-2019-16, etc.)
-    // by stripping leading zeros and whitespace, or treating any valid non-empty exam code as acceptable
-    let normalizedCode = cleanCode.replace(/^0+([0-9a-zA-Z]+)/, '$1').toUpperCase();
-    if (!normalizedCode) {
-      normalizedCode = cleanCode.toUpperCase();
+    // 1. Candidate Code Normalization & Whitelist Check
+    const normalized = normalizeCandidateExamCode(examCode);
+    if (!normalized || !normalized.isValid) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid candidate code. Only the 16 shortlisted Executive Committee candidates are authorized to submit proposals.',
+      });
     }
 
-    // Automatically override candidate's active submission session to "Sira Asfetsami"
+    const canonicalCode = normalized.canonicalCode;
+
+    // 2. Strict Candidate-to-StudentID mapping & Anti-hijacking checks
+    // A. Check if already claimed in Proposal by another registered candidate
+    const existingClaimProposal = await Proposal.findOne({
+      candidateExamCode: canonicalCode,
+      candidateUsername: { $ne: username },
+    });
+    if (existingClaimProposal) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized. This exam code belongs to another registered candidate.',
+      });
+    }
+
+    // B. Check if already claimed in Election candidates by another registered candidate
+    const electionsWithCandidate = await Election.find({
+      'candidates.examCode': canonicalCode,
+    });
+    for (const elec of electionsWithCandidate) {
+      for (const cand of elec.candidates) {
+        if (
+          cand.examCode === canonicalCode &&
+          (cand.username || '').toLowerCase() !== username
+        ) {
+          return res.status(403).json({
+            success: false,
+            message: 'Unauthorized. This exam code belongs to another registered candidate.',
+          });
+        }
+      }
+    }
+
+    // 3. Bind on First Successful Claim to the authenticated candidate
     const chosenPosition = 'Sira Asfetsami';
 
-    // 1. Fetch proposal settings
-    const settings = await getProposalSettings();
-
-    // 2. Find active or upcoming election, or fallback to any election, or create one
+    // Find active or upcoming election, or fallback to any election, or create one
     let election = await Election.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ createdAt: -1 });
     if (!election) {
       election = await Election.findOne({}).sort({ createdAt: -1 });
@@ -313,7 +373,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
     if (!election) {
       election = new Election({
         title: 'DBU Student Union General Election 2026',
-        description: 'Official Student Union Election for 2019 batch top performers and executive candidates.',
+        description: 'Official Student Union Election for Executive Committee candidates.',
         startDate: new Date(),
         endDate: new Date(Date.now() + 86400000 * 30),
         status: 'active',
@@ -322,18 +382,17 @@ router.post('/verify-candidate', protect, async (req, res) => {
       });
     }
 
-    // 3. Check if candidate username is already in election
-    const existingIndex = election.candidates.findIndex(
-      (c) => (c.username || '').toLowerCase() === username
-    );
-
     const candidateYear = (req.user.year && ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'].includes(req.user.year))
       ? req.user.year
       : '4th Year';
 
+    const existingIndex = election.candidates.findIndex(
+      (c) => (c.username || '').toLowerCase() === username
+    );
+
     if (existingIndex >= 0) {
       election.candidates[existingIndex].position = chosenPosition;
-      election.candidates[existingIndex].examCode = normalizedCode;
+      election.candidates[existingIndex].examCode = canonicalCode;
       election.candidates[existingIndex].academicYear = candidateYear;
       election.candidates[existingIndex].year = candidateYear;
       election.candidates[existingIndex].department = req.user.department || election.candidates[existingIndex].department || 'General';
@@ -345,7 +404,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
         year: candidateYear,
         academicYear: candidateYear,
         position: chosenPosition,
-        examCode: normalizedCode,
+        examCode: canonicalCode,
         votes: 0,
       });
     }
@@ -354,11 +413,11 @@ router.post('/verify-candidate', protect, async (req, res) => {
 
     const candidateRecord = election.candidates.find((c) => (c.username || '').toLowerCase() === username);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       verified: true,
       position: chosenPosition,
-      candidateCode: normalizedCode,
+      candidateCode: canonicalCode,
       message: 'Candidate eligibility verified successfully! Your proposal submission portal is now unlocked.',
       candidate: {
         _id: candidateRecord._id,
@@ -367,7 +426,7 @@ router.post('/verify-candidate', protect, async (req, res) => {
         department: candidateRecord.department,
         year: candidateRecord.year,
         position: chosenPosition,
-        examCode: normalizedCode,
+        examCode: canonicalCode,
         electionId: election._id,
         electionTitle: election.title,
       },
@@ -380,33 +439,16 @@ router.post('/verify-candidate', protect, async (req, res) => {
 
 // ============================================================================
 // 4. POST /api/proposals
+// Strict One-Time Submission Enforcement & Duplicate Prevention
+// ============================================================================
 const handleProposalSubmit = async (req, res) => {
   let uploadedPath = req.file ? req.file.path : null;
 
   try {
-    // 1. Verify candidate eligibility strictly on the backend
-    let eligibility = await verifyCandidateEligibility(req.user.username);
-    if (!eligibility) {
-      // Auto-register candidate as Sira Asfetsami if authenticated student
-      const username = (req.user.username || '').toLowerCase().trim();
-      let election = await Election.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ createdAt: -1 });
-      if (!election) election = await Election.findOne({}).sort({ createdAt: -1 });
-      if (election) {
-        election.candidates.push({
-          name: req.user.name || 'Candidate',
-          username: username,
-          department: req.user.department || 'General',
-          year: req.user.year || '4th Year',
-          academicYear: req.user.year || '4th Year',
-          position: 'Sira Asfetsami',
-          examCode: 'VERIFIED',
-          votes: 0,
-        });
-        await election.save();
-        eligibility = await verifyCandidateEligibility(req.user.username);
-      }
-    }
+    const username = (req.user.username || '').toLowerCase().trim();
 
+    // 1. Verify candidate eligibility strictly on the backend
+    let eligibility = await verifyCandidateEligibility(username);
     if (!eligibility) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
@@ -415,9 +457,51 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // Automatically ensure position is Sira Asfetsami
-    if (eligibility.candidate) {
-      eligibility.candidate.position = 'Sira Asfetsami';
+    // Determine candidate canonical exam code
+    let rawCode = req.body.examCode || req.body.candidateCode || (eligibility.candidate ? eligibility.candidate.examCode : null);
+    const normalized = normalizeCandidateExamCode(rawCode);
+    const canonicalCode = normalized?.isValid ? normalized.canonicalCode : (eligibility.candidate ? eligibility.candidate.examCode : null);
+
+    if (!canonicalCode || !OFFICIAL_16_EXAM_CODES.includes(canonicalCode)) {
+      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid candidate code. Only the 16 shortlisted Executive Committee candidates are authorized to submit proposals.',
+      });
+    }
+
+    // Anti-Hijacking Check: verify that this canonicalCode is not claimed by another student
+    const existingOtherProposal = await Proposal.findOne({
+      candidateExamCode: canonicalCode,
+      candidateUsername: { $ne: username },
+    });
+    if (existingOtherProposal) {
+      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized. This exam code belongs to another registered candidate.',
+      });
+    }
+
+    // Strict One-Time Submission Enforcement (Duplicate Prevention):
+    // Check if a proposal already exists for this candidate's normalized exam code OR username
+    const existingProposal = await Proposal.findOne({
+      $or: [
+        { candidateUsername: username },
+        { candidateExamCode: canonicalCode },
+      ],
+    });
+
+    if (existingProposal) {
+      if (uploadedPath && fs.existsSync(uploadedPath)) {
+        try { fs.unlinkSync(uploadedPath); } catch (_) {}
+      }
+      return res.status(409).json({
+        success: false,
+        message: 'A proposal has already been submitted for this candidate code. Duplicate submissions are not allowed.',
+        referenceNumber: existingProposal.latestReferenceNumber,
+        submittedAt: existingProposal.latestSubmittedAt,
+      });
     }
 
     // 2. Enforce Deadline using authoritative server time
@@ -464,110 +548,62 @@ const handleProposalSubmit = async (req, res) => {
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const candidateData = eligibility.candidate;
 
-    // 6. Look for existing submission (Versioning & Non-destructive Replacement)
-    let proposal = await Proposal.findOne({ candidateUsername: req.user.username.toLowerCase() });
+    // 6. Record Initial Proposal Submission (Strict Single Submission)
+    const initialVersion = 1;
+    const refNumber = generateReferenceNumber(initialVersion);
 
-    if (!proposal) {
-      // ── FIRST SUBMISSION ──────────────────────────────────────────────────
-      const initialVersion = 1;
-      const refNumber = generateReferenceNumber(initialVersion);
+    const versionRecord = {
+      version: initialVersion,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      fileMimeType: 'application/pdf',
+      storageKey: storageKey,
+      fileData: fileBase64,
+      referenceNumber: refNumber,
+      submittedAt: new Date(),
+      submittedByIp: clientIp,
+      note: req.body.note ? req.body.note.trim() : 'Initial Submission',
+    };
 
-      const versionRecord = {
-        version: initialVersion,
+    const proposal = new Proposal({
+      candidateUsername: username,
+      candidateName: candidateData.name,
+      candidateDepartment: candidateData.department,
+      candidateYear: candidateData.year,
+      candidatePosition: 'Sira Asfetsami',
+      candidateExamCode: canonicalCode,
+      electionId: eligibility.electionId,
+      currentVersion: initialVersion,
+      latestReferenceNumber: refNumber,
+      latestSubmittedAt: new Date(),
+      currentFile: {
         fileName: req.file.originalname,
         fileSize: req.file.size,
         fileMimeType: 'application/pdf',
         storageKey: storageKey,
-        fileData: fileBase64,
-        referenceNumber: refNumber,
-        submittedAt: new Date(),
-        submittedByIp: clientIp,
-        note: req.body.note ? req.body.note.trim() : 'Initial Submission',
-      };
+      },
+      fileData: fileBase64,
+      versions: [versionRecord],
+      status: 'SUBMITTED',
+    });
 
-      proposal = new Proposal({
-        candidateUsername: req.user.username.toLowerCase(),
-        candidateName: candidateData.name,
-        candidateDepartment: candidateData.department,
-        candidateYear: candidateData.year,
-        candidatePosition: candidateData.position,
-        electionId: eligibility.electionId,
+    await proposal.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Proposal successfully submitted!',
+      referenceNumber: refNumber,
+      version: initialVersion,
+      submittedAt: proposal.latestSubmittedAt,
+      fileName: req.file.originalname,
+      candidateExamCode: canonicalCode,
+      proposal: {
+        referenceNumber: refNumber,
         currentVersion: initialVersion,
-        latestReferenceNumber: refNumber,
-        latestSubmittedAt: new Date(),
-        currentFile: {
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          fileMimeType: 'application/pdf',
-          storageKey: storageKey,
-        },
-        fileData: fileBase64,
-        versions: [versionRecord],
-        status: 'SUBMITTED',
-      });
-
-      await proposal.save();
-
-      return res.status(201).json({
-        success: true,
-        message: 'Proposal successfully submitted!',
-        referenceNumber: refNumber,
-        version: initialVersion,
         submittedAt: proposal.latestSubmittedAt,
-        fileName: req.file.originalname,
-        proposal: {
-          referenceNumber: refNumber,
-          currentVersion: initialVersion,
-          submittedAt: proposal.latestSubmittedAt,
-        },
-      });
-    } else {
-      // ── REPLACEMENT / RESUBMISSION (Before Deadline) ──────────────────────
-      const nextVersion = (proposal.currentVersion || 1) + 1;
-      const refNumber = generateReferenceNumber(nextVersion);
-
-      const newVersionRecord = {
-        version: nextVersion,
-        fileName: req.file.originalname,
-        fileSize: req.file.size,
-        fileMimeType: 'application/pdf',
-        storageKey: storageKey,
-        fileData: fileBase64,
-        referenceNumber: refNumber,
-        submittedAt: new Date(),
-        submittedByIp: clientIp,
-        note: req.body.note ? req.body.note.trim() : `Replacement Version ${nextVersion}`,
-      };
-
-      proposal.currentVersion = nextVersion;
-      proposal.latestReferenceNumber = refNumber;
-      proposal.latestSubmittedAt = new Date();
-      proposal.currentFile = {
-        fileName: req.file.originalname,
-        fileSize: req.file.size,
-        fileMimeType: 'application/pdf',
-        storageKey: storageKey,
-      };
-      proposal.fileData = fileBase64;
-      proposal.versions.push(newVersionRecord);
-      proposal.status = 'SUBMITTED';
-
-      await proposal.save();
-
-      return res.status(200).json({
-        success: true,
-        message: `Proposal successfully updated to Version ${nextVersion}. Previous versions have been retained.`,
-        referenceNumber: refNumber,
-        version: nextVersion,
-        submittedAt: proposal.latestSubmittedAt,
-        fileName: req.file.originalname,
-        proposal: {
-          referenceNumber: refNumber,
-          currentVersion: nextVersion,
-          submittedAt: proposal.latestSubmittedAt,
-        },
-      });
-    }
+        candidateExamCode: canonicalCode,
+      },
+    });
   } catch (error) {
     console.error('Proposal submission error:', error);
     if (uploadedPath && fs.existsSync(uploadedPath)) {

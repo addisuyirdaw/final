@@ -18,11 +18,17 @@ import {
   Unlock,
   Sparkles,
   Award,
+  Lock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
+
+// ── Official 16 Exam Codes from Electoral Board Notice ──────────────────────
+const OFFICIAL_16_CODES = [
+  "16", "23", "02", "32", "37", "38", "22", "19", "04", "30", "24", "20", "03", "36", "34", "15"
+];
 
 // ── Countdown Timer Component for Proposal Submissions ──────────────────────
 const ProposalCountdown = ({ deadline, onDeadlineReached }) => {
@@ -168,6 +174,10 @@ export function ProposalSubmission() {
       setSubmitting(true);
       const formData = new FormData();
       formData.append("proposalFile", file);
+      const activeCode = statusData?.candidate?.examCode || examCode;
+      if (activeCode) {
+        formData.append("examCode", activeCode.trim());
+      }
       if (note.trim()) {
         formData.append("note", note.trim());
       }
@@ -181,6 +191,9 @@ export function ProposalSubmission() {
     } catch (err) {
       console.error("Submission error:", err);
       toast.error(err.message || "Failed to submit proposal.");
+      if (err.message && err.message.includes("already been submitted")) {
+        await fetchStatus();
+      }
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +215,7 @@ export function ProposalSubmission() {
   const handleVerifyExamCode = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!examCode.trim()) {
-      toast.error("Please enter the candidate verification code given during your final exam evaluation.");
+      toast.error("Please enter your candidate verification code from the official 16 exam codes.");
       return;
     }
 
@@ -210,43 +223,10 @@ export function ProposalSubmission() {
       setVerifyingCode(true);
       const res = await apiService.verifyCandidateExamCode(examCode.trim(), "Sira Asfetsami");
       toast.success(res.message || "Candidate verified! Welcome to the proposal submission portal.");
-      
-      // Immediately advance UI state to File Upload screen (Drag & Drop PDF zone)
-      setStatusData((prev) => ({
-        ...(prev || {}),
-        isEligible: true,
-        isAfegubayeExempt: false,
-        candidate: res.candidate || {
-          name: user?.name,
-          username: user?.username,
-          department: user?.department || "General",
-          year: user?.year || "4th Year",
-          position: "Sira Asfetsami",
-          examCode: examCode.trim(),
-        },
-      }));
       await fetchStatus();
     } catch (err) {
       console.error("Verification error:", err);
-      const errMsg = err.message || "";
-      if (errMsg.includes("Directive No. 003/2012") || errMsg.includes("Afegubaye") || errMsg.includes("Exclusion")) {
-        // Automatically bypass Directive 003/2012 exclusion and proceed directly to file upload screen
-        setStatusData((prev) => ({
-          ...(prev || {}),
-          isEligible: true,
-          isAfegubayeExempt: false,
-          candidate: {
-            name: user?.name,
-            username: user?.username,
-            department: user?.department || "General",
-            year: user?.year || "4th Year",
-            position: "Sira Asfetsami",
-            examCode: examCode.trim(),
-          },
-        }));
-      } else {
-        toast.error(errMsg || "Invalid exam verification code. Please check and try again.");
-      }
+      toast.error(err.message || "Invalid candidate code. Only the 16 shortlisted Executive Committee candidates are authorized.");
     } finally {
       setVerifyingCode(false);
     }
@@ -346,10 +326,37 @@ export function ProposalSubmission() {
                 </div>
               </div>
 
+              {/* Official 16 Authorized Candidate Codes from Electoral Board */}
+              <div className="bg-gradient-to-r from-sky-50 via-indigo-50/60 to-blue-50 border border-sky-200/80 rounded-xl p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-2 text-sky-950 font-bold text-xs uppercase tracking-wider">
+                  <Award className="w-4 h-4 text-sky-700" />
+                  Official Authorized 16 Candidate Codes (from Stamped Notice):
+                </div>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 my-2">
+                  {OFFICIAL_16_CODES.map((code) => (
+                    <button
+                      type="button"
+                      key={code}
+                      onClick={() => setExamCode(code)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all shadow-xs border ${
+                        examCode.trim() === code || examCode.trim() === String(parseInt(code, 10))
+                          ? "bg-indigo-700 text-white border-indigo-700 ring-2 ring-indigo-300"
+                          : "bg-white text-indigo-900 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/50"
+                      }`}
+                    >
+                      Code {code}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-sky-800 leading-relaxed mt-2">
+                  📌 <strong>Whitelist Notice:</strong> Only the 16 shortlisted candidates holding these official exam codes are authorized to submit proposals. Leading zeros (e.g. <code className="font-bold">2</code> or <code className="font-bold">02</code>) and prefixes (e.g. <code className="font-bold">DBU-</code>, <code className="font-bold">016R</code>) are normalized automatically.
+                </p>
+              </div>
+
               {/* Input: Final Exam Verification Code */}
               <div>
                 <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
-                  Candidate Verification Code (Given During Final Exam) <span className="text-red-500">*</span>
+                  Candidate Verification Code (from the 16 Official Codes) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -360,12 +367,12 @@ export function ProposalSubmission() {
                     required
                     value={examCode}
                     onChange={(e) => setExamCode(e.target.value)}
-                    placeholder="Enter exam code or candidate rank (e.g. 1 to 16, or DBU-2019-01)"
+                    placeholder="Enter one of the 16 codes (e.g. 16, 02, 23, 37, 04)"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-sm font-mono tracking-wide focus:ring-2 focus:ring-indigo-500 uppercase font-semibold"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  💡 Enter your candidate code or rank number given during your final exam evaluation (e.g. <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">1</code> to <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">16</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">DBU-2019-01</code>). Any format is automatically accepted.
+                  💡 Type your exam code (e.g. <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">16</code>, <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">02</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-bold">2</code>). Anti-hijacking binds this code directly to your student ID upon first claim.
                 </p>
               </div>
 
@@ -515,49 +522,49 @@ export function ProposalSubmission() {
           </div>
         )}
 
-        {/* Existing Submission Receipt / Status */}
+        {/* Existing Submission Receipt / Locked Screen */}
         {proposal && (
-          <div className="bg-white rounded-2xl border-2 border-emerald-400 shadow-sm p-6 sm:p-8 mb-8 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500"></div>
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
+          <div className="bg-white rounded-2xl border-2 border-emerald-500 shadow-md p-6 sm:p-8 mb-8 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600"></div>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
               <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-7 h-7" />
+                <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  <CheckCircle className="w-8 h-8 text-emerald-600" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-gray-900">Official Proposal Confirmed</h3>
-                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
-                      Submitted &bull; V{proposal.currentVersion}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900">Official Proposal Confirmed</h3>
+                    <span className="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 border border-emerald-300">
+                      <Lock className="w-3.5 h-3.5" /> Locked &bull; Sealed
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 max-w-xl">
-                    Your strategic proposal document has been officially recorded in the Student Union database.
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-xl leading-relaxed">
+                    Your strategic proposal document has been officially recorded and locked in the Electoral Board registry.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => handleDownload(proposal.id, proposal.currentVersion, proposal.currentFile?.fileName)}
                 disabled={downloading}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
               >
                 <Download className="w-4 h-4" /> Download Submitted PDF
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-4 text-xs mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/80 border border-emerald-200 rounded-xl p-5 text-xs mb-5">
               <div>
-                <span className="text-gray-500 block uppercase text-[10px] font-bold">Official Reference Code:</span>
-                <span className="font-mono font-bold text-emerald-900 text-sm">{proposal.latestReferenceNumber}</span>
+                <span className="text-gray-500 block uppercase text-[10px] font-bold tracking-wider">Official Reference Code:</span>
+                <span className="font-mono font-black text-emerald-900 text-base">{proposal.latestReferenceNumber}</span>
               </div>
               <div>
-                <span className="text-gray-500 block uppercase text-[10px] font-bold">Submitted Document:</span>
-                <span className="font-semibold text-gray-800 truncate block text-xs">
-                  {proposal.currentFile?.fileName} ({(proposal.currentFile?.fileSize / 1024 / 1024).toFixed(2)} MB)
+                <span className="text-gray-500 block uppercase text-[10px] font-bold tracking-wider">Candidate Exam Code:</span>
+                <span className="font-mono font-black text-indigo-900 text-base">
+                  Code {proposal.candidateExamCode || candidate?.examCode || "VERIFIED"}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block uppercase text-[10px] font-bold">Registration Timestamp:</span>
+                <span className="text-gray-500 block uppercase text-[10px] font-bold tracking-wider">Registration Timestamp:</span>
                 <span className="font-bold text-gray-800 text-xs">
                   {new Date(proposal.latestSubmittedAt).toLocaleString("en-US", {
                     timeZone: "Africa/Addis_Ababa",
@@ -567,168 +574,166 @@ export function ProposalSubmission() {
                   (EAT)
                 </span>
               </div>
+              <div className="sm:col-span-3 pt-2 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <span className="text-gray-600 block text-xs">
+                  <strong>Archived Document:</strong> {proposal.currentFile?.fileName} ({(proposal.currentFile?.fileSize / 1024 / 1024).toFixed(2)} MB)
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                  <Shield className="w-3.5 h-3.5" /> PDF Magic Bytes Verified (%PDF-)
+                </span>
+              </div>
             </div>
 
-            {/* Toggle Revision Form if window is Open */}
-            {isOpen && (
-              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-gray-500">
-                  Submissions remain open until {settings?.deadlineEthiopia}.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowRevisionForm(!showRevisionForm)}
-                  className="font-bold text-sky-700 hover:text-sky-900 hover:underline"
-                >
-                  {showRevisionForm ? "Hide Revision Form" : "Need to submit a replacement revision? Click here \u2192"}
-                </button>
+            {/* Strict Duplicate Prevention & One-Time Submission Enforcement Banner */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-700 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center flex-shrink-0 font-bold">
+                <Lock className="w-4 h-4 text-slate-700" />
               </div>
-            )}
+              <div className="leading-relaxed">
+                <p className="font-bold text-slate-900">Submission Completed &amp; Permanently Locked:</p>
+                <p className="mt-0.5 text-slate-600">
+                  Under the Ethiopian Higher Education Student Union Election Directive (Directive No. 003/2012) and Electoral Board regulations, proposal submissions are strictly limited to a single final document. Duplicate submissions or replacement uploads for this candidate code are strictly prohibited.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Upload Form (Active when no proposal yet, OR when candidate chose to revise) */}
-        {(!proposal || showRevisionForm) && (
+        {/* Upload Form (Active ONLY when no proposal has been submitted yet) */}
+        {!proposal && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
-          <div className="mb-5 border-b border-gray-100 pb-4">
-            <h2 className="text-lg font-bold text-gray-900">
-              {proposal ? "Replace Proposal Document (Revision)" : "Submit Official PDF Proposal"}
-            </h2>
-            <p className="text-xs text-gray-500 mt-1">
-              {proposal
-                ? "You may replace your submitted PDF anytime before the deadline. Earlier versions will remain recorded in your history."
-                : "Attach your completed executive manifesto or policy proposal. Only valid PDF files up to 15 MB are accepted."}
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Drag & Drop Upload Zone */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                if (e.dataTransfer.files?.[0]) {
-                  handleFileChange(e.dataTransfer.files[0]);
-                }
-              }}
-              className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-                dragOver
-                  ? "border-sky-500 bg-sky-50/50"
-                  : file
-                  ? "border-emerald-400 bg-emerald-50/30"
-                  : "border-gray-300 hover:border-gray-400 bg-gray-50/50"
-              }`}
-            >
-              <input
-                id="proposal-pdf-input"
-                type="file"
-                accept=".pdf,application/pdf"
-                disabled={!isOpen || submitting}
-                onChange={(e) => handleFileChange(e.target.files?.[0])}
-                className="hidden"
-              />
-
-              {file ? (
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
-                    <FileCheck className="w-8 h-8" />
-                  </div>
-                  <p className="font-bold text-gray-900 text-sm">{file.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{(file.size / 1024 / 1024).toFixed(2)} MB &bull; Ready to submit</p>
-                  <label
-                    htmlFor="proposal-pdf-input"
-                    className="mt-3 text-xs font-semibold text-sky-700 hover:text-sky-900 cursor-pointer underline"
-                  >
-                    Choose a different PDF
-                  </label>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 bg-sky-100 text-sky-700 rounded-2xl flex items-center justify-center mb-3">
-                    <Upload className="w-7 h-7" />
-                  </div>
-                  <label
-                    htmlFor="proposal-pdf-input"
-                    className={`font-bold text-sm text-sky-700 hover:text-sky-800 cursor-pointer underline ${
-                      !isOpen ? "pointer-events-none opacity-50" : ""
-                    }`}
-                  >
-                    Click to browse PDF file
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">or drag and drop your proposal document here</p>
-                  <div className="flex items-center gap-3 mt-4 text-[11px] text-gray-400 uppercase font-semibold tracking-wider">
-                    <span>PDF Only</span>
-                    <span>&bull;</span>
-                    <span>Max 15 MB</span>
-                    <span>&bull;</span>
-                    <span>Verified Magic Bytes Check</span>
-                  </div>
-                </div>
-              )}
+            <div className="mb-5 border-b border-gray-100 pb-4">
+              <h2 className="text-lg font-bold text-gray-900">
+                Submit Official PDF Proposal
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Attach your completed executive manifesto or strategic proposal. Only valid PDF files up to 15 MB are accepted. Submissions are strictly one-time.
+              </p>
             </div>
 
-            {/* Optional Note / Version description */}
-            <div>
-              <label htmlFor="proposal-note" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Revision Notes or Title (Optional)
-              </label>
-              <input
-                id="proposal-note"
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                disabled={!isOpen || submitting}
-                placeholder="e.g., Executive Proposal for Student Welfare & Academic Reform"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-gray-100"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Drag & Drop Upload Zone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  if (e.dataTransfer.files?.[0]) {
+                    handleFileChange(e.dataTransfer.files[0]);
+                  }
+                }}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                  dragOver
+                    ? "border-sky-500 bg-sky-50/50"
+                    : file
+                    ? "border-emerald-400 bg-emerald-50/30"
+                    : "border-gray-300 hover:border-gray-400 bg-gray-50/50"
+                }`}
+              >
+                <input
+                  id="proposal-pdf-input"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  disabled={!isOpen || submitting}
+                  onChange={(e) => handleFileChange(e.target.files?.[0])}
+                  className="hidden"
+                />
 
-            {/* Submit Action */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-              <div className="text-xs text-gray-500">
-                {isOpen ? (
-                  <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    Submissions close at: {settings.deadlineEthiopia}
-                  </span>
+                {file ? (
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
+                      <FileCheck className="w-8 h-8" />
+                    </div>
+                    <p className="font-bold text-gray-900 text-sm">{file.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{(file.size / 1024 / 1024).toFixed(2)} MB &bull; Ready to submit</p>
+                    <label
+                      htmlFor="proposal-pdf-input"
+                      className="mt-3 text-xs font-semibold text-sky-700 hover:text-sky-900 cursor-pointer underline"
+                    >
+                      Choose a different PDF
+                    </label>
+                  </div>
                 ) : (
-                  <span className="text-red-600 font-semibold flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4" />
-                    Submissions are currently locked.
-                  </span>
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-sky-100 text-sky-700 rounded-2xl flex items-center justify-center mb-3">
+                      <Upload className="w-7 h-7" />
+                    </div>
+                    <label
+                      htmlFor="proposal-pdf-input"
+                      className={`font-bold text-sm text-sky-700 hover:text-sky-800 cursor-pointer underline ${
+                        !isOpen ? "pointer-events-none opacity-50" : ""
+                      }`}
+                    >
+                      Click to browse PDF file
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">or drag and drop your proposal document here</p>
+                    <div className="flex items-center gap-3 mt-4 text-[11px] text-gray-400 uppercase font-semibold tracking-wider">
+                      <span>PDF Only</span>
+                      <span>&bull;</span>
+                      <span>Max 15 MB</span>
+                      <span>&bull;</span>
+                      <span>One-Time Submission</span>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={!isOpen || submitting || !file}
-                className="w-full sm:w-auto px-6 py-3 bg-sky-700 hover:bg-sky-800 text-white rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Uploading &amp; Verifying...
-                  </>
-                ) : proposal ? (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Upload Replacement Proposal
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Submit Final Proposal
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+              {/* Optional Note / Version description */}
+              <div>
+                <label htmlFor="proposal-note" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Proposal Document Title or Note (Optional)
+                </label>
+                <input
+                  id="proposal-note"
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  disabled={!isOpen || submitting}
+                  placeholder="e.g., Executive Proposal for Student Welfare & Academic Reform"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* Submit Action */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                <div className="text-xs text-gray-500">
+                  {isOpen ? (
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      Submissions close at: {settings.deadlineEthiopia}
+                    </span>
+                  ) : (
+                    <span className="text-red-600 font-semibold flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" />
+                      Submissions are currently locked.
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!isOpen || submitting || !file}
+                  className="w-full sm:w-auto px-6 py-3 bg-sky-700 hover:bg-sky-800 text-white rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Submitting Final Proposal...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Submit Final Proposal
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     </div>
