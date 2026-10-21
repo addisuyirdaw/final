@@ -15,9 +15,10 @@ class ApiService {
   getAuthHeaders() {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = localStorage.getItem('token') || user.token;
       return {
         'Content-Type': 'application/json',
-        ...(user.token && { Authorization: `Bearer ${user.token}` })
+        ...(token && { Authorization: `Bearer ${token}` })
       };
     } catch {
       return { 'Content-Type': 'application/json' };

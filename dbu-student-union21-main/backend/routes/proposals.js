@@ -187,53 +187,12 @@ async function getEffectiveCandidatePairs() {
 }
 
 /**
- * Clean mock test proposals, retain ONLY Candidate Exam Code 20 (Student ID 1802083),
- * unlink unneeded test PDFs from disk, and ensure Candidate 20 has an authentic submitted proposal.
+ * Ensure Candidate Exam Code 20 (Student ID 1802083) has an authentic seeded proposal.
+ * NOTE: MUST NEVER delete or wipe other candidate proposals!
  */
-async function ensureCandidate20SeededAndCleanMockSubmissions() {
+async function ensureCandidate20Seeded() {
   try {
-    // 1. Wipe mock/test proposals in DB, keeping ONLY Candidate Exam Code 20 (Student ID 1802083)
-    const testProposals = await Proposal.find({
-      $and: [
-        { candidateExamCode: { $ne: '20' } },
-        { studentId: { $ne: '1802083' } },
-        { candidateUsername: { $ne: 'dbu1802083' } },
-      ],
-    });
-
-    for (const p of testProposals) {
-      if (p.currentFile?.storageKey && !p.currentFile.storageKey.includes('candidate-20')) {
-        const filePath = path.join(privateUploadDir, p.currentFile.storageKey);
-        if (fs.existsSync(filePath)) {
-          try { fs.unlinkSync(filePath); } catch (_) {}
-        }
-      }
-      if (Array.isArray(p.versions)) {
-        for (const v of p.versions) {
-          if (v.storageKey && !v.storageKey.includes('candidate-20')) {
-            const vPath = path.join(privateUploadDir, v.storageKey);
-            if (fs.existsSync(vPath)) {
-              try { fs.unlinkSync(vPath); } catch (_) {}
-            }
-          }
-        }
-      }
-      await Proposal.findByIdAndDelete(p._id);
-    }
-
-    // Unlink old scratch/test files in privateUploadDir except candidate-20
-    try {
-      const files = fs.readdirSync(privateUploadDir);
-      for (const file of files) {
-        if (file.endsWith('.pdf') && !file.includes('candidate-20') && !file.includes('1802083')) {
-          try {
-            fs.unlinkSync(path.join(privateUploadDir, file));
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
-
-    // 2. Ensure Candidate Exam Code 20 has an authentic, submitted proposal
+    // 1. Ensure Candidate Exam Code 20 has an authentic, submitted proposal
     const genuineStorageKey = 'proposal-candidate-20-genuine.pdf';
     const genuinePdfFileName = 'DBU_Candidate_20_Strategic_Proposal.pdf';
     const genuinePdfPath = path.join(privateUploadDir, genuineStorageKey);
@@ -898,39 +857,26 @@ const handleProposalSubmit = async (req, res) => {
   let uploadedPath = req.file ? req.file.path : null;
 
   try {
-    if (!req.user && req.body.studentId) {
-      const normId = normalizeStudentId(req.body.studentId);
-      const candUser = await User.findOne({
-        $or: [
-          { username: normId },
-          { username: `dbu${normId}` },
-          { studentId: normId },
-        ],
+    // Determine candidate canonical exam code & student ID from body or authenticated user
+    const effectivePairs = await getEffectiveCandidatePairs();
+    let rawCode = req.body.examCode || req.body.candidateCode || req.user?.examCode;
+    let rawStudentId = req.body.studentId || req.user?.studentId || req.user?.username;
+
+    let cleanExamCode = rawCode ? String(rawCode).trim().replace(/^0+/, '') || String(rawCode).trim() : '';
+    let cleanStudentId = rawStudentId ? String(rawStudentId).trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '') : '';
+
+    // If only user is present, find matching candidate pair
+    if ((!cleanExamCode || !cleanStudentId) && req.user) {
+      const uClean = (req.user.username || '').toLowerCase().replace(/^(?:dbu[-_/\s]*)?/i, '');
+      const pair = effectivePairs.find(p => {
+        const pId = String(p.studentId || '').trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '');
+        return pId === uClean || (req.user.studentId && pId === String(req.user.studentId).trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, ''));
       });
-      if (candUser) {
-        req.user = candUser;
+      if (pair) {
+        cleanExamCode = cleanExamCode || String(pair.canonicalCode || pair.examCode).trim().replace(/^0+/, '');
+        cleanStudentId = cleanStudentId || String(pair.studentId).trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '');
       }
     }
-
-    const username = (req.user?.username || '').toLowerCase().trim();
-
-    // 1. Verify candidate eligibility strictly on the backend
-    let eligibility = await verifyCandidateEligibility(username);
-    if (!eligibility) {
-      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied: Only authorized student union candidates may submit proposals.',
-      });
-    }
-
-    // Determine candidate canonical exam code & student ID
-    const effectivePairs = await getEffectiveCandidatePairs();
-    let rawCode = req.body.examCode || req.body.candidateCode || (eligibility.candidate ? eligibility.candidate.examCode : null);
-    let rawStudentId = req.body.studentId || (eligibility.candidate ? eligibility.candidate.studentId : null) || req.user.username;
-
-    const cleanExamCode = String(rawCode || '').trim().replace(/^0+/, '') || String(rawCode || '').trim();
-    const cleanStudentId = String(rawStudentId || '').trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '');
 
     if (!cleanExamCode || !cleanStudentId) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
@@ -950,7 +896,7 @@ const handleProposalSubmit = async (req, res) => {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
         success: false,
-        message: 'የፈተና መለያ ኮዱ ከተማሪ መታወቂያ ቁጥር ጋር አልተዛመደም!',
+        message: 'የፈተና መለያ ኮዱ ከተማሪ መታወቂያ ቁጥር ጋር አልተዛመደም! (Exam code does not match this Student ID)',
       });
     }
 
@@ -961,6 +907,48 @@ const handleProposalSubmit = async (req, res) => {
         success: false,
         message: 'This candidate account / exam code has been temporarily deactivated by the Student Union President.',
       });
+    }
+
+    // Ensure candidate User exists
+    if (!req.user) {
+      let candUser = await User.findOne({
+        $or: [
+          { studentId: cleanStudentId },
+          { username: `dbu${cleanStudentId.toLowerCase()}` },
+          { username: cleanStudentId.toLowerCase() },
+        ],
+      });
+      if (!candUser) {
+        candUser = await User.create({
+          name: matchedCandidate.name || `Candidate (Code ${cleanExamCode})`,
+          username: `dbu${cleanStudentId.toLowerCase()}`,
+          studentId: cleanStudentId,
+          password: `DBU_${cleanStudentId}!2026`,
+          department: matchedCandidate.department || '',
+          year: matchedCandidate.year || '',
+          role: 'student',
+        });
+      }
+      req.user = candUser;
+    }
+
+    const username = (req.user?.username || `dbu${cleanStudentId.toLowerCase()}`).toLowerCase().trim();
+
+    // Verify candidate eligibility on the election roster
+    let eligibility = await verifyCandidateEligibility(username);
+    if (!eligibility) {
+      eligibility = {
+        candidate: {
+          name: req.user.name || matchedCandidate.name,
+          username: username,
+          department: req.user.department || matchedCandidate.department || '',
+          year: req.user.year || matchedCandidate.year || '',
+          position: 'Sira Asfetsami',
+          examCode: matchedCandidate.canonicalCode || matchedCandidate.examCode || cleanExamCode,
+          studentId: cleanStudentId,
+        },
+        electionId: null,
+      };
     }
 
     const verifiedCanonicalCode = matchedCandidate.canonicalCode || matchedCandidate.examCode || cleanExamCode;
@@ -1208,8 +1196,8 @@ router.get('/download/:proposalId', optionalProtect, async (req, res) => {
 // ============================================================================
 const handlePresidentDashboard = async (req, res) => {
   try {
-    // 1. Maintain clean database state: Retain ONLY genuine Candidate 20 submission & wipe mock test data
-    await ensureCandidate20SeededAndCleanMockSubmissions();
+    // 1. Ensure Candidate 20 proposal is seeded
+    await ensureCandidate20Seeded();
 
     const { candidates, election } = await getAuthorizedCandidates();
     const settings = await getProposalSettings();

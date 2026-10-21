@@ -134,7 +134,8 @@ export function ProposalSubmission() {
         localStorage.setItem("token", res.token);
       }
       if (res.user) {
-        localStorage.setItem("user", JSON.stringify(res.user));
+        const userObj = { ...res.user, token: res.token };
+        localStorage.setItem("user", JSON.stringify(userObj));
       }
 
       setCandidate(res.candidate);
