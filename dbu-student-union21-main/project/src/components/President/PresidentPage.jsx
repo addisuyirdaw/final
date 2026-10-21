@@ -24,7 +24,15 @@ import {
   ChevronDown,
   ChevronUp,
   Award,
-  Crown
+  Crown,
+  Sparkles,
+  RotateCcw,
+  Edit3,
+  Sliders,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  User,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
@@ -71,6 +79,19 @@ export function PresidentPage() {
 
   // Version History Modal
   const [selectedCandidateHistory, setSelectedCandidateHistory] = useState(null);
+
+  // Administrative Controls State
+  const [deletingId, setDeletingId] = useState(null);
+  const [togglingCode, setTogglingCode] = useState(null);
+
+  // Edit Candidate Mapping State
+  const [editMappingCandidate, setEditMappingCandidate] = useState(null);
+  const [savingMapping, setSavingMapping] = useState(false);
+
+  // AI Proposal Evaluation State
+  const [evaluatingId, setEvaluatingId] = useState(null);
+  const [selectedEvaluation, setSelectedEvaluation] = useState(null);
+  const [savingScore, setSavingScore] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
@@ -147,6 +168,130 @@ export function PresidentPage() {
       toast.error(err.message || "Failed to download proposal PDF.");
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  // 1. Delete / Reset Proposal
+  const handleDeleteProposal = async (candidate) => {
+    const confirmPrompt = `Are you sure you want to delete the submitted proposal for candidate "${candidate.name}" (Code: ${candidate.examCode})?\n\nThis will remove the uploaded PDF and reset their status to Pending, allowing the candidate to upload again.`;
+    if (!window.confirm(confirmPrompt)) return;
+
+    try {
+      setDeletingId(candidate.proposalId);
+      const res = await apiService.deleteProposal(candidate.proposalId);
+      toast.success(res.message || "Proposal removed. Candidate can now re-submit.");
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Delete proposal error:", err);
+      toast.error(err.message || "Failed to delete proposal.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // 2. Toggle Candidate Active / Inactive Status
+  const handleToggleCandidateStatus = async (candidate) => {
+    const newActiveState = candidate.isActive === false;
+    try {
+      setTogglingCode(candidate.examCode);
+      const res = await apiService.toggleCandidateStatus(candidate.examCode, newActiveState);
+      toast.success(res.message || `Candidate Code ${candidate.examCode} status updated.`);
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Toggle candidate error:", err);
+      toast.error(err.message || "Failed to update candidate active status.");
+    } finally {
+      setTogglingCode(null);
+    }
+  };
+
+  // 3. Save Candidate Mapping
+  const handleSaveMapping = async (e) => {
+    e.preventDefault();
+    if (!editMappingCandidate?.newExamCode || !editMappingCandidate?.newStudentId) {
+      toast.error("Both Exam Code and University Student ID are required.");
+      return;
+    }
+
+    try {
+      setSavingMapping(true);
+      const res = await apiService.editCandidateMapping({
+        oldExamCode: editMappingCandidate.oldExamCode,
+        newExamCode: editMappingCandidate.newExamCode,
+        oldStudentId: editMappingCandidate.oldStudentId,
+        newStudentId: editMappingCandidate.newStudentId,
+      });
+      toast.success(res.message || "Candidate mapping updated successfully!");
+      setEditMappingCandidate(null);
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Save mapping error:", err);
+      toast.error(err.message || "Failed to update mapping.");
+    } finally {
+      setSavingMapping(false);
+    }
+  };
+
+  // 4. AI-Assisted Proposal Evaluation
+  const handleOpenAiEvaluate = async (candidate, forceRefresh = false) => {
+    if (!candidate.proposalId) {
+      toast.error("Candidate has not submitted a proposal PDF yet.");
+      return;
+    }
+
+    try {
+      setEvaluatingId(candidate.proposalId);
+      let evalData = candidate.evaluation;
+
+      if (!evalData || forceRefresh) {
+        toast.loading("AI is reading proposal PDF and evaluating Directive No. 003/2012 rubric...", { id: "ai-eval" });
+        const res = await apiService.evaluateProposalWithAi(candidate.proposalId);
+        evalData = res.evaluation;
+        toast.success("AI rubric evaluation completed!", { id: "ai-eval" });
+        await fetchDashboard();
+      }
+
+      setSelectedEvaluation({
+        candidate,
+        proposalId: candidate.proposalId,
+        evaluation: evalData,
+        totalScore: evalData?.totalScore !== undefined ? evalData.totalScore : 12,
+        criteria: evalData?.criteria || {
+          strategicObjectives: { score: 3.5, maxScore: 4, feedback: "" },
+          actionability: { score: 3.5, maxScore: 4, feedback: "" },
+          timelinePlanning: { score: 3.5, maxScore: 4, feedback: "" },
+          clarityBudgeting: { score: 2.5, maxScore: 3, feedback: "" },
+        },
+        summaryFeedback: evalData?.summaryFeedback || "",
+        reviewNotes: evalData?.reviewNotes || "",
+      });
+    } catch (err) {
+      console.error("AI evaluate error:", err);
+      toast.error(err.message || "Failed to evaluate proposal with AI.", { id: "ai-eval" });
+    } finally {
+      setEvaluatingId(null);
+    }
+  };
+
+  // 5. Accept and Save Official Score
+  const handleSaveEvaluationScore = async () => {
+    if (!selectedEvaluation) return;
+    try {
+      setSavingScore(true);
+      const res = await apiService.saveProposalScore(selectedEvaluation.proposalId, {
+        totalScore: Number(selectedEvaluation.totalScore),
+        criteria: selectedEvaluation.criteria,
+        summaryFeedback: selectedEvaluation.summaryFeedback,
+        reviewNotes: selectedEvaluation.reviewNotes,
+      });
+      toast.success(res.message || "Proposal score officially approved and recorded!");
+      setSelectedEvaluation(null);
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Save score error:", err);
+      toast.error(err.message || "Failed to save proposal score.");
+    } finally {
+      setSavingScore(false);
     }
   };
 
@@ -442,17 +587,18 @@ export function PresidentPage() {
             <table className="w-full text-left text-sm text-gray-600">
               <thead className="bg-slate-50 text-xs font-bold uppercase text-gray-500 border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4">Candidate & Department</th>
-                  <th className="px-4 py-4 text-center">Exam Code</th>
+                  <th className="px-5 py-4">Candidate & Student ID</th>
+                  <th className="px-4 py-4 text-center">Exam Code & Access</th>
                   <th className="px-4 py-4 text-center">Submission Status</th>
-                  <th className="px-6 py-4">Reference & Submission Date</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-4 py-4 text-center">AI Evaluation (15%)</th>
+                  <th className="px-5 py-4">Reference & Date</th>
+                  <th className="px-5 py-4 text-right">Administrative Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredCandidates.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                       <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                       <p className="text-sm font-semibold">No candidates found matching the search criteria.</p>
                     </td>
@@ -461,24 +607,69 @@ export function PresidentPage() {
                   filteredCandidates.map((c) => (
                     <tr key={c.candidateId || c.username} className="hover:bg-slate-50/70 transition-colors">
                       {/* Candidate Column */}
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <div className="font-bold text-gray-900">{c.name}</div>
                         <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                          <span>{c.username}</span>
+                          <span className="font-mono font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                            ID: {c.studentId || c.username}
+                          </span>
                           <span>&bull;</span>
                           <span>{c.department || "General"}</span>
                         </div>
                       </td>
 
-                      {/* Exam Code Column */}
+                      {/* Exam Code & Access Toggle Column */}
                       <td className="px-4 py-4 text-center">
-                        {c.examCode ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
-                            {c.examCode}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">&mdash;</span>
-                        )}
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            {c.examCode ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                Code {c.examCode}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">&mdash;</span>
+                            )}
+                            <button
+                              onClick={() =>
+                                setEditMappingCandidate({
+                                  candidateName: c.name,
+                                  oldExamCode: c.examCode,
+                                  newExamCode: c.examCode,
+                                  oldStudentId: c.studentId || c.username,
+                                  newStudentId: c.studentId || c.username,
+                                })
+                              }
+                              className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                              title="Edit Assigned Exam Code / University Student ID"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Action toggle to enable/disable exam code */}
+                          {c.examCode && (
+                            <button
+                              onClick={() => handleToggleCandidateStatus(c)}
+                              disabled={togglingCode === c.examCode}
+                              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                                c.isActive === false
+                                  ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                              }`}
+                              title={c.isActive === false ? "Click to Activate" : "Click to Deactivate"}
+                            >
+                              {c.isActive === false ? (
+                                <>
+                                  <ToggleLeft className="w-3.5 h-3.5 text-red-500" /> Inactive
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> Active
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Status Column */}
@@ -494,8 +685,41 @@ export function PresidentPage() {
                         )}
                       </td>
 
+                      {/* AI Rubric Evaluation (15%) Column */}
+                      <td className="px-4 py-4 text-center">
+                        {c.isSubmitted && c.proposalId ? (
+                          c.evaluation && c.evaluation.totalScore !== undefined ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <button
+                                onClick={() => handleOpenAiEvaluate(c)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-black transition-all shadow-sm"
+                                title="Click to view full rubric evaluation and scores"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                                {c.evaluation.totalScore} / 15 pts
+                              </button>
+                              <span className="text-[10px] font-bold text-gray-500">
+                                {c.evaluation.status === "Approved" ? "✓ Approved" : "Draft AI Review"}
+                              </span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenAiEvaluate(c)}
+                              disabled={evaluatingId === c.proposalId}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                              title="Evaluate proposal with AI against Directive No. 003/2012 Article 22"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              {evaluatingId === c.proposalId ? "Analyzing..." : "AI Auto-Evaluate"}
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Awaiting PDF</span>
+                        )}
+                      </td>
+
                       {/* Reference & Date Column */}
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         {c.isSubmitted ? (
                           <div>
                             <div className="text-xs font-mono font-bold text-gray-800 flex items-center gap-1">
@@ -507,22 +731,35 @@ export function PresidentPage() {
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">Awaiting candidate PDF</span>
+                          <span className="text-xs text-gray-400 italic">No submission yet</span>
                         )}
                       </td>
 
                       {/* Actions Column */}
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-5 py-4 text-right">
                         {c.isSubmitted && c.proposalId ? (
                           <div className="inline-flex items-center gap-2">
                             <button
                               onClick={() => handleDownloadFile(c.proposalId, c.currentVersion, `${c.username}_proposal.pdf`)}
                               disabled={downloadingId === `${c.proposalId}-latest`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                              title="Download Proposal PDF"
                             >
                               <Download className="w-3.5 h-3.5" />
-                              {downloadingId === `${c.proposalId}-latest` ? "Downloading..." : "Download PDF"}
+                              {downloadingId === `${c.proposalId}-latest` ? "..." : "PDF"}
                             </button>
+
+                            {/* Delete Proposal / Allow Resubmit Button */}
+                            <button
+                              onClick={() => handleDeleteProposal(c)}
+                              disabled={deletingId === c.proposalId}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                              title="Delete uploaded proposal PDF and reset status back to Pending"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-red-600" />
+                              {deletingId === c.proposalId ? "Resetting..." : "Allow Resubmit"}
+                            </button>
+
                             {c.versionHistory && c.versionHistory.length > 1 && (
                               <button
                                 onClick={() => setSelectedCandidateHistory(c)}
@@ -534,7 +771,7 @@ export function PresidentPage() {
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 font-medium">Not Available</span>
+                          <span className="text-xs text-gray-400 font-medium">Pending Upload</span>
                         )}
                       </td>
                     </tr>
@@ -544,6 +781,340 @@ export function PresidentPage() {
             </table>
           </div>
         </div>
+
+        {/* Edit Candidate Mapping Modal */}
+        {editMappingCandidate && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95">
+              <button
+                onClick={() => setEditMappingCandidate(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Edit Candidate Mapping</h3>
+                  <p className="text-xs text-gray-500">Correct Exam Code or University Student ID</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-gray-200 rounded-xl mb-4 text-xs">
+                <span className="font-bold text-gray-700">Candidate: </span>
+                <span className="text-gray-900 font-semibold">{editMappingCandidate.candidateName}</span>
+              </div>
+
+              <form onSubmit={handleSaveMapping} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    Assigned Exam Code
+                  </label>
+                  <input
+                    type="text"
+                    value={editMappingCandidate.newExamCode}
+                    onChange={(e) =>
+                      setEditMappingCandidate({ ...editMappingCandidate, newExamCode: e.target.value.trim() })
+                    }
+                    placeholder="e.g. 16, 23, 02"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    University Student ID
+                  </label>
+                  <input
+                    type="text"
+                    value={editMappingCandidate.newStudentId}
+                    onChange={(e) =>
+                      setEditMappingCandidate({ ...editMappingCandidate, newStudentId: e.target.value.trim() })
+                    }
+                    placeholder="e.g. 1801228"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <p className="text-[11px] text-gray-500">
+                  Updating this mapping immediately updates the candidate verification whitelist and synchronizes proposal submission records.
+                </p>
+
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditMappingCandidate(null)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingMapping}
+                    className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                  >
+                    {savingMapping ? "Saving..." : "Save Mapping"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* AI Rubric Evaluation Modal */}
+        {selectedEvaluation && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+              <button
+                onClick={() => setSelectedEvaluation(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Directive No. 003/2012 Article 22 Rubric Evaluation</h3>
+                  <p className="text-xs text-gray-500">
+                    Candidate: <span className="font-bold text-gray-800">{selectedEvaluation.candidate.name}</span> (Code: {selectedEvaluation.candidate.examCode} &bull; ID: {selectedEvaluation.candidate.studentId || selectedEvaluation.candidate.username})
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Score Banner */}
+              <div className="p-4 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-200 rounded-2xl mb-5 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Official Proposal Score</span>
+                  <div className="text-3xl font-black text-gray-900 mt-0.5">
+                    {selectedEvaluation.totalScore} <span className="text-lg font-semibold text-gray-500">/ 15.0 pts</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-gray-500 block">Grade Weight (15%)</span>
+                  <span className="text-xl font-bold text-indigo-700">
+                    {((selectedEvaluation.totalScore / 15) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Criteria Breakdown */}
+              <div className="space-y-4 mb-6">
+                {/* Criterion 1 */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-900">
+                      1. Strategic Objectives & Campus Relevance (max 4.0 pts)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.5"
+                        value={selectedEvaluation.criteria?.strategicObjectives?.score ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const newCrit = {
+                            ...selectedEvaluation.criteria,
+                            strategicObjectives: {
+                              ...selectedEvaluation.criteria.strategicObjectives,
+                              score: Math.min(4, Math.max(0, val)),
+                            },
+                          };
+                          const newTotal = (
+                            newCrit.strategicObjectives.score +
+                            newCrit.actionability.score +
+                            newCrit.timelinePlanning.score +
+                            newCrit.clarityBudgeting.score
+                          ).toFixed(1);
+                          setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
+                        }}
+                        className="w-16 px-2 py-1 text-sm font-bold text-indigo-700 bg-white border border-gray-300 rounded-lg text-center"
+                      />
+                      <span className="text-xs font-bold text-gray-500">/ 4.0</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.strategicObjectives?.feedback || "Clear vision and relevance to campus needs."}
+                  </p>
+                </div>
+
+                {/* Criterion 2 */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-900">
+                      2. Actionability & Feasibility (max 4.0 pts)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.5"
+                        value={selectedEvaluation.criteria?.actionability?.score ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const newCrit = {
+                            ...selectedEvaluation.criteria,
+                            actionability: {
+                              ...selectedEvaluation.criteria.actionability,
+                              score: Math.min(4, Math.max(0, val)),
+                            },
+                          };
+                          const newTotal = (
+                            newCrit.strategicObjectives.score +
+                            newCrit.actionability.score +
+                            newCrit.timelinePlanning.score +
+                            newCrit.clarityBudgeting.score
+                          ).toFixed(1);
+                          setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
+                        }}
+                        className="w-16 px-2 py-1 text-sm font-bold text-indigo-700 bg-white border border-gray-300 rounded-lg text-center"
+                      />
+                      <span className="text-xs font-bold text-gray-500">/ 4.0</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.actionability?.feedback || "Practically executable steps and resource considerations."}
+                  </p>
+                </div>
+
+                {/* Criterion 3 */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-900">
+                      3. Realistic Timeline & Milestone Planning (max 4.0 pts)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.5"
+                        value={selectedEvaluation.criteria?.timelinePlanning?.score ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const newCrit = {
+                            ...selectedEvaluation.criteria,
+                            timelinePlanning: {
+                              ...selectedEvaluation.criteria.timelinePlanning,
+                              score: Math.min(4, Math.max(0, val)),
+                            },
+                          };
+                          const newTotal = (
+                            newCrit.strategicObjectives.score +
+                            newCrit.actionability.score +
+                            newCrit.timelinePlanning.score +
+                            newCrit.clarityBudgeting.score
+                          ).toFixed(1);
+                          setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
+                        }}
+                        className="w-16 px-2 py-1 text-sm font-bold text-indigo-700 bg-white border border-gray-300 rounded-lg text-center"
+                      />
+                      <span className="text-xs font-bold text-gray-500">/ 4.0</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.timelinePlanning?.feedback || "Structured chronological milestones and semester phases."}
+                  </p>
+                </div>
+
+                {/* Criterion 4 */}
+                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-900">
+                      4. Clarity, Budgeting & Student Union Alignment (max 3.0 pts)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="3"
+                        step="0.5"
+                        value={selectedEvaluation.criteria?.clarityBudgeting?.score ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          const newCrit = {
+                            ...selectedEvaluation.criteria,
+                            clarityBudgeting: {
+                              ...selectedEvaluation.criteria.clarityBudgeting,
+                              score: Math.min(3, Math.max(0, val)),
+                            },
+                          };
+                          const newTotal = (
+                            newCrit.strategicObjectives.score +
+                            newCrit.actionability.score +
+                            newCrit.timelinePlanning.score +
+                            newCrit.clarityBudgeting.score
+                          ).toFixed(1);
+                          setSelectedEvaluation({ ...selectedEvaluation, criteria: newCrit, totalScore: Number(newTotal) });
+                        }}
+                        className="w-16 px-2 py-1 text-sm font-bold text-indigo-700 bg-white border border-gray-300 rounded-lg text-center"
+                      />
+                      <span className="text-xs font-bold text-gray-500">/ 3.0</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                    {selectedEvaluation.criteria?.clarityBudgeting?.feedback || "Professional clarity, budget awareness, and union charter alignment."}
+                  </p>
+                </div>
+
+                {/* Overall Synthesis */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Qualitative Summary & Electoral Committee Notes
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={selectedEvaluation.summaryFeedback || ""}
+                    onChange={(e) => setSelectedEvaluation({ ...selectedEvaluation, summaryFeedback: e.target.value })}
+                    placeholder="Official evaluation commentary..."
+                    className="w-full px-3.5 py-2 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => handleOpenAiEvaluate(selectedEvaluation.candidate, true)}
+                  disabled={evaluatingId === selectedEvaluation.proposalId}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-purple-700 hover:bg-purple-50 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {evaluatingId === selectedEvaluation.proposalId ? "Re-Evaluating..." : "Re-Run AI Rubric Analysis"}
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEvaluation(null)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEvaluationScore}
+                    disabled={savingScore}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" />
+                    {savingScore ? "Saving Score..." : "Accept & Save Official Score"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Deadline Configuration Modal */}
         {showDeadlineModal && (

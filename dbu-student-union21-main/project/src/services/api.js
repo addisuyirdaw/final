@@ -1274,6 +1274,39 @@ class ApiService {
     link.remove();
     window.URL.revokeObjectURL(downloadUrl);
   }
+
+  async deleteProposal(proposalId) {
+    return this.request(`/proposals/${proposalId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleCandidateStatus(examCode, active) {
+    return this.request('/proposals/president/candidate-status', {
+      method: 'PUT',
+      body: JSON.stringify({ examCode, active }),
+    });
+  }
+
+  async editCandidateMapping(mappingData) {
+    return this.request('/proposals/president/candidate-mapping', {
+      method: 'PUT',
+      body: JSON.stringify(mappingData),
+    });
+  }
+
+  async evaluateProposalWithAi(proposalId) {
+    return this.request(`/proposals/${proposalId}/ai-evaluate`, {
+      method: 'POST',
+    });
+  }
+
+  async saveProposalScore(proposalId, scoreData) {
+    return this.request(`/proposals/${proposalId}/score`, {
+      method: 'PUT',
+      body: JSON.stringify(scoreData),
+    });
+  }
 }
 
 export const apiService = new ApiService();

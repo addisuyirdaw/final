@@ -21,14 +21,23 @@ const proposalConfigSchema = new mongoose.Schema(
     allowedExamCodes: {
       type: [String],
       default: [
-        'DBU-2019-EXAM',
-        'DBU2019-TOP16',
-        'DBU-2019-01', 'DBU-2019-02', 'DBU-2019-03', 'DBU-2019-04',
-        'DBU-2019-05', 'DBU-2019-06', 'DBU-2019-07', 'DBU-2019-08',
-        'DBU-2019-09', 'DBU-2019-10', 'DBU-2019-11', 'DBU-2019-12',
-        'DBU-2019-13', 'DBU-2019-14', 'DBU-2019-15', 'DBU-2019-16',
+        '16', '23', '02', '32', '37', '38', '22', '19', '04', '30', '24', '20', '03', '36', '34', '15'
       ],
     },
+    // Dynamically disabled / inactive candidate exam codes
+    disabledExamCodes: {
+      type: [String],
+      default: [],
+    },
+    // Dynamic editable authorized candidate pairs
+    candidatePairs: [
+      {
+        examNum: { type: Number },
+        canonicalCode: { type: String, required: true },
+        studentId: { type: String, required: true },
+        isActive: { type: Boolean, default: true },
+      },
+    ],
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

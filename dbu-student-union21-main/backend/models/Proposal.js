@@ -132,6 +132,43 @@ const proposalSchema = new mongoose.Schema(
     reviewedAt: {
       type: Date,
     },
+    evaluation: {
+      totalScore: { type: Number, min: 0, max: 15 },
+      criteria: {
+        strategicObjectives: {
+          score: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 4 },
+          feedback: { type: String, default: '' },
+        },
+        actionability: {
+          score: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 4 },
+          feedback: { type: String, default: '' },
+        },
+        timelinePlanning: {
+          score: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 4 },
+          feedback: { type: String, default: '' },
+        },
+        clarityBudgeting: {
+          score: { type: Number, default: 0 },
+          maxScore: { type: Number, default: 3 },
+          feedback: { type: String, default: '' },
+        },
+      },
+      summaryFeedback: { type: String, default: '' },
+      status: {
+        type: String,
+        enum: ['PENDING', 'AI_EVALUATED', 'APPROVED'],
+        default: 'PENDING',
+      },
+      evaluatedAt: { type: Date },
+      approvedAt: { type: Date },
+      approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    },
   },
   {
     timestamps: true,
