@@ -851,7 +851,7 @@ export function Dashboard() {
 				<Link
 					to={user && (user.role === 'president' || user.role === 'council_president')
 						? "/admin/proposals"
-						: "/proposal-submission"}
+						: "/submit-proposal"}
 					className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-colors flex-shrink-0"
 				>
 					{user && (user.role === 'president' || user.role === 'council_president')

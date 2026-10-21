@@ -122,6 +122,7 @@ export function ProposalSubmission() {
   const [examCode, setExamCode] = useState("");
   const [position, setPosition] = useState("Sira Asfetsami");
   const [verifyingCode, setVerifyingCode] = useState(false);
+  const [showRevisionForm, setShowRevisionForm] = useState(false);
 
   useEffect(() => {
     fetchStatus();
@@ -175,6 +176,7 @@ export function ProposalSubmission() {
       toast.success(res.message || "Proposal submitted successfully!");
       setFile(null);
       setNote("");
+      setShowRevisionForm(false);
       await fetchStatus();
     } catch (err) {
       console.error("Submission error:", err);
@@ -515,35 +517,48 @@ export function ProposalSubmission() {
 
         {/* Existing Submission Receipt / Status */}
         {proposal && (
-          <div className="bg-white rounded-2xl border border-emerald-200 shadow-sm p-6 mb-8 relative overflow-hidden">
+          <div className="bg-white rounded-2xl border-2 border-emerald-400 shadow-sm p-6 sm:p-8 mb-8 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500"></div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-lg font-bold text-gray-900">Proposal on File (Version {proposal.currentVersion})</h3>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-7 h-7" />
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Your proposal is securely stored and pending presidential committee review.
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-gray-900">Official Proposal Confirmed</h3>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
+                      Submitted &bull; V{proposal.currentVersion}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 max-w-xl">
+                    Your strategic proposal document has been officially recorded in the Student Union database.
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => handleDownload(proposal.id, proposal.currentVersion, proposal.currentFile?.fileName)}
                 disabled={downloading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
               >
                 <Download className="w-4 h-4" /> Download Submitted PDF
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/60 rounded-xl p-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-4 text-xs mb-4">
               <div>
-                <span className="text-gray-500 block">Reference Number:</span>
+                <span className="text-gray-500 block uppercase text-[10px] font-bold">Official Reference Code:</span>
                 <span className="font-mono font-bold text-emerald-900 text-sm">{proposal.latestReferenceNumber}</span>
               </div>
               <div>
-                <span className="text-gray-500 block">Submitted At:</span>
-                <span className="font-bold text-gray-800">
+                <span className="text-gray-500 block uppercase text-[10px] font-bold">Submitted Document:</span>
+                <span className="font-semibold text-gray-800 truncate block text-xs">
+                  {proposal.currentFile?.fileName} ({(proposal.currentFile?.fileSize / 1024 / 1024).toFixed(2)} MB)
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500 block uppercase text-[10px] font-bold">Registration Timestamp:</span>
+                <span className="font-bold text-gray-800 text-xs">
                   {new Date(proposal.latestSubmittedAt).toLocaleString("en-US", {
                     timeZone: "Africa/Addis_Ababa",
                     dateStyle: "medium",
@@ -552,52 +567,29 @@ export function ProposalSubmission() {
                   (EAT)
                 </span>
               </div>
-              <div>
-                <span className="text-gray-500 block">Attached Document:</span>
-                <span className="font-semibold text-gray-800 truncate block">
-                  {proposal.currentFile?.fileName} ({(proposal.currentFile?.fileSize / 1024 / 1024).toFixed(2)} MB)
-                </span>
-              </div>
             </div>
 
-            {/* Version History Table */}
-            {proposal.versions && proposal.versions.length > 1 && (
-              <div className="mt-5 border-t border-gray-100 pt-4">
-                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5 text-gray-500" /> Submission Revision History:
-                </h4>
-                <div className="space-y-2">
-                  {proposal.versions.map((ver) => (
-                    <div
-                      key={ver.version}
-                      className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded">V{ver.version}</span>
-                        <span className="text-gray-600">{ver.fileName}</span>
-                        <span className="font-mono text-[11px] text-gray-400">({ver.referenceNumber})</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-400 text-[11px]">
-                          {new Date(ver.submittedAt).toLocaleDateString()}
-                        </span>
-                        <button
-                          onClick={() => handleDownload(proposal.id, ver.version, ver.fileName)}
-                          className="text-sky-700 hover:text-sky-900 font-bold underline"
-                        >
-                          Download
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Toggle Revision Form if window is Open */}
+            {isOpen && (
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                <span className="text-gray-500">
+                  Submissions remain open until {settings?.deadlineEthiopia}.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowRevisionForm(!showRevisionForm)}
+                  className="font-bold text-sky-700 hover:text-sky-900 hover:underline"
+                >
+                  {showRevisionForm ? "Hide Revision Form" : "Need to submit a replacement revision? Click here \u2192"}
+                </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Upload Form (Active only if Open) */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+        {/* Upload Form (Active when no proposal yet, OR when candidate chose to revise) */}
+        {(!proposal || showRevisionForm) && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
           <div className="mb-5 border-b border-gray-100 pb-4">
             <h2 className="text-lg font-bold text-gray-900">
               {proposal ? "Replace Proposal Document (Revision)" : "Submit Official PDF Proposal"}
@@ -737,6 +729,7 @@ export function ProposalSubmission() {
             </div>
           </form>
         </div>
+        )}
       </div>
     </div>
   );

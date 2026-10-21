@@ -146,15 +146,19 @@ export function Header() {
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
-				...(complaintsVisible ? [{ name: "Complaints", href: "/complaints" }] : []),
-				{
-					name: (user?.role === 'president' || user?.role === 'council_president')
-						? "Proposal Management"
-						: "Proposals",
-					href: (user?.role === 'president' || user?.role === 'council_president')
-						? "/admin/proposals"
-						: "/proposal-submission"
-				},
+				...(user && (user.role === 'president' || user.role === 'council_president')
+					? [
+						{
+							name: "Proposal Management",
+							href: "/admin/proposals",
+						},
+					  ]
+					: [
+						{
+							name: "Submit Proposal",
+							href: "/submit-proposal",
+						},
+					  ]),
 				{ name: "My Profile", href: "/profile" },
 			]
 			: []),

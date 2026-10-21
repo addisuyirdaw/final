@@ -1,5 +1,6 @@
 /** @format */
 import React, { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import {
   FileText,
   Users,
@@ -30,6 +31,13 @@ import toast from "react-hot-toast";
 
 export function ProposalsAdmin() {
   const { user } = useAuth();
+
+  // Strict Presidential Guard: Non-president candidates or students are redirected to submit-proposal
+  const isPresident = user && (user.role === "president" || user.role === "council_president");
+  if (!isPresident) {
+    return <Navigate to="/submit-proposal" replace />;
+  }
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");

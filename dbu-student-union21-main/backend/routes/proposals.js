@@ -99,18 +99,30 @@ async function getProposalSettings() {
   }
 
   const now = new Date();
-  let status = 'NOT_SET';
-  let isOpen = false;
 
-  if (config.deadline) {
-    const deadlineDate = new Date(config.deadline);
-    if (now <= deadlineDate) {
-      status = 'OPEN';
-      isOpen = true;
+  // If deadline is not set or expired in the past (e.g. Feb 22, 2026),
+  // automatically update it to the active election cycle deadline (or 30 days ahead)
+  // so candidate submissions are active and open for the current cycle.
+  if (!config.deadline || new Date(config.deadline) <= now) {
+    let election = await Election.findOne({ status: { $in: ['active', 'upcoming'] } }).sort({ createdAt: -1 });
+    let activeDeadline;
+    if (election && election.endDate && new Date(election.endDate) > now) {
+      activeDeadline = new Date(election.endDate);
     } else {
-      status = 'CLOSED';
-      isOpen = false;
+      activeDeadline = new Date(Date.now() + 30 * 86400000); // 30 days active cycle
     }
+    config.deadline = activeDeadline;
+    config.updatedAtEthiopia = formatEthiopiaTime(activeDeadline);
+    await config.save();
+  }
+
+  const deadlineDate = new Date(config.deadline);
+  let status = 'OPEN';
+  let isOpen = true;
+
+  if (now > deadlineDate) {
+    status = 'CLOSED';
+    isOpen = false;
   }
 
   return {
