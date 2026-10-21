@@ -671,8 +671,12 @@ export function PresidentPage() {
                           <span className="font-mono font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
                             ID: {c.studentId || c.username}
                           </span>
-                          <span>&bull;</span>
-                          <span>{c.department || "General"}</span>
+                          {c.department ? (
+                            <>
+                              <span>&bull;</span>
+                              <span>{c.department}</span>
+                            </>
+                          ) : null}
                         </div>
                       </td>
 

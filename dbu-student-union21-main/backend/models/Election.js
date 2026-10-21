@@ -12,21 +12,20 @@ const candidateSchema = new mongoose.Schema({
   },
   department: {
     type: String,
-    required: true,
-    trim: true
+    trim: true,
+    default: ''
   },
   year: {
     type: String,
-    required: true
+    default: ''
   },
   academicYear: {
     type: String,
-    required: [true, 'Academic year is required for candidates'],
-    enum: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year']
+    default: ''
   },
   position: {
     type: String,
-    required: true,
+    default: 'Sira Asfetsami',
     trim: true
   },
   profileImage: {
