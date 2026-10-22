@@ -337,16 +337,21 @@ export function Header() {
 									</Link>
 								)}
 								{user &&
-								(user.username === 'dbu10101020' ||
-								 user.username === 'dbu10101030' ||
-								 user.role === 'president' ||
+								(user.role === 'president' ||
+								 user.role === 'council_president' ||
+								 user.role === 'electoral_admin' ||
+								 user.role === 'asmerach_committee' ||
 								 user.role === 'system_admin' ||
-								 user.role === 'council_president') &&
-								user.username !== 'yirga' &&
-								user.username !== 'dbu10101011' &&
-								user.username !== 'dbu10101040' &&
-								user.role !== 'clubs_coordinator' &&
-								user.role !== 'student' && (
+								 ['dbu10101020', 'dbu10101030'].includes(user.studentId || user.username)) &&
+								!(user.role === 'club_admin' ||
+								  user.role === 'clubs_coordinator' ||
+								  user.role === 'club_coordinator' ||
+								  user.role === 'club_leader' ||
+								  Boolean(user.clubId) ||
+								  Boolean(user.club) ||
+								  user.username === 'dbu10101040' ||
+								  Boolean(user.name && user.name.toLowerCase().includes('yirga')) ||
+								  Boolean(user.username && user.username.toLowerCase().includes('yirga'))) && (
 									<Link
 										to="/president"
 										className="bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-indigo-800 transition-colors font-semibold shadow-sm whitespace-nowrap flex items-center gap-1"
@@ -481,16 +486,21 @@ export function Header() {
 								</Link>
 							))}
 						{user &&
-						(user.username === 'dbu10101020' ||
-						 user.username === 'dbu10101030' ||
-						 user.role === 'president' ||
+						(user.role === 'president' ||
+						 user.role === 'council_president' ||
+						 user.role === 'electoral_admin' ||
+						 user.role === 'asmerach_committee' ||
 						 user.role === 'system_admin' ||
-						 user.role === 'council_president') &&
-						user.username !== 'yirga' &&
-						user.username !== 'dbu10101011' &&
-						user.username !== 'dbu10101040' &&
-						user.role !== 'clubs_coordinator' &&
-						user.role !== 'student' && (
+						 ['dbu10101020', 'dbu10101030'].includes(user.studentId || user.username)) &&
+						!(user.role === 'club_admin' ||
+						  user.role === 'clubs_coordinator' ||
+						  user.role === 'club_coordinator' ||
+						  user.role === 'club_leader' ||
+						  Boolean(user.clubId) ||
+						  Boolean(user.club) ||
+						  user.username === 'dbu10101040' ||
+						  Boolean(user.name && user.name.toLowerCase().includes('yirga')) ||
+						  Boolean(user.username && user.username.toLowerCase().includes('yirga'))) && (
 							<Link
 								to="/president"
 								className="block px-3 py-2 text-indigo-700 bg-indigo-50 font-bold hover:bg-indigo-100 rounded-md mt-2 flex items-center gap-1.5"

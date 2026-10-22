@@ -10,7 +10,21 @@ const ProposalConfig = require('../models/ProposalConfig');
 const Election = require('../models/Election');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const { protect, presidentOnly } = require('../middleware/auth');
+const { protect, presidentOnly, isPresidentOrElectoralAdmin } = require('../middleware/auth');
+const isClubCoordinatorOrLeader = (user) => {
+  if (!user) return false;
+  return Boolean(
+    user.role === 'club_admin' ||
+    user.role === 'clubs_coordinator' ||
+    user.role === 'club_coordinator' ||
+    user.role === 'club_leader' ||
+    user.clubId ||
+    user.club ||
+    user.username === 'dbu10101040' ||
+    (user.name && user.name.toLowerCase().includes('yirga')) ||
+    (user.username && user.username.toLowerCase().includes('yirga'))
+  );
+};
 const {
   getAuthorizedCandidates,
   verifyCandidateEligibility,
@@ -512,14 +526,11 @@ router.post('/president/deadline', protect, presidentOnly, handleUpdateDeadline)
 // ============================================================================
 router.get('/my-status', optionalProtect, async (req, res) => {
   try {
-    if (
-      req.user &&
-      (req.user.username === 'dbu10101040' || req.user.role === 'clubs_coordinator')
-    ) {
+    if (req.user && isClubCoordinatorOrLeader(req.user)) {
       return res.status(403).json({
         success: false,
         isEligible: false,
-        message: 'Access denied: Club administrators are not eligible for candidate proposal submissions.',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
       });
     }
 
@@ -625,13 +636,10 @@ router.get('/my-status', optionalProtect, async (req, res) => {
 // ============================================================================
 router.post('/verify-candidate', optionalProtect, async (req, res) => {
   try {
-    if (
-      req.user &&
-      (req.user.username === 'dbu10101040' || req.user.role === 'clubs_coordinator')
-    ) {
+    if (req.user && isClubCoordinatorOrLeader(req.user)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied: Club administrators are not eligible for candidate proposal submissions.',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
       });
     }
 
@@ -903,14 +911,11 @@ const handleProposalSubmit = async (req, res) => {
   let uploadedPath = req.file ? req.file.path : null;
 
   try {
-    if (
-      req.user &&
-      (req.user.username === 'dbu10101040' || req.user.role === 'clubs_coordinator')
-    ) {
+    if (req.user && isClubCoordinatorOrLeader(req.user)) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
         success: false,
-        message: 'Access denied: Club administrators are not eligible for candidate proposal submissions.',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
       });
     }
 
@@ -1287,23 +1292,24 @@ router.get('/download/:proposalId', protect, async (req, res) => {
       Boolean(uUsername && proposal.candidateUsername && uUsername === proposal.candidateUsername.toLowerCase()) ||
       Boolean(uCleanStudentId && propCleanStudentId && uCleanStudentId === propCleanStudentId);
 
-    // Authorized staff: Student Union President, Admins, System Admins, and Electoral Committee
+    // Authorized staff: Student Union President, System Admin, and Electoral Committee (strictly excluding all club coordinators)
+    const isClubUser = isClubCoordinatorOrLeader(req.user);
     const isAuthorizedStaff = Boolean(
       req.user &&
+      !isClubUser &&
       (req.user.username === 'dbu10101020' ||
        req.user.username === 'dbu10101030' ||
        req.user.role === 'president' ||
        req.user.role === 'council_president' ||
-       req.user.role === 'admin' ||
        req.user.role === 'system_admin' ||
-       req.user.role === 'asmerach_committee' ||
-       req.user.isAdmin === true)
+       req.user.role === 'electoral_admin' ||
+       req.user.role === 'asmerach_committee')
     );
 
-    if (!isOwner && !isAuthorizedStaff) {
+    if (isClubUser || (!isOwner && !isAuthorizedStaff)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied: Proposal document downloads are strictly restricted to the candidate owner and authorized election officials.',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
       });
     }
 

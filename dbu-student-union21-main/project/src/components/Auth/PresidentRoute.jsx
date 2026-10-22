@@ -13,25 +13,33 @@ export function PresidentRoute({ children }) {
     );
   }
 
-  // Grant access strictly to President and System Admin (and Electoral Committee)
-  const isBlocked =
-    user &&
-    (user.username === "yirga" ||
-      user.username === "dbu10101040" ||
-      user.role === "clubs_coordinator" ||
-      user.role === "student");
+  // Dedicated President & SuperAdmin credentials
+  const allowedUsernames = ["dbu10101020", "dbu10101030"];
+  const userIdentifier = user ? user.studentId || user.username || "" : "";
 
-  const isAuthorizedOfficial =
+  const isExplicitPresident =
     user &&
-    !isBlocked &&
-    (user.username === "dbu10101020" ||
-      user.username === "dbu10101030" ||
-      user.role === "president" ||
-      user.role === "system_admin" ||
+    (user.role === "president" ||
       user.role === "council_president" ||
-      user.role === "asmerach_committee");
+      user.role === "electoral_admin" ||
+      user.role === "asmerach_committee" ||
+      user.role === "system_admin" ||
+      allowedUsernames.includes(userIdentifier));
 
-  if (!isAuthorizedOfficial) {
+  // Explicitly DENY if user is a club admin / coordinator / leader or associated with a club
+  const isClubUser =
+    user &&
+    (user.role === "club_admin" ||
+      user.role === "clubs_coordinator" ||
+      user.role === "club_coordinator" ||
+      user.role === "club_leader" ||
+      Boolean(user.clubId) ||
+      Boolean(user.club) ||
+      user.username === "dbu10101040" ||
+      Boolean(user.name && user.name.toLowerCase().includes("yirga")) ||
+      Boolean(user.username && user.username.toLowerCase().includes("yirga")));
+
+  if (!isExplicitPresident || isClubUser) {
     return <Navigate to="/dashboard" replace />;
   }
 

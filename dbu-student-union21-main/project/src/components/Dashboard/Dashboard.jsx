@@ -822,16 +822,21 @@ export function Dashboard() {
 
 			{/* Student Union Proposal Hub Quick Banner */}
 			{user &&
-			(user.username === 'dbu10101020' ||
-			 user.username === 'dbu10101030' ||
-			 user.role === 'president' ||
+			(user.role === 'president' ||
+			 user.role === 'council_president' ||
+			 user.role === 'electoral_admin' ||
+			 user.role === 'asmerach_committee' ||
 			 user.role === 'system_admin' ||
-			 user.role === 'council_president') &&
-			user.username !== 'yirga' &&
-			user.username !== 'dbu10101011' &&
-			user.username !== 'dbu10101040' &&
-			user.role !== 'clubs_coordinator' &&
-			user.role !== 'student' ? (
+			 ['dbu10101020', 'dbu10101030'].includes(user.studentId || user.username)) &&
+			!(user.role === 'club_admin' ||
+			  user.role === 'clubs_coordinator' ||
+			  user.role === 'club_coordinator' ||
+			  user.role === 'club_leader' ||
+			  Boolean(user.clubId) ||
+			  Boolean(user.club) ||
+			  user.username === 'dbu10101040' ||
+			  Boolean(user.name && user.name.toLowerCase().includes('yirga')) ||
+			  Boolean(user.username && user.username.toLowerCase().includes('yirga'))) ? (
 				<motion.div
 					initial={{ opacity: 0, y: 15 }}
 					animate={{ opacity: 1, y: 0 }}

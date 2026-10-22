@@ -296,8 +296,8 @@ const clubLeader = async (req, res, next) => {
 	}
 };
 
-// Scoped authorization check: Student Union President OR System Administrator OR Electoral Committee Member
-const presidentOnly = (req, res, next) => {
+// Dedicated RBAC Guard: Strictly Union President, Super Admin, or Electoral Committee
+const isPresidentOrElectoralAdmin = (req, res, next) => {
 	if (!req.user) {
 		return res.status(401).json({
 			success: false,
@@ -305,44 +305,48 @@ const presidentOnly = (req, res, next) => {
 		});
 	}
 
-	// Strictly disallow unauthorized users, candidates, regular students (such as yirga), or club coordinators
-	const isBlocked =
-		req.user.username === 'yirga' ||
-		req.user.username === 'dbu10101040' ||
-		req.user.role === 'clubs_coordinator' ||
-		req.user.role === 'student';
+	// Dedicated President & SuperAdmin credentials
+	const allowedUsernames = ['dbu10101020', 'dbu10101030'];
+	const userIdentifier = req.user.studentId || req.user.username || '';
 
-	if (isBlocked) {
+	const isExplicitPresident =
+		req.user.role === 'president' ||
+		req.user.role === 'council_president' ||
+		req.user.role === 'electoral_admin' ||
+		req.user.role === 'asmerach_committee' ||
+		req.user.role === 'system_admin' ||
+		allowedUsernames.includes(userIdentifier);
+
+	// Explicitly DENY if user is a club admin / coordinator / leader or associated with a club
+	const isClubUser =
+		req.user.role === 'club_admin' ||
+		req.user.role === 'clubs_coordinator' ||
+		req.user.role === 'club_coordinator' ||
+		req.user.role === 'club_leader' ||
+		Boolean(req.user.clubId) ||
+		Boolean(req.user.club) ||
+		req.user.username === 'dbu10101040' ||
+		Boolean(req.user.name && req.user.name.toLowerCase().includes('yirga')) ||
+		Boolean(req.user.username && req.user.username.toLowerCase().includes('yirga'));
+
+	if (!isExplicitPresident || isClubUser) {
 		return res.status(403).json({
 			success: false,
-			message: "Access denied. Candidate proposal management is strictly restricted to the Student Union President and System Administrator.",
+			message: "ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።",
 		});
 	}
 
-	const isAuthorizedOfficial =
-		req.user.username === 'dbu10101020' ||
-		req.user.username === 'dbu10101030' ||
-		req.user.role === 'president' ||
-		req.user.role === 'system_admin' ||
-		req.user.role === 'council_president' ||
-		req.user.role === 'asmerach_committee';
-
-	if (isAuthorizedOfficial) {
-		return next();
-	}
-
-	return res.status(403).json({
-		success: false,
-		message: "Access denied. Candidate proposal management is strictly restricted to the Student Union President and System Administrator.",
-	});
+	next();
 };
 
-const committeeOrPresidentOnly = presidentOnly;
+const presidentOnly = isPresidentOrElectoralAdmin;
+const committeeOrPresidentOnly = isPresidentOrElectoralAdmin;
 
 module.exports = {
 	protect,
 	adminOnly,
 	presidentOnly,
+	isPresidentOrElectoralAdmin,
 	committeeOrPresidentOnly,
 	systemAdminOnly,
 	superAdminOnly,
