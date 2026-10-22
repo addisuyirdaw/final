@@ -822,12 +822,16 @@ export function Dashboard() {
 
 			{/* Student Union Proposal Hub Quick Banner */}
 			{user &&
-			(user.username === 'dbu10101020' || user.role === 'president' || user.role === 'council_president') &&
-			user.username !== 'dbu10101030' &&
+			(user.username === 'dbu10101020' ||
+			 user.username === 'dbu10101030' ||
+			 user.role === 'president' ||
+			 user.role === 'system_admin' ||
+			 user.role === 'council_president') &&
+			user.username !== 'yirga' &&
 			user.username !== 'dbu10101011' &&
 			user.username !== 'dbu10101040' &&
-			user.role !== 'admin' &&
-			user.role !== 'system_admin' ? (
+			user.role !== 'clubs_coordinator' &&
+			user.role !== 'student' ? (
 				<motion.div
 					initial={{ opacity: 0, y: 15 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -843,7 +847,7 @@ export function Dashboard() {
 									President Office & Proposal Management
 								</h3>
 								<span className="bg-indigo-100 text-indigo-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-									President Exclusive (dbu10101020)
+									Official Exclusive (President / System Admin)
 								</span>
 							</div>
 							<p className="text-gray-500 text-xs sm:text-sm mt-0.5">
@@ -858,7 +862,13 @@ export function Dashboard() {
 						Open President Page &rarr;
 					</Link>
 				</motion.div>
-			) : !user?.isAdmin && user?.role !== 'admin' && user?.role !== 'system_admin' && user?.username !== 'dbu10101030' && user?.username !== 'dbu10101011' && user?.username !== 'dbu10101040' ? (
+			) : !user?.isAdmin &&
+			    user?.role !== 'admin' &&
+			    user?.role !== 'system_admin' &&
+			    user?.role !== 'clubs_coordinator' &&
+			    user?.username !== 'dbu10101030' &&
+			    user?.username !== 'dbu10101011' &&
+			    user?.username !== 'dbu10101040' ? (
 				<motion.div
 					initial={{ opacity: 0, y: 15 }}
 					animate={{ opacity: 1, y: 0 }}

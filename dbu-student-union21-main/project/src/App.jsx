@@ -249,11 +249,23 @@ function AppContent() {
           />
           <Route
             path="/proposal-submission"
-            element={<ProposalSubmission />}
+            element={
+              user && (user.username === "dbu10101040" || user.role === "clubs_coordinator") ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <ProposalSubmission />
+              )
+            }
           />
           <Route
             path="/submit-proposal"
-            element={<ProposalSubmission />}
+            element={
+              user && (user.username === "dbu10101040" || user.role === "clubs_coordinator") ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <ProposalSubmission />
+              )
+            }
           />
           <Route path="/executives" element={<Executives />} />
           <Route path="/student-union" element={<Union />} />

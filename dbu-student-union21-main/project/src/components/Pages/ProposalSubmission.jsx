@@ -14,8 +14,11 @@ import {
   ArrowRight,
   FileCheck,
   RotateCcw,
+  Lock,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
@@ -23,6 +26,14 @@ import toast from "react-hot-toast";
 export function ProposalSubmission() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
+
+  // Strictly restrict Club Admin from accessing proposal submission
+  const isClubAdmin =
+    user && (user.username === "dbu10101040" || user.role === "clubs_coordinator");
+
+  if (isClubAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // Core Flow Step: 'loading' | 'verify' | 'upload' | 'receipt'
   const [step, setStep] = useState("loading");
@@ -66,6 +77,8 @@ export function ProposalSubmission() {
         setStudentIdInput((prev) => prev || clean || user.username);
       }
 
+      const isPortalOpen = data?.settings?.isOpen !== false;
+
       // If already verified and has submission receipt
       if (data?.isEligible && data?.proposal) {
         setCandidate(data.candidate);
@@ -77,7 +90,7 @@ export function ProposalSubmission() {
           studentId: data.candidate?.studentId || user?.username,
           proposalId: data.proposal.id || data.proposal._id,
           currentVersion: data.proposal.currentVersion || 1,
-          canResubmit: data.proposal.canResubmit !== false && data.canResubmit !== false,
+          canResubmit: isPortalOpen && data.proposal.canResubmit !== false && data.canResubmit !== false,
           resubmissionAllowed: data.proposal.resubmissionAllowed !== false,
         });
         setStep("receipt");
@@ -194,6 +207,13 @@ export function ProposalSubmission() {
 
   const handleSubmitProposal = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    if (settings && settings.isOpen === false) {
+      toast.error(
+        `የማስረከቢያው ጊዜ አልቋል! Submissions closed. Deadline passed on ${settings.deadlineEthiopia || "scheduled time"}.`
+      );
+      return;
+    }
 
     if (!file) {
       toast.error("እባክዎ ያዘጋጁትን የፕሮፖዛል PDF ሰነድ ይምረጡ (Please choose a proposal PDF)");
@@ -339,6 +359,23 @@ export function ProposalSubmission() {
               <span>Debre Berhan University</span>
             </div>
           </div>
+
+          {/* Prominent Deadline Status Banner */}
+          {settings && settings.isOpen === false && (
+            <div className="mb-6 p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-start gap-3 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-black text-rose-950 uppercase tracking-wider block">
+                  የማስረከቢያ ጊዜ ተጠናቋል (Submissions Closed)
+                </span>
+                <p className="text-xs text-rose-800 font-medium mt-1 leading-relaxed">
+                  የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ ጊዜ {settings.deadlineEthiopia ? `በ ${settings.deadlineEthiopia}` : "በፕሬዝዳንቱ"} ተዘግቷል። አዳዲስ ሰነዶችን መቀበል ወይም ማሻሻል አይቻልም።
+                </p>
+              </div>
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {/* ────────────────────────────────────────────────────────────── */}
@@ -496,102 +533,128 @@ export function ProposalSubmission() {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmitProposal} className="space-y-5">
-                  {/* Single File Dropzone */}
-                  <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragActive(true);
-                    }}
-                    onDragLeave={() => setDragActive(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDragActive(false);
-                      if (e.dataTransfer.files?.[0]) {
-                        handleFileSelected(e.dataTransfer.files[0]);
-                      }
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center transition-all cursor-pointer select-none ${
-                      dragActive
-                        ? "border-emerald-500 bg-emerald-50/60 scale-[1.01]"
-                        : file
-                        ? "border-emerald-500 bg-emerald-50/40"
-                        : "border-slate-300 hover:border-emerald-400 bg-slate-50/70"
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      disabled={submitting}
-                      onChange={(e) => handleFileSelected(e.target.files?.[0])}
-                      className="hidden"
-                    />
-
-                    {file ? (
-                      <div className="flex flex-col items-center">
-                        <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-2 shadow-inner">
-                          <FileCheck className="w-8 h-8" />
-                        </div>
-                        <p className="font-extrabold text-gray-900 text-sm truncate max-w-xs">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-emerald-700 font-semibold mt-1">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB &bull; ሰነዱ ለመላክ ዝግጁ ነው
-                        </p>
-                        <span className="mt-3 inline-block text-xs font-bold text-sky-700 underline">
-                          ሌላ ሰነድ ለመምረጥ እዚህ ይጫኑ
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <div className="w-14 h-14 bg-sky-100 text-sky-700 rounded-2xl flex items-center justify-center mb-3">
-                          <Upload className="w-7 h-7" />
-                        </div>
-                        <p className="font-black text-gray-900 text-sm sm:text-base leading-snug">
-                          {receipt
-                            ? `የተሻሻለውን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ (Version ${(receipt.currentVersion || 1) + 1})`
-                            : "ያዘጋጁትን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          ሰነድዎን ለመምረጥ እዚህ ጠቅ ያድርጉ ወይም ጎትተው ያስቀምጡ
-                        </p>
-                        <div className="inline-flex items-center gap-2 mt-3 px-3 py-1 bg-white rounded-full border border-slate-200 text-[11px] font-bold text-slate-600">
-                          <span>PDF ብቻ</span>
-                          <span>&bull;</span>
-                          <span>እስከ 15 MB</span>
-                        </div>
-                      </div>
-                    )}
+                {settings && settings.isOpen === false ? (
+                  <div className="p-8 bg-slate-50 border-2 border-slate-200 rounded-3xl text-center space-y-3">
+                    <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                      <Lock className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-base font-extrabold text-gray-900">
+                      የማስረከቢያ ጊዜው ስላለፈ ሰነድ ማስገባት አይቻልም
+                    </h3>
+                    <p className="text-xs text-gray-600 max-w-sm mx-auto leading-relaxed">
+                      የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ ጊዜ {settings.deadlineEthiopia ? `በ ${settings.deadlineEthiopia}` : "በፕሬዝዳንቱ"} ተዘግቷል። አዳዲስ ሰነዶችን መጫን አይቻልም።
+                    </p>
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCandidate(null);
+                          setStep("verify");
+                        }}
+                        className="px-5 py-2.5 text-xs font-bold text-gray-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 shadow-sm cursor-pointer"
+                      >
+                        ወደ ማረጋገጫ ተመለስ / Back
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Green Submit Button */}
-                  <div>
-                    <button
-                      type="submit"
-                      disabled={!file || submitting}
-                      className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl font-black text-base shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                ) : (
+                  <form onSubmit={handleSubmitProposal} className="space-y-5">
+                    {/* Single File Dropzone */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragActive(true);
+                      }}
+                      onDragLeave={() => setDragActive(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragActive(false);
+                        if (e.dataTransfer.files?.[0]) {
+                          handleFileSelected(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center transition-all cursor-pointer select-none ${
+                        dragActive
+                          ? "border-emerald-500 bg-emerald-50/60 scale-[1.01]"
+                          : file
+                          ? "border-emerald-500 bg-emerald-50/40"
+                          : "border-slate-300 hover:border-emerald-400 bg-slate-50/70"
+                      }`}
                     >
-                      {submitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>ፕሮፖዛሉ በመግባት ላይ ነው...</span>
-                        </>
-                      ) : receipt ? (
-                        <>
-                          <RotateCcw className="w-5 h-5" />
-                          <span>የተሻሻለውን ሰነድ አስገባ / Submit Revision (v{(receipt.currentVersion || 1) + 1})</span>
-                        </>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        disabled={submitting}
+                        onChange={(e) => handleFileSelected(e.target.files?.[0])}
+                        className="hidden"
+                      />
+
+                      {file ? (
+                        <div className="flex flex-col items-center">
+                          <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-2 shadow-inner">
+                            <FileCheck className="w-8 h-8" />
+                          </div>
+                          <p className="font-extrabold text-gray-900 text-sm truncate max-w-xs">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-emerald-700 font-semibold mt-1">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB &bull; ሰነዱ ለመላክ ዝግጁ ነው
+                          </p>
+                          <span className="mt-3 inline-block text-xs font-bold text-sky-700 underline">
+                            ሌላ ሰነድ ለመምረጥ እዚህ ይጫኑ
+                          </span>
+                        </div>
                       ) : (
-                        <>
-                          <Check className="w-5 h-5" />
-                          <span>ፕሮፖዛሉን አስገባ / Submit Proposal</span>
-                        </>
+                        <div className="flex flex-col items-center">
+                          <div className="w-14 h-14 bg-sky-100 text-sky-700 rounded-2xl flex items-center justify-center mb-3">
+                            <Upload className="w-7 h-7" />
+                          </div>
+                          <p className="font-black text-gray-900 text-sm sm:text-base leading-snug">
+                            {receipt
+                              ? `የተሻሻለውን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ (Version ${(receipt.currentVersion || 1) + 1})`
+                              : "ያዘጋጁትን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ"}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            ሰነድዎን ለመምረጥ እዚህ ጠቅ ያድርጉ ወይም ጎትተው ያስቀምጡ
+                          </p>
+                          <div className="inline-flex items-center gap-2 mt-3 px-3 py-1 bg-white rounded-full border border-slate-200 text-[11px] font-bold text-slate-600">
+                            <span>PDF ብቻ</span>
+                            <span>&bull;</span>
+                            <span>እስከ 15 MB</span>
+                          </div>
+                        </div>
                       )}
-                    </button>
-                  </div>
-                </form>
+                    </div>
+
+                    {/* Green Submit Button */}
+                    <div>
+                      <button
+                        type="submit"
+                        disabled={!file || submitting}
+                        className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-2xl font-black text-base shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {submitting ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>ፕሮፖዛሉ በመግባት ላይ ነው...</span>
+                          </>
+                        ) : receipt ? (
+                          <>
+                            <RotateCcw className="w-5 h-5" />
+                            <span>የተሻሻለውን ሰነድ አስገባ / Submit Revision (v{(receipt.currentVersion || 1) + 1})</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-5 h-5" />
+                            <span>ፕሮፖዛሉን አስገባ / Submit Proposal</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </motion.div>
             )}
 

@@ -102,17 +102,25 @@ const protect = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-	const privilegedRoles = ["admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs", "system_admin"];
-	const executiveNames = ['Giziew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
-	const isExecutive = req.user && req.user.name && executiveNames.some(name => req.user.name.includes(name));
-	if (req.user && (req.user.isAdmin || privilegedRoles.includes(req.user.role) || isExecutive)) {
-		next();
-	} else {
-		res.status(403).json({
+	if (!req.user) {
+		return res.status(401).json({
 			success: false,
-			message: "Access denied. Higher privileges required.",
+			message: "Not authorized",
 		});
 	}
+
+	const privilegedRoles = ["admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs", "system_admin"];
+	const executiveNames = ['Giziew', 'Sintayew', 'Sintayehu', 'Genete', 'Kalkidan'];
+	const isExecutive = req.user.name && executiveNames.some(name => req.user.name.includes(name));
+
+	if (req.user.isAdmin || privilegedRoles.includes(req.user.role) || isExecutive) {
+		return next();
+	}
+
+	return res.status(403).json({
+		success: false,
+		message: "Access denied. Higher privileges required.",
+	});
 };
 
 const systemAdminOnly = (req, res, next) => {
@@ -288,7 +296,7 @@ const clubLeader = async (req, res, next) => {
 	}
 };
 
-// Narrowly scoped authorization check: Strictly Student Union President (dbu10101020)
+// Scoped authorization check: Student Union President OR System Administrator OR Electoral Committee Member
 const presidentOnly = (req, res, next) => {
 	if (!req.user) {
 		return res.status(401).json({
@@ -297,33 +305,45 @@ const presidentOnly = (req, res, next) => {
 		});
 	}
 
-	const isOtherAdmin =
-		req.user.username === 'dbu10101030' ||
-		req.user.username === 'dbu10101011' ||
+	// Strictly disallow unauthorized users, candidates, regular students (such as yirga), or club coordinators
+	const isBlocked =
+		req.user.username === 'yirga' ||
 		req.user.username === 'dbu10101040' ||
-		(req.user.role === 'admin' && req.user.username !== 'dbu10101020') ||
-		(req.user.role === 'system_admin' && req.user.username !== 'dbu10101020');
+		req.user.role === 'clubs_coordinator' ||
+		req.user.role === 'student';
 
-	const isPresident =
-		(req.user.username === 'dbu10101020' ||
-		 req.user.role === 'president' ||
-		 req.user.role === 'council_president') &&
-		!isOtherAdmin;
+	if (isBlocked) {
+		return res.status(403).json({
+			success: false,
+			message: "Access denied. Candidate proposal management is strictly restricted to the Student Union President and System Administrator.",
+		});
+	}
 
-	if (isPresident) {
+	const isAuthorizedOfficial =
+		req.user.username === 'dbu10101020' ||
+		req.user.username === 'dbu10101030' ||
+		req.user.role === 'president' ||
+		req.user.role === 'system_admin' ||
+		req.user.role === 'council_president' ||
+		req.user.role === 'asmerach_committee';
+
+	if (isAuthorizedOfficial) {
 		return next();
 	}
 
 	return res.status(403).json({
 		success: false,
-		message: "Access denied. Candidate proposal management and deadline control is strictly restricted to the Student Union President (dbu10101020). Other administrators are not authorized.",
+		message: "Access denied. Candidate proposal management is strictly restricted to the Student Union President and System Administrator.",
 	});
 };
+
+const committeeOrPresidentOnly = presidentOnly;
 
 module.exports = {
 	protect,
 	adminOnly,
 	presidentOnly,
+	committeeOrPresidentOnly,
 	systemAdminOnly,
 	superAdminOnly,
 	authorize,

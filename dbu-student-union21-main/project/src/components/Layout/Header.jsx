@@ -146,20 +146,16 @@ export function Header() {
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
-				...(user &&
-				(user.username === 'dbu10101020' || user.role === 'president' || user.role === 'council_president') &&
-				user.username !== 'dbu10101030' &&
-				user.username !== 'dbu10101011' &&
-				user.username !== 'dbu10101040' &&
-				user.role !== 'admin' &&
-				user.role !== 'system_admin'
-					? [
-						{
-							name: "President Page",
-							href: "/president",
-						},
-					  ]
-					: !user?.isAdmin && user?.role !== 'admin' && user?.role !== 'system_admin' && user?.username !== 'dbu10101030' && user?.username !== 'dbu10101011' && user?.username !== 'dbu10101040'
+				...(!user?.isAdmin &&
+				user?.role !== 'admin' &&
+				user?.role !== 'system_admin' &&
+				user?.role !== 'clubs_coordinator' &&
+				user?.role !== 'president' &&
+				user?.role !== 'council_president' &&
+				user?.username !== 'dbu10101020' &&
+				user?.username !== 'dbu10101030' &&
+				user?.username !== 'dbu10101011' &&
+				user?.username !== 'dbu10101040'
 					? [
 						{
 							name: "Submit Proposal",
@@ -236,7 +232,7 @@ export function Header() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="flex justify-between items-center py-4">
 					{/* Desktop Navigation */}
-					<nav className="hidden lg:flex items-center gap-x-2 xl:gap-x-4 text-xs xl:text-sm font-medium">
+					<nav className="hidden xl:flex items-center gap-x-2.5 2xl:gap-x-4 text-xs 2xl:text-sm font-medium whitespace-nowrap">
 						{navigation.map((item) => (
 							<React.Fragment key={item.name}>
 								{item.href.includes("#") ? (
@@ -330,7 +326,7 @@ export function Header() {
 									)}
 								</div>
 								{user &&
-								(user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true) &&
+								(user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true || user.role === 'clubs_coordinator') &&
 								user.username !== 'dbu10101020' &&
 								user.role !== 'president' && (
 									<Link
@@ -341,12 +337,16 @@ export function Header() {
 									</Link>
 								)}
 								{user &&
-								(user.username === 'dbu10101020' || user.role === 'president' || user.role === 'council_president') &&
-								user.username !== 'dbu10101030' &&
+								(user.username === 'dbu10101020' ||
+								 user.username === 'dbu10101030' ||
+								 user.role === 'president' ||
+								 user.role === 'system_admin' ||
+								 user.role === 'council_president') &&
+								user.username !== 'yirga' &&
 								user.username !== 'dbu10101011' &&
 								user.username !== 'dbu10101040' &&
-								user.role !== 'admin' &&
-								user.role !== 'system_admin' && (
+								user.role !== 'clubs_coordinator' &&
+								user.role !== 'student' && (
 									<Link
 										to="/president"
 										className="bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs hover:bg-indigo-800 transition-colors font-semibold shadow-sm whitespace-nowrap flex items-center gap-1"
@@ -394,7 +394,7 @@ export function Header() {
 						<button
 							aria-label="Toggle menu"
 							onClick={() => setIsMenuOpen(!isMenuOpen)}
-							className="md:hidden p-2 rounded-md text-gray-700 hover:text-blue-600"
+							className="xl:hidden p-2 rounded-md text-gray-700 hover:text-blue-600 focus:outline-none"
 						>
 							{isMenuOpen ? (
 								<X className="w-6 h-6" />
@@ -408,7 +408,7 @@ export function Header() {
 
 			{/* Mobile Navigation */}
 			{isMenuOpen && (
-				<div className="md:hidden bg-white border-t border-gray-200 overflow-y-auto max-h-[80vh]">
+				<div className="xl:hidden bg-white border-t border-gray-200 overflow-y-auto max-h-[80vh]">
 					<div className="px-4 py-2 space-y-1">
 						{navigation.map((item) => (
 							<React.Fragment key={item.name}>
@@ -480,6 +480,37 @@ export function Header() {
 									{item.name}
 								</Link>
 							))}
+						{user &&
+						(user.username === 'dbu10101020' ||
+						 user.username === 'dbu10101030' ||
+						 user.role === 'president' ||
+						 user.role === 'system_admin' ||
+						 user.role === 'council_president') &&
+						user.username !== 'yirga' &&
+						user.username !== 'dbu10101011' &&
+						user.username !== 'dbu10101040' &&
+						user.role !== 'clubs_coordinator' &&
+						user.role !== 'student' && (
+							<Link
+								to="/president"
+								className="block px-3 py-2 text-indigo-700 bg-indigo-50 font-bold hover:bg-indigo-100 rounded-md mt-2 flex items-center gap-1.5"
+								onClick={() => setIsMenuOpen(false)}
+							>
+								🏛️ President Page
+							</Link>
+						)}
+						{user &&
+						(user.role === 'admin' || user.role === 'system_admin' || user.isAdmin === true || user.role === 'clubs_coordinator') &&
+						user.username !== 'dbu10101020' &&
+						user.role !== 'president' && (
+							<Link
+								to="/admin"
+								className="block px-3 py-2 text-blue-700 bg-blue-50 font-bold hover:bg-blue-100 rounded-md mt-2 flex items-center gap-1.5"
+								onClick={() => setIsMenuOpen(false)}
+							>
+								⚙️ Admin Panel
+							</Link>
+						)}
 						<a 
 							href="https://www.dbu.edu.et/" 
 							target="_blank" 

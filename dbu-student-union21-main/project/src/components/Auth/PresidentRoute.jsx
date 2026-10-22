@@ -13,23 +13,25 @@ export function PresidentRoute({ children }) {
     );
   }
 
-  // Grant access strictly to the Student Union President (dbu10101020)
-  const isOtherAdmin =
+  // Grant access strictly to President and System Admin (and Electoral Committee)
+  const isBlocked =
     user &&
-    (user.username === "dbu10101030" ||
-      user.username === "dbu10101011" ||
+    (user.username === "yirga" ||
       user.username === "dbu10101040" ||
-      (user.role === "admin" && user.username !== "dbu10101020") ||
-      (user.role === "system_admin" && user.username !== "dbu10101020"));
+      user.role === "clubs_coordinator" ||
+      user.role === "student");
 
-  const isPresident =
+  const isAuthorizedOfficial =
     user &&
+    !isBlocked &&
     (user.username === "dbu10101020" ||
+      user.username === "dbu10101030" ||
       user.role === "president" ||
-      user.role === "council_president") &&
-    !isOtherAdmin;
+      user.role === "system_admin" ||
+      user.role === "council_president" ||
+      user.role === "asmerach_committee");
 
-  if (!isPresident) {
+  if (!isAuthorizedOfficial) {
     return <Navigate to="/dashboard" replace />;
   }
 
