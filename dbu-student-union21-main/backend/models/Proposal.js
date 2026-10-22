@@ -121,6 +121,10 @@ const proposalSchema = new mongoose.Schema(
       default: 'SUBMITTED',
       index: true,
     },
+    resubmissionAllowed: {
+      type: Boolean,
+      default: true,
+    },
     reviewNotes: {
       type: String,
       trim: true,

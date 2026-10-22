@@ -181,6 +181,7 @@ async function getEffectiveCandidatePairs() {
       examNum: p.examNum || parseInt(canonical, 10),
       studentId: cleanId,
       isActive: p.isActive !== false && !disabledSet.has(canonical),
+      allowResubmit: p.allowResubmit !== false && config.allowAllResubmit !== false,
       name: p.name || p.candidateName || `Candidate Code ${canonical}`,
     };
   });
@@ -192,6 +193,11 @@ async function getEffectiveCandidatePairs() {
  */
 async function ensureCandidate20Seeded() {
   try {
+    const config = await ProposalConfig.findOne({ _key: 'proposal_settings' });
+    if (config && config.candidate20Reset === true) {
+      return; // President explicitly reset/deleted Candidate 20; do not auto-reseed
+    }
+
     // 1. Ensure Candidate Exam Code 20 has an authentic, submitted proposal
     const genuineStorageKey = 'proposal-candidate-20-genuine.pdf';
     const genuinePdfFileName = 'DBU_Candidate_20_Strategic_Proposal.pdf';
@@ -557,11 +563,23 @@ router.get('/my-status', optionalProtect, async (req, res) => {
 
     const proposal = await Proposal.findOne({ candidateUsername: req.user.username.toLowerCase() });
 
+    const candidateCode = proposal?.candidateExamCode || eligibility?.candidate?.examCode;
+    const effectivePairs = await getEffectiveCandidatePairs();
+    const currentPair = effectivePairs.find((p) => p.canonicalCode === candidateCode || p.examCode === candidateCode);
+    const candidateAllowResubmit = currentPair ? currentPair.allowResubmit !== false : true;
+    const isResubmitPermitted =
+      settings.isOpen &&
+      candidateAllowResubmit &&
+      (!proposal || proposal.resubmissionAllowed !== false) &&
+      settings.config.allowAllResubmit !== false;
+
     res.json({
       success: true,
       isEligible: true,
       candidate: eligibility.candidate,
       electionTitle: eligibility.electionTitle,
+      canResubmit: isResubmitPermitted,
+      resubmissionAllowed: candidateAllowResubmit && (!proposal || proposal.resubmissionAllowed !== false),
       settings: {
         deadline: settings.deadline,
         deadlineEthiopia: settings.deadlineEthiopia,
@@ -578,6 +596,8 @@ router.get('/my-status', optionalProtect, async (req, res) => {
             latestSubmittedAt: proposal.latestSubmittedAt,
             candidateExamCode: proposal.candidateExamCode || (eligibility && eligibility.candidate ? eligibility.candidate.examCode : ''),
             currentFile: proposal.currentFile,
+            canResubmit: isResubmitPermitted,
+            resubmissionAllowed: proposal.resubmissionAllowed !== false,
             versions: proposal.versions.map((v) => ({
               version: v.version,
               fileName: v.fileName,
@@ -831,6 +851,13 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
         electionId: election._id,
         electionTitle: election.title,
       },
+      canResubmit:
+        (candidate.allowResubmit !== false) &&
+        (!existingProposal || existingProposal.resubmissionAllowed !== false) &&
+        (config?.allowAllResubmit !== false),
+      resubmissionAllowed:
+        (candidate.allowResubmit !== false) &&
+        (!existingProposal || existingProposal.resubmissionAllowed !== false),
       proposal: existingProposal
         ? {
             id: existingProposal._id,
@@ -840,6 +867,11 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
             latestSubmittedAt: existingProposal.latestSubmittedAt,
             candidateExamCode: existingProposal.candidateExamCode || canonicalCode,
             currentFile: existingProposal.currentFile,
+            canResubmit:
+              (candidate.allowResubmit !== false) &&
+              (existingProposal.resubmissionAllowed !== false) &&
+              (config?.allowAllResubmit !== false),
+            resubmissionAllowed: existingProposal.resubmissionAllowed !== false,
           }
         : null,
     });
@@ -970,28 +1002,6 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // Strict One-Time Submission Enforcement (Duplicate Prevention):
-    // Check if a proposal already exists for this candidate's normalized exam code OR studentId OR username
-    const existingProposal = await Proposal.findOne({
-      $or: [
-        { candidateUsername: username },
-        { candidateExamCode: verifiedCanonicalCode },
-        { studentId: verifiedStudentId },
-      ],
-    });
-
-    if (existingProposal) {
-      if (uploadedPath && fs.existsSync(uploadedPath)) {
-        try { fs.unlinkSync(uploadedPath); } catch (_) {}
-      }
-      return res.status(409).json({
-        success: false,
-        message: 'A proposal has already been submitted for this candidate code. Duplicate submissions are not allowed.',
-        referenceNumber: existingProposal.latestReferenceNumber,
-        submittedAt: existingProposal.latestSubmittedAt,
-      });
-    }
-
     // 2. Enforce Deadline using authoritative server time
     const settings = await getProposalSettings();
     if (!settings.config.deadline) {
@@ -1032,11 +1042,125 @@ const handleProposalSubmit = async (req, res) => {
     const fileBuffer = fs.readFileSync(uploadedPath);
     const fileBase64 = fileBuffer.toString('base64');
     const storageKey = path.basename(uploadedPath);
-
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const candidateData = eligibility.candidate;
 
-    // 6. Record Initial Proposal Submission (Strict Single Submission)
+    // 6. Check if a proposal already exists for this candidate
+    const existingProposal = await Proposal.findOne({
+      $or: [
+        { candidateUsername: username },
+        { candidateExamCode: verifiedCanonicalCode },
+        { studentId: verifiedStudentId },
+      ],
+    }).select('+fileData +versions.fileData');
+
+    if (existingProposal) {
+      // Candidate is resubmitting an updated proposal
+      const isResubmitAllowed =
+        matchedCandidate.isActive !== false &&
+        matchedCandidate.allowResubmit !== false &&
+        existingProposal.resubmissionAllowed !== false &&
+        settings.config.allowAllResubmit !== false;
+
+      if (!isResubmitAllowed) {
+        if (uploadedPath && fs.existsSync(uploadedPath)) {
+          try { fs.unlinkSync(uploadedPath); } catch (_) {}
+        }
+        return res.status(403).json({
+          success: false,
+          message: 'A proposal has already been submitted and resubmission is currently locked for this candidate. Please contact the Student Union President to grant resubmission permission.',
+          referenceNumber: existingProposal.latestReferenceNumber,
+          submittedAt: existingProposal.latestSubmittedAt,
+          canResubmit: false,
+        });
+      }
+
+      // Handle Resubmission: Increment version & record in version history
+      const nextVersion = (existingProposal.currentVersion || 1) + 1;
+      const refNumber = generateReferenceNumber(nextVersion);
+
+      const newVersionRecord = {
+        version: nextVersion,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        fileMimeType: 'application/pdf',
+        storageKey: storageKey,
+        fileData: fileBase64,
+        referenceNumber: refNumber,
+        submittedAt: new Date(),
+        submittedByIp: clientIp,
+        note: req.body.note ? req.body.note.trim() : `Resubmission Version ${nextVersion}`,
+      };
+
+      if (!Array.isArray(existingProposal.versions)) {
+        existingProposal.versions = [];
+      }
+      if (existingProposal.versions.length === 0 && existingProposal.currentFile) {
+        existingProposal.versions.push({
+          version: existingProposal.currentVersion || 1,
+          fileName: existingProposal.currentFile.fileName,
+          fileSize: existingProposal.currentFile.fileSize,
+          fileMimeType: existingProposal.currentFile.fileMimeType || 'application/pdf',
+          storageKey: existingProposal.currentFile.storageKey,
+          referenceNumber: existingProposal.latestReferenceNumber || generateReferenceNumber(1),
+          submittedAt: existingProposal.latestSubmittedAt || new Date(),
+          submittedByIp: clientIp,
+          note: 'Initial Submission',
+        });
+      }
+
+      existingProposal.versions.push(newVersionRecord);
+      existingProposal.currentVersion = nextVersion;
+      existingProposal.latestReferenceNumber = refNumber;
+      existingProposal.latestSubmittedAt = new Date();
+      existingProposal.currentFile = {
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        fileMimeType: 'application/pdf',
+        storageKey: storageKey,
+      };
+      existingProposal.fileData = fileBase64;
+      existingProposal.status = 'SUBMITTED';
+
+      // Reset candidate20Reset flag if candidate 20 has resubmitted
+      if (verifiedCanonicalCode === '20' || verifiedStudentId === '1802083') {
+        await ProposalConfig.updateOne(
+          { _key: 'proposal_settings' },
+          { $set: { candidate20Reset: false } }
+        );
+      }
+
+      // Reset draft AI evaluation for fresh evaluation of the revised proposal
+      if (existingProposal.evaluation) {
+        existingProposal.evaluation.status = 'PENDING';
+        existingProposal.evaluation.evaluatedAt = null;
+      }
+
+      await existingProposal.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Proposal Version ${nextVersion} successfully resubmitted! (New Reference: ${refNumber})`,
+        referenceNumber: refNumber,
+        version: nextVersion,
+        submittedAt: existingProposal.latestSubmittedAt,
+        fileName: req.file.originalname,
+        candidateExamCode: verifiedCanonicalCode,
+        studentId: verifiedStudentId,
+        proposal: {
+          _id: existingProposal._id,
+          id: existingProposal._id,
+          referenceNumber: refNumber,
+          currentVersion: nextVersion,
+          submittedAt: existingProposal.latestSubmittedAt,
+          candidateExamCode: verifiedCanonicalCode,
+          studentId: verifiedStudentId,
+          fileName: req.file.originalname,
+        },
+      });
+    }
+
+    // 7. Record Initial Proposal Submission (First time submission)
     const initialVersion = 1;
     const refNumber = generateReferenceNumber(initialVersion);
 
@@ -1074,6 +1198,7 @@ const handleProposalSubmit = async (req, res) => {
       fileData: fileBase64,
       versions: [versionRecord],
       status: 'SUBMITTED',
+      resubmissionAllowed: true,
     });
 
     await proposal.save();
@@ -1095,6 +1220,7 @@ const handleProposalSubmit = async (req, res) => {
         submittedAt: proposal.latestSubmittedAt,
         candidateExamCode: verifiedCanonicalCode,
         studentId: verifiedStudentId,
+        fileName: req.file.originalname,
       },
     });
   } catch (error) {
@@ -1246,6 +1372,8 @@ const handlePresidentDashboard = async (req, res) => {
       const candPair = pairMap.get(codeKey) || pairMap.get(codeNorm) || pairMap.get(idKey);
       const isActive = candPair ? candPair.isActive !== false : true;
       const effectiveStudentId = submission?.studentId || candPair?.studentId || cand.studentId || '';
+      const allowResubmit = (candPair ? candPair.allowResubmit !== false : true) && (settings.config?.allowAllResubmit !== false);
+      const resubmissionAllowed = submission ? (submission.resubmissionAllowed !== false && allowResubmit) : allowResubmit;
 
       if (submission) {
         return {
@@ -1258,6 +1386,8 @@ const handlePresidentDashboard = async (req, res) => {
           position: cand.position || 'Sira Asfetsami',
           examCode: cand.examCode || submission.candidateExamCode || '',
           isActive: isActive,
+          allowResubmit: resubmissionAllowed,
+          canResubmit: isActive && resubmissionAllowed,
           isSubmitted: true,
           status: 'Submitted',
           proposalId: submission._id,
@@ -1288,6 +1418,8 @@ const handlePresidentDashboard = async (req, res) => {
           position: cand.position || 'Sira Asfetsami',
           examCode: cand.examCode || '',
           isActive: isActive,
+          allowResubmit: resubmissionAllowed,
+          canResubmit: isActive && resubmissionAllowed,
           isSubmitted: false,
           status: 'Pending',
           proposalId: null,
@@ -1325,6 +1457,7 @@ const handlePresidentDashboard = async (req, res) => {
         allowedExamCodes: settings.allowedExamCodes,
         authorizedPairs: effectivePairs,
         disabledExamCodes: settings.disabledExamCodes || [],
+        allowAllResubmit: settings.config?.allowAllResubmit !== false,
       },
       candidates: candidateRoster,
     });
@@ -1382,9 +1515,40 @@ const handleDeleteProposal = async (req, res) => {
 
     await Proposal.findByIdAndDelete(proposal._id);
 
+    // If Candidate 20 was deleted, set candidate20Reset so ensureCandidate20Seeded does not instantly revive it
+    if (
+      removedExamCode === '20' ||
+      removedExamCode === 20 ||
+      String(removedExamCode).replace(/^0+/, '') === '20' ||
+      removedUsername === 'dbu1802083'
+    ) {
+      await ProposalConfig.updateOne(
+        { _key: 'proposal_settings' },
+        { $set: { candidate20Reset: true } }
+      );
+    }
+
+    // Ensure candidate pair in config allows resubmission
+    let config = await ProposalConfig.findOne({ _key: 'proposal_settings' });
+    if (config) {
+      const resetCode = String(removedExamCode || '').trim();
+      const resetNorm = resetCode.replace(/^0+/, '') || resetCode;
+      const enableResubmit = (p) => {
+        const pCode = String(p.examCode || p.canonicalCode || p.examNum || '').trim();
+        const pNorm = pCode.replace(/^0+/, '') || pCode;
+        if (pCode === resetCode || pNorm === resetNorm) {
+          return { ...p, allowResubmit: true, isActive: true };
+        }
+        return p;
+      };
+      if (Array.isArray(config.candidatePairs)) config.candidatePairs = config.candidatePairs.map(enableResubmit);
+      if (Array.isArray(config.candidates)) config.candidates = config.candidates.map(enableResubmit);
+      await config.save();
+    }
+
     return res.json({
       success: true,
-      message: `Proposal submission for Code ${removedExamCode || removedUsername} has been deleted and reset to Pending. Candidate can now submit a fresh proposal.`,
+      message: `Proposal submission for Code ${removedExamCode || removedUsername} has been reset to Pending. Candidate can now upload again.`,
       candidateExamCode: removedExamCode,
       candidateUsername: removedUsername,
     });
@@ -1415,42 +1579,60 @@ const handleToggleCandidateStatus = async (req, res) => {
     }
 
     if (!config.candidatePairs || config.candidatePairs.length === 0) {
-      config.candidatePairs = AUTHORIZED_16_CANDIDATE_PAIRS.map((p) => ({ ...p, isActive: true }));
+      config.candidatePairs = AUTHORIZED_16_CANDIDATE_PAIRS.map((p) => ({ ...p, isActive: true, allowResubmit: true }));
+    }
+    if (!config.candidates || config.candidates.length === 0) {
+      config.candidates = AUTHORIZED_16_CANDIDATE_PAIRS.map((p) => ({ ...p, isActive: true, allowResubmit: true }));
     }
 
     const norm = normalizeCandidateExamCode(examCode, config.candidatePairs);
     const targetCode = norm?.canonicalCode || String(examCode).trim();
+    const cleanTarget = targetCode.replace(/^0+/, '') || targetCode;
 
-    // Update candidatePairs in config
+    // Update BOTH candidatePairs and candidates arrays in config
     let found = false;
-    config.candidatePairs = config.candidatePairs.map((p) => {
-      if (p.canonicalCode === targetCode || String(p.examNum) === String(norm?.rawNumber)) {
+    const updateStatus = (p) => {
+      const pCode = String(p.examCode || p.canonicalCode || p.examNum || '').trim();
+      const pCodeNorm = pCode.replace(/^0+/, '') || pCode;
+      if (p.canonicalCode === targetCode || pCode === targetCode || pCodeNorm === cleanTarget) {
         found = true;
         return {
-          examNum: p.examNum,
-          canonicalCode: p.canonicalCode,
+          ...p,
+          examNum: p.examNum || norm?.rawNumber || parseInt(targetCode, 10),
+          canonicalCode: targetCode,
+          examCode: targetCode,
           studentId: p.studentId,
           isActive: isActive,
+          allowResubmit: isActive ? true : (p.allowResubmit !== false),
         };
       }
       return p;
-    });
+    };
+
+    config.candidatePairs = (config.candidatePairs || []).map(updateStatus);
+    config.candidates = (config.candidates || []).map(updateStatus);
 
     if (!found) {
-      config.candidatePairs.push({
+      const newEntry = {
         examNum: norm?.rawNumber || parseInt(targetCode, 10) || 0,
         canonicalCode: targetCode,
+        examCode: targetCode,
         studentId: req.body.studentId || 'UNKNOWN',
         isActive: isActive,
-      });
+        allowResubmit: isActive,
+      };
+      config.candidatePairs.push(newEntry);
+      if (Array.isArray(config.candidates)) config.candidates.push(newEntry);
     }
 
     // Update disabledExamCodes array
     const disabledList = new Set(config.disabledExamCodes || []);
     if (!isActive) {
       disabledList.add(targetCode);
+      disabledList.add(cleanTarget);
     } else {
       disabledList.delete(targetCode);
+      disabledList.delete(cleanTarget);
     }
     config.disabledExamCodes = Array.from(disabledList);
 
@@ -1471,6 +1653,113 @@ const handleToggleCandidateStatus = async (req, res) => {
 
 router.put('/president/candidate-status', protect, presidentOnly, handleToggleCandidateStatus);
 router.post('/president/candidate-status', protect, presidentOnly, handleToggleCandidateStatus);
+
+// ============================================================================
+// 8b. PUT & POST /api/proposals/president/candidate-resubmit-permission
+// President Only: Explicitly grant or revoke resubmission permission for candidates
+// ============================================================================
+const handleToggleCandidateResubmitPermission = async (req, res) => {
+  try {
+    const { examCode, allowResubmit, all } = req.body;
+    const shouldAllow = allowResubmit !== false;
+
+    let config = await ProposalConfig.findOne({ _key: 'proposal_settings' });
+    if (!config) {
+      config = new ProposalConfig({ _key: 'proposal_settings' });
+    }
+
+    if (!config.candidatePairs || config.candidatePairs.length === 0) {
+      config.candidatePairs = AUTHORIZED_16_CANDIDATE_PAIRS.map((p) => ({ ...p, isActive: true, allowResubmit: true }));
+    }
+    if (!config.candidates || config.candidates.length === 0) {
+      config.candidates = AUTHORIZED_16_CANDIDATE_PAIRS.map((p) => ({ ...p, isActive: true, allowResubmit: true }));
+    }
+
+    if (all === true) {
+      config.allowAllResubmit = shouldAllow;
+      config.candidatePairs = config.candidatePairs.map((p) => ({ ...p, allowResubmit: shouldAllow }));
+      config.candidates = config.candidates.map((p) => ({ ...p, allowResubmit: shouldAllow }));
+      await config.save();
+      await Proposal.updateMany({}, { $set: { resubmissionAllowed: shouldAllow } });
+
+      return res.json({
+        success: true,
+        message: shouldAllow
+          ? 'Resubmission permission granted to all official candidates.'
+          : 'Resubmission permission locked for all candidates.',
+        allowAllResubmit: shouldAllow,
+      });
+    }
+
+    if (!examCode) {
+      return res.status(400).json({ success: false, message: 'Candidate exam code is required.' });
+    }
+
+    const norm = normalizeCandidateExamCode(examCode, config.candidatePairs);
+    const targetCode = norm?.canonicalCode || String(examCode).trim();
+    const cleanTarget = targetCode.replace(/^0+/, '') || targetCode;
+
+    let found = false;
+    const updateResubmit = (p) => {
+      const pCode = String(p.examCode || p.canonicalCode || p.examNum || '').trim();
+      const pCodeNorm = pCode.replace(/^0+/, '') || pCode;
+      if (p.canonicalCode === targetCode || pCode === targetCode || pCodeNorm === cleanTarget) {
+        found = true;
+        return {
+          ...p,
+          allowResubmit: shouldAllow,
+          isActive: p.isActive !== false,
+        };
+      }
+      return p;
+    };
+
+    config.candidatePairs = config.candidatePairs.map(updateResubmit);
+    config.candidates = (config.candidates || []).map(updateResubmit);
+
+    if (!found) {
+      config.candidatePairs.push({
+        examNum: norm?.rawNumber || parseInt(targetCode, 10) || 0,
+        canonicalCode: targetCode,
+        examCode: targetCode,
+        studentId: req.body.studentId || 'UNKNOWN',
+        isActive: true,
+        allowResubmit: shouldAllow,
+      });
+    }
+
+    await config.save();
+
+    // Also update Proposal record in DB if exists
+    await Proposal.updateMany(
+      {
+        $or: [
+          { candidateExamCode: targetCode },
+          { candidateExamCode: cleanTarget },
+          { candidateExamCode: `0${cleanTarget}` },
+        ],
+      },
+      { $set: { resubmissionAllowed: shouldAllow } }
+    );
+
+    return res.json({
+      success: true,
+      message: shouldAllow
+        ? `Resubmission permission GRANTED for Candidate Code ${targetCode}. Candidate can now upload revised proposal.`
+        : `Resubmission permission REVOKED for Candidate Code ${targetCode}.`,
+      examCode: targetCode,
+      allowResubmit: shouldAllow,
+    });
+  } catch (error) {
+    console.error('Toggle candidate resubmit permission error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update resubmission permission: ' + error.message });
+  }
+};
+
+router.put('/president/candidate-resubmit-permission', protect, presidentOnly, handleToggleCandidateResubmitPermission);
+router.post('/president/candidate-resubmit-permission', protect, presidentOnly, handleToggleCandidateResubmitPermission);
+router.put('/admin/candidate-resubmit-permission', protect, presidentOnly, handleToggleCandidateResubmitPermission);
+router.post('/admin/candidate-resubmit-permission', protect, presidentOnly, handleToggleCandidateResubmitPermission);
 
 // ============================================================================
 // 9. PUT & POST /api/proposals/president/candidate-mapping

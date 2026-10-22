@@ -1287,10 +1287,23 @@ class ApiService {
     });
   }
 
-  async toggleCandidateStatus(examCode, active) {
+  async toggleCandidateStatus(examCodeOrData, active) {
+    let payload = {};
+    if (typeof examCodeOrData === 'object' && examCodeOrData !== null) {
+      payload = examCodeOrData;
+    } else {
+      payload = { examCode: examCodeOrData, active };
+    }
     return this.request('/proposals/president/candidate-status', {
       method: 'PUT',
-      body: JSON.stringify({ examCode, active }),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async toggleCandidateResubmitPermission(data) {
+    return this.request('/proposals/president/candidate-resubmit-permission', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 

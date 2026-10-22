@@ -14,6 +14,7 @@ const candidatePairSchema = new mongoose.Schema(
     academicYear: String,
     position: { type: String, default: 'Sira Asfetsami' },
     isActive: { type: Boolean, default: true },
+    allowResubmit: { type: Boolean, default: true },
   },
   { _id: false }
 );
@@ -37,6 +38,14 @@ const proposalConfigSchema = new mongoose.Schema(
     timezone: {
       type: String,
       default: 'Africa/Addis_Ababa',
+    },
+    allowAllResubmit: {
+      type: Boolean,
+      default: true,
+    },
+    candidate20Reset: {
+      type: Boolean,
+      default: false,
     },
     // Allowed Candidate Exam Codes for 2019 Batch 16 Top Performers
     allowedExamCodes: {

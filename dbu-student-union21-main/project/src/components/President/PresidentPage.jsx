@@ -33,6 +33,8 @@ import {
   ToggleRight,
   Trash2,
   User,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
@@ -63,6 +65,8 @@ export function PresidentPage() {
   // Administrative Controls State
   const [deletingId, setDeletingId] = useState(null);
   const [togglingCode, setTogglingCode] = useState(null);
+  const [togglingResubmitCode, setTogglingResubmitCode] = useState(null);
+  const [togglingAllResubmit, setTogglingAllResubmit] = useState(false);
 
   // Edit Candidate Mapping State
   const [editMappingCandidate, setEditMappingCandidate] = useState(null);
@@ -175,19 +179,63 @@ export function PresidentPage() {
 
   // 1. Delete / Reset Proposal
   const handleDeleteProposal = async (candidate) => {
-    const confirmPrompt = `Are you sure you want to delete the submitted proposal for candidate "${candidate.name}" (Code: ${candidate.examCode})?\n\nThis will remove the uploaded PDF and reset their status to Pending, allowing the candidate to upload again.`;
+    const confirmPrompt = `Are you sure you want to reset the submitted proposal for candidate "${candidate.name}" (Code: ${candidate.examCode})?\n\nThis will clear the uploaded PDF and reset their status to Pending, allowing the candidate to upload fresh proposal.`;
     if (!window.confirm(confirmPrompt)) return;
 
     try {
       setDeletingId(candidate.proposalId);
       const res = await apiService.deleteProposal(candidate.proposalId);
-      toast.success(res.message || "Proposal removed. Candidate can now re-submit.");
+      toast.success(res.message || "Proposal reset to Pending. Candidate can now re-submit.");
       await fetchDashboard();
     } catch (err) {
       console.error("Delete proposal error:", err);
-      toast.error(err.message || "Failed to delete proposal.");
+      toast.error(err.message || "Failed to reset proposal.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // 1b. Toggle Resubmission Permission for a single candidate
+  const handleToggleCandidateResubmitPermission = async (candidate) => {
+    const shouldAllow = candidate.allowResubmit === false;
+    try {
+      setTogglingResubmitCode(candidate.examCode);
+      const res = await apiService.toggleCandidateResubmitPermission({
+        examCode: candidate.examCode,
+        allowResubmit: shouldAllow,
+      });
+      toast.success(res.message || `Resubmission permission updated for Code ${candidate.examCode}.`);
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Toggle candidate resubmit permission error:", err);
+      toast.error(err.message || "Failed to update resubmission permission.");
+    } finally {
+      setTogglingResubmitCode(null);
+    }
+  };
+
+  // 1c. Global Toggle: Allow / Disallow Resubmit for ALL candidates
+  const handleToggleAllResubmit = async () => {
+    const currentGlobal = data?.settings?.allowAllResubmit !== false;
+    const nextState = !currentGlobal;
+    const confirmPrompt = nextState
+      ? "Are you sure you want to GRANT resubmission permission to ALL official candidates?"
+      : "Are you sure you want to LOCK resubmissions for all candidates?";
+    if (!window.confirm(confirmPrompt)) return;
+
+    try {
+      setTogglingAllResubmit(true);
+      const res = await apiService.toggleCandidateResubmitPermission({
+        all: true,
+        allowResubmit: nextState,
+      });
+      toast.success(res.message || "Updated resubmission permission for all candidates.");
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Toggle all resubmit error:", err);
+      toast.error(err.message || "Failed to update global resubmission permission.");
+    } finally {
+      setTogglingAllResubmit(false);
     }
   };
 
@@ -629,7 +677,7 @@ export function PresidentPage() {
 
         {/* Candidate Proposals Roster Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-900">
                 Candidate Proposal Submissions Roster
@@ -638,9 +686,28 @@ export function PresidentPage() {
                 Showing {filteredCandidates.length} of {candidates.length} candidates
               </p>
             </div>
-            <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full border border-indigo-100">
-              Executive Committee Candidates Only
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleToggleAllResubmit}
+                disabled={togglingAllResubmit}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                  data?.settings?.allowAllResubmit === false
+                    ? "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300"
+                    : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300"
+                }`}
+                title="Grant or Lock resubmission permission for all candidates"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {togglingAllResubmit
+                  ? "Updating..."
+                  : data?.settings?.allowAllResubmit === false
+                  ? "Enable All Candidates to Resubmit"
+                  : "All Candidates Permitted to Resubmit (Active)"}
+              </button>
+              <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full border border-indigo-100">
+                Executive Committee Candidates Only
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -801,42 +868,76 @@ export function PresidentPage() {
 
                       {/* Actions Column */}
                       <td className="px-5 py-4 text-right">
-                        {c.isSubmitted && c.proposalId ? (
-                          <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex items-center gap-2">
+                          {/* Resubmit Permission Toggle for EACH Candidate */}
+                          {c.examCode && (
                             <button
-                              onClick={() => handleDownloadFile(c.proposalId, c.currentVersion, `${c.username}_proposal.pdf`)}
-                              disabled={downloadingId === `${c.proposalId}-latest`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
-                              title="Download Proposal PDF"
+                              onClick={() => handleToggleCandidateResubmitPermission(c)}
+                              disabled={togglingResubmitCode === c.examCode}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                c.allowResubmit !== false
+                                  ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm"
+                                  : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 shadow-sm"
+                              }`}
+                              title={
+                                c.allowResubmit !== false
+                                  ? "Permission GRANTED: Candidate is permitted to resubmit/upload. Click to lock."
+                                  : "Permission LOCKED: Candidate resubmission is locked. Click to grant permission."
+                              }
                             >
-                              <Download className="w-3.5 h-3.5" />
-                              {downloadingId === `${c.proposalId}-latest` ? "..." : "PDF"}
+                              {togglingResubmitCode === c.examCode ? (
+                                "..."
+                              ) : c.allowResubmit !== false ? (
+                                <>
+                                  <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Resubmit: Allowed</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Resubmit: Locked</span>
+                                </>
+                              )}
                             </button>
+                          )}
 
-                            {/* Delete Proposal / Allow Resubmit Button */}
-                            <button
-                              onClick={() => handleDeleteProposal(c)}
-                              disabled={deletingId === c.proposalId}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
-                              title="Delete uploaded proposal PDF and reset status back to Pending"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5 text-red-600" />
-                              {deletingId === c.proposalId ? "Resetting..." : "Allow Resubmit"}
-                            </button>
-
-                            {c.versionHistory && c.versionHistory.length > 1 && (
+                          {c.isSubmitted && c.proposalId ? (
+                            <>
                               <button
-                                onClick={() => setSelectedCandidateHistory(c)}
-                                className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs transition-colors"
-                                title="View Version Audit"
+                                onClick={() => handleDownloadFile(c.proposalId, c.currentVersion, `${c.username}_proposal.pdf`)}
+                                disabled={downloadingId === `${c.proposalId}-latest`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                                title="Download Proposal PDF"
                               >
-                                <History className="w-4 h-4" />
+                                <Download className="w-3.5 h-3.5" />
+                                {downloadingId === `${c.proposalId}-latest` ? "..." : "PDF"}
                               </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400 font-medium">Pending Upload</span>
-                        )}
+
+                              {/* Reset Proposal back to Pending */}
+                              <button
+                                onClick={() => handleDeleteProposal(c)}
+                                disabled={deletingId === c.proposalId}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                                title="Reset submission back to Pending"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                {deletingId === c.proposalId ? "Resetting..." : "Reset"}
+                              </button>
+
+                              {c.versionHistory && c.versionHistory.length > 1 && (
+                                <button
+                                  onClick={() => setSelectedCandidateHistory(c)}
+                                  className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs transition-colors cursor-pointer"
+                                  title="View Version Audit"
+                                >
+                                  <History className="w-4 h-4" />
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400 font-medium ml-1">Pending Upload</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

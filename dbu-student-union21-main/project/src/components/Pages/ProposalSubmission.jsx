@@ -76,6 +76,9 @@ export function ProposalSubmission() {
           candidateExamCode: data.proposal.candidateExamCode || data.candidate?.examCode,
           studentId: data.candidate?.studentId || user?.username,
           proposalId: data.proposal.id || data.proposal._id,
+          currentVersion: data.proposal.currentVersion || 1,
+          canResubmit: data.proposal.canResubmit !== false && data.canResubmit !== false,
+          resubmissionAllowed: data.proposal.resubmissionAllowed !== false,
         });
         setStep("receipt");
         return;
@@ -149,6 +152,9 @@ export function ProposalSubmission() {
           candidateExamCode: res.proposal.candidateExamCode || res.candidate?.examCode,
           studentId: res.candidate?.studentId || cleanStudentId,
           proposalId: res.proposal.id || res.proposal._id,
+          currentVersion: res.proposal.currentVersion || 1,
+          canResubmit: res.proposal.canResubmit !== false && res.canResubmit !== false,
+          resubmissionAllowed: res.proposal.resubmissionAllowed !== false,
         });
         setStep("receipt");
         toast.success("ሰነድዎ ቀደም ሲል ገቢ ተደርጓል! (Found existing confirmed proposal)");
@@ -214,8 +220,12 @@ export function ProposalSubmission() {
         candidateExamCode: res.candidateExamCode || activeCode,
         studentId: res.studentId || activeStudentId,
         proposalId: res.proposal?.id || res.proposal?._id,
+        currentVersion: res.version || res.proposal?.currentVersion || ((receipt?.currentVersion || 1) + (receipt ? 1 : 0)),
+        canResubmit: res.canResubmit !== false,
+        resubmissionAllowed: res.resubmissionAllowed !== false,
       });
 
+      setFile(null);
       setStep("receipt");
       toast.success(res.message || "ሰነድዎ በተሳካ ሁኔታ ገቢ ተደርጓል!");
     } catch (err) {
@@ -458,6 +468,34 @@ export function ProposalSubmission() {
                   </button>
                 </div>
 
+                {/* Resubmission Context Banner if updating existing proposal */}
+                {receipt && (
+                  <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <RotateCcw className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sky-950 text-sm">
+                            የተሻሻለ ፕሮፖዛል ማስረከቢያ (Version {(receipt.currentVersion || 1) + 1})
+                          </span>
+                        </div>
+                        <p className="text-xs text-sky-800 mt-0.5 font-medium">
+                          የቀድሞ ማመሳከሪያ፡ <span className="font-mono font-bold">{receipt.referenceNumber}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStep("receipt")}
+                      className="text-xs font-bold text-sky-700 hover:text-sky-900 bg-white border border-sky-200 px-2.5 py-1.5 rounded-lg shadow-sm cursor-pointer"
+                    >
+                      ተመለስ / Back
+                    </button>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmitProposal} className="space-y-5">
                   {/* Single File Dropzone */}
                   <div
@@ -512,7 +550,9 @@ export function ProposalSubmission() {
                           <Upload className="w-7 h-7" />
                         </div>
                         <p className="font-black text-gray-900 text-sm sm:text-base leading-snug">
-                          ያዘጋጁትን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ
+                          {receipt
+                            ? `የተሻሻለውን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ (Version ${(receipt.currentVersion || 1) + 1})`
+                            : "ያዘጋጁትን የፕሮፖዛል PDF ሰነድ እዚህ ይጫኑ"}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           ሰነድዎን ለመምረጥ እዚህ ጠቅ ያድርጉ ወይም ጎትተው ያስቀምጡ
@@ -537,6 +577,11 @@ export function ProposalSubmission() {
                         <>
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                           <span>ፕሮፖዛሉ በመግባት ላይ ነው...</span>
+                        </>
+                      ) : receipt ? (
+                        <>
+                          <RotateCcw className="w-5 h-5" />
+                          <span>የተሻሻለውን ሰነድ አስገባ / Submit Revision (v{(receipt.currentVersion || 1) + 1})</span>
                         </>
                       ) : (
                         <>
@@ -570,7 +615,7 @@ export function ProposalSubmission() {
                     ሰነድዎ በተሳካ ሁኔታ ገቢ ተደርጓል!
                   </h2>
                   <p className="text-xs text-gray-600 mt-1">
-                    Official Proposal Confirmed &amp; Sealed into Electoral Registry
+                    Official Proposal Confirmed &amp; Sealed into Electoral Registry &bull; Version {receipt.currentVersion || 1}
                   </p>
                 </div>
 
@@ -621,14 +666,25 @@ export function ProposalSubmission() {
                     </div>
                   </div>
 
-                  {/* Submission Timestamp */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-3">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
-                      የተረከበበት ሰዓት / Submission Timestamp
-                    </span>
-                    <span className="font-bold text-gray-900 text-xs">
-                      {formatReceiptDate(receipt.submittedAt)}
-                    </span>
+                  {/* Submission Timestamp & Version */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                        እትም / Version
+                      </span>
+                      <span className="font-bold text-gray-900 text-xs">
+                        Version {receipt.currentVersion || 1}
+                      </span>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                        የተረከበበት ሰዓት / Timestamp
+                      </span>
+                      <span className="font-bold text-gray-900 text-xs truncate block" title={receipt.submittedAt}>
+                        {formatReceiptDate(receipt.submittedAt)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Document Name */}
@@ -641,7 +697,7 @@ export function ProposalSubmission() {
                 </div>
 
                 {/* Download PDF Action Button */}
-                <div>
+                <div className="space-y-3">
                   <button
                     type="button"
                     onClick={handleDownloadPdf}
@@ -660,6 +716,35 @@ export function ProposalSubmission() {
                       </>
                     )}
                   </button>
+
+                  {/* Resubmit / Upload Revision Action */}
+                  {receipt.canResubmit !== false ? (
+                    <div className="pt-2 border-t border-slate-200 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFile(null);
+                          setStep("upload");
+                        }}
+                        className="w-full py-3.5 px-6 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 active:scale-[0.99] text-white rounded-2xl font-black text-sm sm:text-base shadow-lg shadow-sky-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                        <span>የተሻሻለ ፕሮፖዛል ያስገቡ (Resubmit / Upload Revision)</span>
+                      </button>
+                      <p className="text-[11px] text-gray-500 text-center font-medium">
+                        የተፈቀደው አዲስ እትም፡ Version {(receipt.currentVersion || 1) + 1} &bull; የቀድሞው ሰነድ በታሪክ ውስጥ ይጠበቃል።
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                      <p className="text-xs font-bold text-amber-800">
+                        🔒 ዳግም ማስረከብ በፕሬዝዳንቱ ፈቃድ ላይ የተመሠረተ ነው
+                      </p>
+                      <p className="text-[11px] text-amber-700 mt-0.5">
+                        ሰነድዎን ማሻሻል ከፈለጉ እባክዎ የተማሪዎች ህብረት ፕሬዝዳንትን ፈቃድ ይጠይቁ።
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Official Directive Seal Footer */}
