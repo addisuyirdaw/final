@@ -146,16 +146,7 @@ export function Header() {
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
-				...(!user?.isAdmin &&
-				user?.role !== 'admin' &&
-				user?.role !== 'system_admin' &&
-				user?.role !== 'clubs_coordinator' &&
-				user?.role !== 'president' &&
-				user?.role !== 'council_president' &&
-				user?.username !== 'dbu10101020' &&
-				user?.username !== 'dbu10101030' &&
-				user?.username !== 'dbu10101011' &&
-				user?.username !== 'dbu10101040'
+				...(user && ['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim())
 					? [
 						{
 							name: "Submit Proposal",

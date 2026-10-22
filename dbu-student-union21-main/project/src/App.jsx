@@ -250,20 +250,20 @@ function AppContent() {
           <Route
             path="/proposal-submission"
             element={
-              user && (user.username === "dbu10101040" || user.role === "clubs_coordinator") ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
+              user && ['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim()) ? (
                 <ProposalSubmission />
+              ) : (
+                <Navigate to="/dashboard" replace />
               )
             }
           />
           <Route
             path="/submit-proposal"
             element={
-              user && (user.username === "dbu10101040" || user.role === "clubs_coordinator") ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
+              user && ['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim()) ? (
                 <ProposalSubmission />
+              ) : (
+                <Navigate to="/dashboard" replace />
               )
             }
           />

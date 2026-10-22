@@ -538,11 +538,13 @@ router.post('/president/deadline', protect, presidentOnly, handleUpdateDeadline)
 // ============================================================================
 router.get('/my-status', optionalProtect, async (req, res) => {
   try {
-    if (req.user && isClubCoordinatorOrLeader(req.user)) {
+    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
+    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername);
+    if (!req.user || !isPresidentOrSystemAdmin) {
       return res.status(403).json({
         success: false,
         isEligible: false,
-        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል ማስገባት የሚፈቀደው ለፕሬዚዳንት እና ለሲስተም አድሚን ብቻ ነው።',
       });
     }
 
@@ -648,10 +650,12 @@ router.get('/my-status', optionalProtect, async (req, res) => {
 // ============================================================================
 router.post('/verify-candidate', optionalProtect, async (req, res) => {
   try {
-    if (req.user && isClubCoordinatorOrLeader(req.user)) {
+    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
+    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername);
+    if (!req.user || !isPresidentOrSystemAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል ማስገባት የሚፈቀደው ለፕሬዚዳንት እና ለሲስተም አድሚን ብቻ ነው።',
       });
     }
 
@@ -923,11 +927,13 @@ const handleProposalSubmit = async (req, res) => {
   let uploadedPath = req.file ? req.file.path : null;
 
   try {
-    if (req.user && isClubCoordinatorOrLeader(req.user)) {
+    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
+    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername);
+    if (!req.user || !isPresidentOrSystemAdmin) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
         success: false,
-        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል ማስገባት የሚፈቀደው ለፕሬዚዳንት እና ለሲስተም አድሚን ብቻ ነው።',
       });
     }
 
@@ -1277,8 +1283,8 @@ const handleProposalSubmit = async (req, res) => {
   }
 };
 
-router.post('/', optionalProtect, upload.single('proposalFile'), handleProposalSubmit);
-router.post('/submit', optionalProtect, upload.single('proposalFile'), handleProposalSubmit);
+router.post('/', protect, upload.single('proposalFile'), handleProposalSubmit);
+router.post('/submit', protect, upload.single('proposalFile'), handleProposalSubmit);
 
 // ============================================================================
 // 5. GET /api/proposals/download/:proposalId

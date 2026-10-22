@@ -27,11 +27,12 @@ export function ProposalSubmission() {
   const { user } = useAuth();
   const fileInputRef = useRef(null);
 
-  // Strictly restrict Club Admin from accessing proposal submission
-  const isClubAdmin =
-    user && (user.username === "dbu10101040" || user.role === "clubs_coordinator");
+  // Proposal submission is strictly restricted to Union President (dbu10101020) and System Admin (dbu10101030)
+  const allowedUsernames = ["dbu10101020", "dbu10101030"];
+  const userIdentifier = (user ? user.studentId || user.username || "" : "").toLowerCase().trim();
+  const isAuthorized = user && allowedUsernames.includes(userIdentifier);
 
-  if (isClubAdmin) {
+  if (!isAuthorized) {
     return <Navigate to="/dashboard" replace />;
   }
 
