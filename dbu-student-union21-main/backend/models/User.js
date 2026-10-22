@@ -61,8 +61,26 @@ const userSchema = new mongoose.Schema(
 		},
 		role: {
 			type: String,
-			enum: ["student", "admin", "president", "council_president", "council_secretary", "clubs_coordinator", "academic_affairs", "system_admin", "asmerach_committee"],
+			enum: [
+				"student",
+				"admin",
+				"president",
+				"council_president",
+				"council_secretary",
+				"clubs_coordinator",
+				"club_coordinator",
+				"club_admin",
+				"club_leader",
+				"academic_affairs",
+				"system_admin",
+				"asmerach_committee",
+				"electoral_admin"
+			],
 			default: "student",
+		},
+		clubId: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "Club",
 		},
 		isLocked: {
 			type: Boolean,

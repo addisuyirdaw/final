@@ -236,6 +236,7 @@ router.post("/login", validateUserLogin, async (req, res) => {
 				year: user.year,
 				role: user.role || 'student',
 				isAdmin: user.isAdmin,
+				clubId: user.clubId,
 				profileImage: user.profileImage,
 				isRestricted: user.isRestricted || false,
 				restrictionReason: user.restrictionReason || null,
@@ -353,6 +354,7 @@ router.post("/admin-login", async (req, res) => {
 				email: admin.email,
 				role: admin.role,
 				isAdmin: admin.isAdmin,
+				clubId: admin.clubId,
 				profileImage: admin.profileImage
 			}
 		});

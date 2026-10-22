@@ -296,8 +296,8 @@ const clubLeader = async (req, res, next) => {
 	}
 };
 
-// Dedicated RBAC Guard: Strictly Union President, Super Admin, or Electoral Committee
-const isPresidentOrElectoralAdmin = (req, res, next) => {
+// Dedicated RBAC Guard: Strictly Union President (dbu10101020), Super Admin (dbu10101030), or Electoral Committee
+const isPresidentOrElectoralAdmin = async (req, res, next) => {
 	if (!req.user) {
 		return res.status(401).json({
 			success: false,
@@ -305,35 +305,66 @@ const isPresidentOrElectoralAdmin = (req, res, next) => {
 		});
 	}
 
-	// Dedicated President & SuperAdmin credentials
+	// Dedicated Union President & SuperAdmin credentials
 	const allowedUsernames = ['dbu10101020', 'dbu10101030'];
-	const userIdentifier = req.user.studentId || req.user.username || '';
+	const userIdentifier = (req.user.studentId || req.user.username || '').toLowerCase().trim();
 
-	const isExplicitPresident =
-		req.user.role === 'president' ||
-		req.user.role === 'council_president' ||
-		req.user.role === 'electoral_admin' ||
-		req.user.role === 'asmerach_committee' ||
-		req.user.role === 'system_admin' ||
-		allowedUsernames.includes(userIdentifier);
+	// Dedicated credentials check
+	const isDedicatedOfficial = allowedUsernames.includes(userIdentifier);
+	const isElectoralCommittee = req.user.role === 'electoral_admin' || req.user.role === 'asmerach_committee';
+	const isUnionPresident = (req.user.role === 'president' || req.user.role === 'council_president') && userIdentifier === 'dbu10101020';
+	const isSystemAdmin = req.user.role === 'system_admin' && userIdentifier === 'dbu10101030';
 
-	// Explicitly DENY if user is a club admin / coordinator / leader or associated with a club
+	// Explicitly check for club coordinators, club admins, or club presidents
+	// (Note: all 17 student club coordinators/representatives hold the generic role 'president' in DB, but are NOT the Union President!)
+	const isGenericClubPresident = (req.user.role === 'president' || req.user.role === 'council_president') && userIdentifier !== 'dbu10101020';
 	const isClubUser =
-		req.user.role === 'club_admin' ||
-		req.user.role === 'clubs_coordinator' ||
-		req.user.role === 'club_coordinator' ||
-		req.user.role === 'club_leader' ||
-		Boolean(req.user.clubId) ||
-		Boolean(req.user.club) ||
-		req.user.username === 'dbu10101040' ||
-		Boolean(req.user.name && req.user.name.toLowerCase().includes('yirga')) ||
-		Boolean(req.user.username && req.user.username.toLowerCase().includes('yirga'));
+		!isDedicatedOfficial && (
+			isGenericClubPresident ||
+			req.user.role === 'club_admin' ||
+			req.user.role === 'clubs_coordinator' ||
+			req.user.role === 'club_coordinator' ||
+			req.user.role === 'club_leader' ||
+			req.user.role === 'CLUB_ADMIN' ||
+			req.user.role === 'clubAdmin' ||
+			req.user.role === 'CLUB_REP' ||
+			req.user.role === 'club_rep' ||
+			Boolean(req.user.clubId) ||
+			Boolean(req.user.club) ||
+			req.user.username === 'dbu10101040' ||
+			Boolean(req.user.name && req.user.name.toLowerCase().includes('yirga')) ||
+			Boolean(req.user.username && req.user.username.toLowerCase().includes('yirga'))
+		);
 
-	if (!isExplicitPresident || isClubUser) {
+	if (isClubUser || (!isDedicatedOfficial && !isUnionPresident && !isSystemAdmin && !isElectoralCommittee)) {
 		return res.status(403).json({
 			success: false,
 			message: "ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።",
 		});
+	}
+
+	// Double-check against Club models: ensure user is not a leader of any club (e.g., Food Engineering, Booking, etc.)
+	if (!isDedicatedOfficial) {
+		try {
+			const Club = require('../models/Club');
+			const isClubOfficial = await Club.exists({
+				$or: [
+					{ 'leadership.president': req.user._id },
+					{ 'leadership.vicePresident': req.user._id },
+					{ 'leadership.secretary': req.user._id },
+					{ 'leadership.treasurer': req.user._id },
+					{ 'members.user': req.user._id, 'members.role': { $in: ['president', 'vice_president', 'officer', 'secretary', 'treasurer'] } }
+				]
+			});
+			if (isClubOfficial) {
+				return res.status(403).json({
+					success: false,
+					message: "ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና አስመራጭ ኮሚቴ ብቻ ነው።",
+				});
+			}
+		} catch (dbErr) {
+			// Ignore DB lookup error and proceed if memory check passed
+		}
 	}
 
 	next();

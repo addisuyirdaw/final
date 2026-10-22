@@ -13,14 +13,26 @@ const jwt = require('jsonwebtoken');
 const { protect, presidentOnly, isPresidentOrElectoralAdmin } = require('../middleware/auth');
 const isClubCoordinatorOrLeader = (user) => {
   if (!user) return false;
+  const username = (user.username || user.studentId || '').toLowerCase().trim();
+  // Dedicated Union President and SuperAdmin credentials are never club users
+  if (['dbu10101020', 'dbu10101030'].includes(username)) {
+    return false;
+  }
   return Boolean(
     user.role === 'club_admin' ||
     user.role === 'clubs_coordinator' ||
     user.role === 'club_coordinator' ||
     user.role === 'club_leader' ||
+    user.role === 'CLUB_ADMIN' ||
+    user.role === 'clubAdmin' ||
+    user.role === 'CLUB_REP' ||
+    user.role === 'club_rep' ||
     user.clubId ||
     user.club ||
     user.username === 'dbu10101040' ||
+    // Any user holding the generic 'president' / 'council_president' role who is NOT dbu10101020 is a club president
+    (user.role === 'president' && username !== 'dbu10101020') ||
+    (user.role === 'council_president' && username !== 'dbu10101020') ||
     (user.name && user.name.toLowerCase().includes('yirga')) ||
     (user.username && user.username.toLowerCase().includes('yirga'))
   );
@@ -1297,11 +1309,10 @@ router.get('/download/:proposalId', protect, async (req, res) => {
     const isAuthorizedStaff = Boolean(
       req.user &&
       !isClubUser &&
-      (req.user.username === 'dbu10101020' ||
-       req.user.username === 'dbu10101030' ||
-       req.user.role === 'president' ||
-       req.user.role === 'council_president' ||
-       req.user.role === 'system_admin' ||
+      (uUsername === 'dbu10101020' ||
+       uUsername === 'dbu10101030' ||
+       ((req.user.role === 'president' || req.user.role === 'council_president') && uUsername === 'dbu10101020') ||
+       (req.user.role === 'system_admin' && uUsername === 'dbu10101030') ||
        req.user.role === 'electoral_admin' ||
        req.user.role === 'asmerach_committee')
     );

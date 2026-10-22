@@ -337,19 +337,22 @@ export function Header() {
 									</Link>
 								)}
 								{user &&
-								(user.role === 'president' ||
-								 user.role === 'council_president' ||
+								(['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim()) ||
 								 user.role === 'electoral_admin' ||
-								 user.role === 'asmerach_committee' ||
-								 user.role === 'system_admin' ||
-								 ['dbu10101020', 'dbu10101030'].includes(user.studentId || user.username)) &&
+								 user.role === 'asmerach_committee') &&
 								!(user.role === 'club_admin' ||
 								  user.role === 'clubs_coordinator' ||
 								  user.role === 'club_coordinator' ||
 								  user.role === 'club_leader' ||
+								  user.role === 'CLUB_ADMIN' ||
+								  user.role === 'clubAdmin' ||
+								  user.role === 'CLUB_REP' ||
+								  user.role === 'club_rep' ||
 								  Boolean(user.clubId) ||
 								  Boolean(user.club) ||
 								  user.username === 'dbu10101040' ||
+								  ((user.studentId || user.username || '').toLowerCase().trim() !== 'dbu10101020' &&
+								   (user.role === 'president' || user.role === 'council_president')) ||
 								  Boolean(user.name && user.name.toLowerCase().includes('yirga')) ||
 								  Boolean(user.username && user.username.toLowerCase().includes('yirga'))) && (
 									<Link
@@ -486,19 +489,22 @@ export function Header() {
 								</Link>
 							))}
 						{user &&
-						(user.role === 'president' ||
-						 user.role === 'council_president' ||
+						(['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim()) ||
 						 user.role === 'electoral_admin' ||
-						 user.role === 'asmerach_committee' ||
-						 user.role === 'system_admin' ||
-						 ['dbu10101020', 'dbu10101030'].includes(user.studentId || user.username)) &&
+						 user.role === 'asmerach_committee') &&
 						!(user.role === 'club_admin' ||
 						  user.role === 'clubs_coordinator' ||
 						  user.role === 'club_coordinator' ||
 						  user.role === 'club_leader' ||
+						  user.role === 'CLUB_ADMIN' ||
+						  user.role === 'clubAdmin' ||
+						  user.role === 'CLUB_REP' ||
+						  user.role === 'club_rep' ||
 						  Boolean(user.clubId) ||
 						  Boolean(user.club) ||
 						  user.username === 'dbu10101040' ||
+						  ((user.studentId || user.username || '').toLowerCase().trim() !== 'dbu10101020' &&
+						   (user.role === 'president' || user.role === 'council_president')) ||
 						  Boolean(user.name && user.name.toLowerCase().includes('yirga')) ||
 						  Boolean(user.username && user.username.toLowerCase().includes('yirga'))) && (
 							<Link

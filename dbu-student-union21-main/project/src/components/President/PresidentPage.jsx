@@ -77,33 +77,37 @@ export function PresidentPage() {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [savingScore, setSavingScore] = useState(false);
 
-  // Dedicated President & SuperAdmin credentials
+  // Dedicated Union President & SuperAdmin credentials
   const allowedUsernames = ["dbu10101020", "dbu10101030"];
-  const userIdentifier = user ? user.studentId || user.username || "" : "";
+  const userIdentifier = (user ? user.studentId || user.username || "" : "").toLowerCase().trim();
 
-  const isExplicitPresident =
-    user &&
-    (user.role === "president" ||
-      user.role === "council_president" ||
-      user.role === "electoral_admin" ||
-      user.role === "asmerach_committee" ||
-      user.role === "system_admin" ||
-      allowedUsernames.includes(userIdentifier));
+  // Dedicated Union President (dbu10101020), Super Admin (dbu10101030), or Electoral Committee
+  const isDedicatedPresident = userIdentifier === "dbu10101020";
+  const isDedicatedSuperAdmin = userIdentifier === "dbu10101030";
+  const isElectoralCommittee = user && (user.role === "electoral_admin" || user.role === "asmerach_committee");
 
-  // Explicitly DENY if user is a club admin / coordinator / leader or associated with a club
+  // All 17 club coordinators/representatives hold the generic role 'president' in the database,
+  // so any user with role 'president' whose username is NOT dbu10101020 is a Club President!
   const isClubUser =
     user &&
-    (user.role === "club_admin" ||
+    (!allowedUsernames.includes(userIdentifier) && (
+      (user.role === "president" || user.role === "council_president") ||
+      user.role === "club_admin" ||
       user.role === "clubs_coordinator" ||
       user.role === "club_coordinator" ||
       user.role === "club_leader" ||
+      user.role === "CLUB_ADMIN" ||
+      user.role === "clubAdmin" ||
+      user.role === "CLUB_REP" ||
+      user.role === "club_rep" ||
       Boolean(user.clubId) ||
       Boolean(user.club) ||
       user.username === "dbu10101040" ||
       Boolean(user.name && user.name.toLowerCase().includes("yirga")) ||
-      Boolean(user.username && user.username.toLowerCase().includes("yirga")));
+      Boolean(user.username && user.username.toLowerCase().includes("yirga"))
+    ));
 
-  const isAuthorizedOfficial = isExplicitPresident && !isClubUser;
+  const isAuthorizedOfficial = (isDedicatedPresident || isDedicatedSuperAdmin || isElectoralCommittee) && !isClubUser;
 
   useEffect(() => {
     if (isAuthorizedOfficial) {
