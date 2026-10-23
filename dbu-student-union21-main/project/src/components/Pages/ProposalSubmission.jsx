@@ -425,22 +425,7 @@ export function ProposalSubmission() {
             </div>
           </div>
 
-          {/* President Administrative Submission Mode Banner */}
-          {isPresidentOrAdmin && (
-            <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-2xl flex items-start gap-3 shadow-sm">
-              <div className="w-10 h-10 rounded-xl bg-indigo-700 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-xs font-black text-indigo-950 uppercase tracking-wider block">
-                  👑 የፕሬዚዳንት አስተዳደራዊ ማስረከቢያ (President Submission Mode)
-                </span>
-                <p className="text-xs text-indigo-800 font-medium mt-1 leading-relaxed">
-                  እንደ ፕሬዚዳንት የማስረከቢያ ጊዜው ቢያልፍም የእጩዎችን ሰነድ (Soft Copy) ማስገባት ይችላሉ። (As President Admin, you have administrative privilege to submit candidate soft copies even after deadline).
-                </p>
-              </div>
-            </div>
-          )}
+
 
           {/* Prominent Deadline Status Banner (for non-president users) */}
           {!isPresidentOrAdmin && settings && settings.isOpen === false && (
@@ -641,12 +626,7 @@ export function ProposalSubmission() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitProposal} className="space-y-5">
-                    {isPresidentOrAdmin && settings && settings.isOpen === false && (
-                      <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-center gap-2.5 text-xs font-semibold text-amber-900 shadow-sm">
-                        <ShieldCheck className="w-4 h-4 text-amber-700 flex-shrink-0" />
-                        <span>የፕሬዚዳንት አስተዳደራዊ ፈቃድ፡ የማስረከቢያ ጊዜው ቢያልፍም ለዚህ እጩ ሰነድ ገቢ ማድረግ ይችላሉ።</span>
-                      </div>
-                    )}
+
                     {/* Single File Dropzone */}
                     <div
                       onDragOver={(e) => {
