@@ -1,6 +1,6 @@
 /** @format */
 import React, { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import {
   FileText,
   Users,
@@ -35,6 +35,8 @@ import {
   User,
   Lock,
   Unlock,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
@@ -76,6 +78,12 @@ export function PresidentPage() {
   const [evaluatingId, setEvaluatingId] = useState(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [savingScore, setSavingScore] = useState(false);
+
+  // Candidate Soft Copy Upload Modal (President Admin Override)
+  const [uploadModalCandidate, setUploadModalCandidate] = useState(null);
+  const [uploadModalFile, setUploadModalFile] = useState(null);
+  const [uploadModalNote, setUploadModalNote] = useState("");
+  const [uploadingCandidateSoftCopy, setUploadingCandidateSoftCopy] = useState(false);
 
   // Dedicated Union President & SuperAdmin credentials
   const allowedUsernames = ["dbu10101020", "dbu10101030"];
@@ -208,6 +216,63 @@ export function PresidentPage() {
       toast.error(err.message || "Failed to reset proposal.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // 1a. President Admin: Upload / Re-upload Candidate Soft Copy (Deadline Bypassed)
+  const handleOpenUploadModal = (candidate) => {
+    setUploadModalCandidate(candidate);
+    setUploadModalFile(null);
+    setUploadModalNote("Direct soft copy submission by Student Union President Office");
+  };
+
+  const handleCandidateSoftCopySubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!uploadModalCandidate) return;
+
+    if (!uploadModalFile) {
+      toast.error("እባክዎ የእጩውን የፕሮፖዛል PDF ሰነድ ይምረጡ (Please choose a proposal PDF file)");
+      return;
+    }
+
+    if (!uploadModalFile.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("እባክዎ የ PDF ሰነድ ብቻ ይጫኑ (.pdf files only)");
+      return;
+    }
+
+    if (uploadModalFile.size > 15 * 1024 * 1024) {
+      toast.error("የሰነዱ መጠን ከ 15 MB መብለጥ የለበትም (Maximum file size is 15 MB)");
+      return;
+    }
+
+    try {
+      setUploadingCandidateSoftCopy(true);
+      const formData = new FormData();
+      formData.append("proposalFile", uploadModalFile);
+
+      const activeExamCode = uploadModalCandidate.examCode;
+      if (activeExamCode) {
+        formData.append("examCode", String(activeExamCode).trim());
+      }
+
+      const activeStudentId = uploadModalCandidate.studentId || uploadModalCandidate.username;
+      if (activeStudentId) {
+        formData.append("studentId", String(activeStudentId).trim());
+      }
+
+      formData.append("note", uploadModalNote || "Direct submission by President Admin");
+
+      const res = await apiService.submitProposal(formData);
+      toast.success(res.message || `ለእጩ ${uploadModalCandidate.name} ሰነዱ በተሳካ ሁኔታ ገቢ ተደርጓል!`);
+      setUploadModalCandidate(null);
+      setUploadModalFile(null);
+      setUploadModalNote("");
+      await fetchDashboard();
+    } catch (err) {
+      console.error("Administrative candidate upload error:", err);
+      toast.error(err.message || "ሰነዱን ማስገባት አልተቻለም።");
+    } finally {
+      setUploadingCandidateSoftCopy(false);
     }
   };
 
@@ -742,6 +807,14 @@ export function PresidentPage() {
                   ? "Enable All Candidates to Resubmit"
                   : "All Candidates Permitted to Resubmit (Active)"}
               </button>
+              <Link
+                to="/submit-proposal"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-600/20 cursor-pointer"
+                title="Open Candidate Proposal Submission Portal"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Submit Candidate Soft Copy Portal</span>
+              </Link>
               <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full border border-indigo-100">
                 Executive Committee Candidates Only
               </span>
@@ -963,6 +1036,24 @@ export function PresidentPage() {
                             </button>
                           )}
 
+                          {/* Direct Soft Copy Upload / Re-upload on candidate's behalf */}
+                          <button
+                            onClick={() => handleOpenUploadModal(c)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer ${
+                              c.isSubmitted
+                                ? "bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300"
+                                : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/20"
+                            }`}
+                            title={
+                              c.isSubmitted
+                                ? "Upload a revision or replace this candidate's proposal PDF (President Authority)"
+                                : "Upload candidate's soft copy PDF directly on their behalf (Bypasses Deadline)"
+                            }
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{c.isSubmitted ? "Re-upload" : "Upload Soft Copy"}</span>
+                          </button>
+
                           {c.isSubmitted && c.proposalId ? (
                             <>
                               <button
@@ -996,9 +1087,7 @@ export function PresidentPage() {
                                 </button>
                               )}
                             </>
-                          ) : (
-                            <span className="text-xs text-gray-400 font-medium ml-1">Pending Upload</span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -1723,6 +1812,166 @@ export function PresidentPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Candidate Soft Copy Upload Modal (President Admin Override) */}
+        {uploadModalCandidate && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative animate-in fade-in zoom-in-95 border border-emerald-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!uploadingCandidateSoftCopy) {
+                    setUploadModalCandidate(null);
+                    setUploadModalFile(null);
+                  }
+                }}
+                disabled={uploadingCandidateSoftCopy}
+                className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 leading-tight">
+                    የእጩ ሰነድ ገቢ ማድረጊያ (Upload Soft Copy)
+                  </h3>
+                  <p className="text-xs text-emerald-700 font-bold mt-0.5">
+                    የተማሪዎች ህብረት ፕሬዝዳንት አስተዳደራዊ ፈቃድ (President Authority)
+                  </p>
+                </div>
+              </div>
+
+              {/* Deadline Bypass Badge */}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl mb-5 flex items-start gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-950 font-medium leading-relaxed">
+                  <span className="font-bold">የጊዜ ገደብ መሻሪያ (Deadline Bypassed): </span>
+                  የእጩዎች ማቅረቢያ ጊዜ ቢያልፍም ፕሬዝዳንት አስተዳዳሪ እንደመሆንዎ መጠን ለእጩው ሰነዱን በቀጥታ መጫን ይችላሉ።
+                </div>
+              </div>
+
+              {/* Candidate Info Card */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 mb-5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">የእጩ ስም</span>
+                  <span className="text-sm font-black text-gray-900">{uploadModalCandidate.name}</span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">የተማሪ መታወቂያ</span>
+                  <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                    {uploadModalCandidate.studentId || uploadModalCandidate.username}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">የፈተና ኮድ</span>
+                  <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                    Code {uploadModalCandidate.examCode || "N/A"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Upload Form */}
+              <form onSubmit={handleCandidateSoftCopySubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    የፕሮፖዛል PDF ሰነድ ምረጡ / Select Proposal PDF
+                  </label>
+                  <label className={`block border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
+                    uploadModalFile
+                      ? "border-emerald-500 bg-emerald-50/50"
+                      : "border-slate-300 hover:border-emerald-400 bg-slate-50/60"
+                  }`}>
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      disabled={uploadingCandidateSoftCopy}
+                      onChange={(e) => {
+                        const sel = e.target.files?.[0];
+                        if (sel) {
+                          if (!sel.name.toLowerCase().endsWith(".pdf")) {
+                            toast.error("እባክዎ የ PDF ሰነድ ብቻ ይጫኑ (.pdf files only)");
+                            return;
+                          }
+                          if (sel.size > 15 * 1024 * 1024) {
+                            toast.error("የሰነዱ መጠን ከ 15 MB መብለጥ የለበትም");
+                            return;
+                          }
+                          setUploadModalFile(sel);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    {uploadModalFile ? (
+                      <div className="flex items-center justify-center gap-2 text-emerald-800">
+                        <FileCheck className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                        <div className="text-left truncate max-w-xs">
+                          <p className="text-xs font-bold truncate">{uploadModalFile.name}</p>
+                          <p className="text-[11px] text-emerald-600">
+                            {(uploadModalFile.size / 1024 / 1024).toFixed(2)} MB &bull; ሰነዱ ዝግጁ ነው
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Upload className="w-7 h-7 text-gray-400 mb-1" />
+                        <span className="text-xs font-bold text-gray-700">እዚህ ይጫኑ ወይም PDF ፋይል ይጎትቱ</span>
+                        <span className="text-[11px] text-gray-400 mt-0.5">PDF ሰነድ ብቻ &bull; እስከ 15 MB</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    አስተዳደራዊ ማስታወሻ / Administrative Note (አማራጭ)
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadModalNote}
+                    onChange={(e) => setUploadModalNote(e.target.value)}
+                    placeholder="ምሳሌ፡ በእጅ የቀረበ ሰነድ በፕሬዝዳንት ጽ/ቤት ተጭኗል..."
+                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadModalCandidate(null);
+                      setUploadModalFile(null);
+                    }}
+                    disabled={uploadingCandidateSoftCopy}
+                    className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors"
+                  >
+                    ይቅር / Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!uploadModalFile || uploadingCandidateSoftCopy}
+                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {uploadingCandidateSoftCopy ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>በመጫን ላይ...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>ሰነዱን መዝግብ / Submit Soft Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

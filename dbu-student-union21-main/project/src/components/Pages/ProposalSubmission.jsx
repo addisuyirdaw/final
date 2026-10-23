@@ -18,23 +18,34 @@ import {
   Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/api";
 import toast from "react-hot-toast";
 
 export function ProposalSubmission() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  // Proposal submission is strictly restricted to Union President (dbu10101020) and System Admin (dbu10101030)
-  const allowedUsernames = ["dbu10101020", "dbu10101030"];
+  // Strictly restrict Club Admin from accessing proposal submission
   const userIdentifier = (user ? user.studentId || user.username || "" : "").toLowerCase().trim();
-  const isAuthorized = user && allowedUsernames.includes(userIdentifier);
+  const isClubAdmin =
+    user && (userIdentifier === "dbu10101040" || user.role === "clubs_coordinator");
 
-  if (!isAuthorized) {
+  if (isClubAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
+
+  // Dedicated Union President (dbu10101020) and System Admin (dbu10101030)
+  const isPresidentOrAdmin = Boolean(
+    user &&
+    (userIdentifier === "dbu10101020" ||
+     userIdentifier === "dbu10101030" ||
+     ((user.role === "president" || user.role === "council_president") && userIdentifier === "dbu10101020") ||
+     user.role === "system_admin" ||
+     user.isAdmin)
+  );
 
   // Core Flow Step: 'loading' | 'verify' | 'upload' | 'receipt'
   const [step, setStep] = useState("loading");
@@ -64,6 +75,35 @@ export function ProposalSubmission() {
     checkInitialStatus();
   }, []);
 
+  const autoVerifyParams = async (code, id) => {
+    try {
+      setVerifying(true);
+      const res = await apiService.verifyCandidateExamCode(code, "Sira Asfetsami", id);
+      setCandidate(res.candidate);
+      if (res.proposal) {
+        setReceipt({
+          referenceNumber: res.proposal.latestReferenceNumber,
+          submittedAt: res.proposal.latestSubmittedAt,
+          fileName: res.proposal.currentFile?.fileName || "proposal.pdf",
+          candidateExamCode: res.proposal.candidateExamCode || res.candidate?.examCode,
+          studentId: res.candidate?.studentId || id,
+          proposalId: res.proposal.id || res.proposal._id,
+          currentVersion: res.proposal.currentVersion || 1,
+          canResubmit: isPresidentOrAdmin || (settings?.isOpen !== false && res.proposal.canResubmit !== false),
+          resubmissionAllowed: isPresidentOrAdmin || res.proposal.resubmissionAllowed !== false,
+        });
+        setStep("receipt");
+      } else {
+        setStep("upload");
+      }
+    } catch (e) {
+      console.warn("Auto-verify params note:", e.message);
+      setStep("verify");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const checkInitialStatus = async () => {
     try {
       const data = await apiService.getProposalStatus().catch(() => null);
@@ -72,15 +112,32 @@ export function ProposalSubmission() {
         setSettings(data.settings);
       }
 
-      // Pre-fill student ID if logged in user has one
-      if (user?.username) {
+      // Check URL query parameters (e.g. from President dashboard: ?examCode=16&studentId=1801228)
+      const params = new URLSearchParams(window.location.search);
+      const qCode = params.get("examCode");
+      const qId = params.get("studentId");
+      if (qCode) setExamCode(qCode);
+      if (qId) setStudentIdInput(qId);
+
+      // Pre-fill student ID if logged in candidate has one (and NOT president)
+      if (!isPresidentOrAdmin && !qId && user?.username) {
         const clean = user.username.replace(/^(?:dbu[-_/\s]*)?/i, "").trim();
         setStudentIdInput((prev) => prev || clean || user.username);
       }
 
+      // If President is logged in, President submits for candidates:
+      if (isPresidentOrAdmin) {
+        if (qCode && qId) {
+          setTimeout(() => autoVerifyParams(qCode, qId), 150);
+          return;
+        }
+        setStep("verify");
+        return;
+      }
+
       const isPortalOpen = data?.settings?.isOpen !== false;
 
-      // If already verified and has submission receipt
+      // If candidate already verified and has submission receipt
       if (data?.isEligible && data?.proposal) {
         setCandidate(data.candidate);
         setReceipt({
@@ -98,7 +155,7 @@ export function ProposalSubmission() {
         return;
       }
 
-      // If already verified as eligible candidate but hasn't submitted yet
+      // If candidate already verified as eligible candidate but hasn't submitted yet
       if (data?.isEligible && data?.candidate) {
         setCandidate(data.candidate);
         setStep("upload");
@@ -146,13 +203,15 @@ export function ProposalSubmission() {
         cleanStudentId
       );
 
-      // Save token if returned for seamless unauthenticated session
-      if (res.token) {
-        localStorage.setItem("token", res.token);
-      }
-      if (res.user) {
-        const userObj = { ...res.user, token: res.token };
-        localStorage.setItem("user", JSON.stringify(userObj));
+      // Save token if returned for seamless unauthenticated session (NEVER overwrite if President)
+      if (!isPresidentOrAdmin) {
+        if (res.token) {
+          localStorage.setItem("token", res.token);
+        }
+        if (res.user) {
+          const userObj = { ...res.user, token: res.token };
+          localStorage.setItem("user", JSON.stringify(userObj));
+        }
       }
 
       setCandidate(res.candidate);
@@ -167,11 +226,11 @@ export function ProposalSubmission() {
           studentId: res.candidate?.studentId || cleanStudentId,
           proposalId: res.proposal.id || res.proposal._id,
           currentVersion: res.proposal.currentVersion || 1,
-          canResubmit: res.proposal.canResubmit !== false && res.canResubmit !== false,
-          resubmissionAllowed: res.proposal.resubmissionAllowed !== false,
+          canResubmit: isPresidentOrAdmin || (settings?.isOpen !== false && res.proposal.canResubmit !== false && res.canResubmit !== false),
+          resubmissionAllowed: isPresidentOrAdmin || res.proposal.resubmissionAllowed !== false,
         });
         setStep("receipt");
-        toast.success("ሰነድዎ ቀደም ሲል ገቢ ተደርጓል! (Found existing confirmed proposal)");
+        toast.success("ሰነድ ተገኝቷል (Found existing confirmed proposal)");
         return;
       }
 
@@ -209,7 +268,8 @@ export function ProposalSubmission() {
   const handleSubmitProposal = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    if (settings && settings.isOpen === false) {
+    // Check deadline ONLY for non-president candidates
+    if (!isPresidentOrAdmin && settings && settings.isOpen === false) {
       toast.error(
         `የማስረከቢያው ጊዜ አልቋል! Submissions closed. Deadline passed on ${settings.deadlineEthiopia || "scheduled time"}.`
       );
@@ -227,10 +287,14 @@ export function ProposalSubmission() {
       formData.append("proposalFile", file);
 
       const activeCode = candidate?.examCode || examCode;
-      if (activeCode) formData.append("examCode", activeCode.trim());
+      if (activeCode) formData.append("examCode", String(activeCode).trim());
 
       const activeStudentId = candidate?.studentId || studentIdInput;
-      if (activeStudentId) formData.append("studentId", activeStudentId.trim());
+      if (activeStudentId) formData.append("studentId", String(activeStudentId).trim());
+
+      if (isPresidentOrAdmin) {
+        formData.append("note", "Administrative submission by President Admin");
+      }
 
       const res = await apiService.submitProposal(formData);
 
@@ -242,13 +306,13 @@ export function ProposalSubmission() {
         studentId: res.studentId || activeStudentId,
         proposalId: res.proposal?.id || res.proposal?._id,
         currentVersion: res.version || res.proposal?.currentVersion || ((receipt?.currentVersion || 1) + (receipt ? 1 : 0)),
-        canResubmit: res.canResubmit !== false,
-        resubmissionAllowed: res.resubmissionAllowed !== false,
+        canResubmit: isPresidentOrAdmin || res.canResubmit !== false,
+        resubmissionAllowed: isPresidentOrAdmin || res.resubmissionAllowed !== false,
       });
 
       setFile(null);
       setStep("receipt");
-      toast.success(res.message || "ሰነድዎ በተሳካ ሁኔታ ገቢ ተደርጓል!");
+      toast.success(res.message || (isPresidentOrAdmin ? "የእጩው ሰነድ በተሳካ ሁኔታ ገቢ ተደርጓል!" : "ሰነድዎ በተሳካ ሁኔታ ገቢ ተደርጓል!"));
     } catch (err) {
       console.error("Submission error:", err);
       toast.error(err.message || "ሰነዱን ማስገባት አልተቻለም። እባክዎ እንደገና ይሞክሩ።");
@@ -361,8 +425,25 @@ export function ProposalSubmission() {
             </div>
           </div>
 
-          {/* Prominent Deadline Status Banner */}
-          {settings && settings.isOpen === false && (
+          {/* President Administrative Submission Mode Banner */}
+          {isPresidentOrAdmin && (
+            <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-2xl flex items-start gap-3 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-indigo-700 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-black text-indigo-950 uppercase tracking-wider block">
+                  👑 የፕሬዚዳንት አስተዳደራዊ ማስረከቢያ (President Submission Mode)
+                </span>
+                <p className="text-xs text-indigo-800 font-medium mt-1 leading-relaxed">
+                  እንደ ፕሬዚዳንት የማስረከቢያ ጊዜው ቢያልፍም የእጩዎችን ሰነድ (Soft Copy) ማስገባት ይችላሉ። (As President Admin, you have administrative privilege to submit candidate soft copies even after deadline).
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Prominent Deadline Status Banner (for non-president users) */}
+          {!isPresidentOrAdmin && settings && settings.isOpen === false && (
             <div className="mb-6 p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-start gap-3 shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
                 <Lock className="w-5 h-5" />
@@ -372,7 +453,7 @@ export function ProposalSubmission() {
                   የማስረከቢያ ጊዜ ተጠናቋል (Submissions Closed)
                 </span>
                 <p className="text-xs text-rose-800 font-medium mt-1 leading-relaxed">
-                  የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ ጊዜ {settings.deadlineEthiopia ? `በ ${settings.deadlineEthiopia}` : "በፕሬዝዳንቱ"} ተዘግቷል። አዳዲስ ሰነዶችን መቀበል ወይም ማሻሻል አይቻልም።
+                  የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ ጊዜ {settings.deadlineEthiopia ? `በ ${settings.deadlineEthiopia}` : "በፕሬዝዳንቱ"} ተዘግቷል። እጩዎች ሰነድ ማስገባት አይችሉም።
                 </p>
               </div>
             </div>
@@ -534,7 +615,7 @@ export function ProposalSubmission() {
                   </div>
                 )}
 
-                {settings && settings.isOpen === false ? (
+                {settings && settings.isOpen === false && !isPresidentOrAdmin ? (
                   <div className="p-8 bg-slate-50 border-2 border-slate-200 rounded-3xl text-center space-y-3">
                     <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
                       <Lock className="w-7 h-7" />
@@ -543,7 +624,7 @@ export function ProposalSubmission() {
                       የማስረከቢያ ጊዜው ስላለፈ ሰነድ ማስገባት አይቻልም
                     </h3>
                     <p className="text-xs text-gray-600 max-w-sm mx-auto leading-relaxed">
-                      የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ ጊዜ {settings.deadlineEthiopia ? `በ ${settings.deadlineEthiopia}` : "በፕሬዝዳንቱ"} ተዘግቷል። አዳዲስ ሰነዶችን መጫን አይቻልም።
+                      የሥራ አስፈጻሚ ስትራቴጂክ ዕቅድ ማስረከቢያ ጊዜ {settings.deadlineEthiopia ? `በ ${settings.deadlineEthiopia}` : "በፕሬዝዳንቱ"} ተዘግቷል። እጩዎች ሰነድ ማስገባት አይችሉም።
                     </p>
                     <div className="pt-2">
                       <button
@@ -560,6 +641,12 @@ export function ProposalSubmission() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitProposal} className="space-y-5">
+                    {isPresidentOrAdmin && settings && settings.isOpen === false && (
+                      <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-center gap-2.5 text-xs font-semibold text-amber-900 shadow-sm">
+                        <ShieldCheck className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                        <span>የፕሬዚዳንት አስተዳደራዊ ፈቃድ፡ የማስረከቢያ ጊዜው ቢያልፍም ለዚህ እጩ ሰነድ ገቢ ማድረግ ይችላሉ።</span>
+                      </div>
+                    )}
                     {/* Single File Dropzone */}
                     <div
                       onDragOver={(e) => {
@@ -799,6 +886,16 @@ export function ProposalSubmission() {
                         የተፈቀደው አዲስ እትም፡ Version {(receipt.currentVersion || 1) + 1} &bull; የቀድሞው ሰነድ በታሪክ ውስጥ ይጠበቃል።
                       </p>
                     </div>
+                  ) : settings && settings.isOpen === false && !isPresidentOrAdmin ? (
+                    <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-1">
+                      <p className="text-xs font-bold text-rose-800 flex items-center justify-center gap-1.5">
+                        <Lock className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        የማስረከቢያው ጊዜ አብቅቷል (Submission Time is Over)
+                      </p>
+                      <p className="text-[11px] text-rose-700 font-medium">
+                        የማስረከቢያው ጊዜ ስላለቀ አዲስ ሰነድ መጫን ወይም ማሻሻል አይቻልም። አስቀድመው ያስገቡትን ሰነድ ብቻ ከላይ ባለው ቁልፍ ማውረድ እና መመልከት ይችላሉ።
+                      </p>
+                    </div>
                   ) : (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
                       <p className="text-xs font-bold text-amber-800">
@@ -807,6 +904,39 @@ export function ProposalSubmission() {
                       <p className="text-[11px] text-amber-700 mt-0.5">
                         ሰነድዎን ማሻሻል ከፈለጉ እባክዎ የተማሪዎች ህብረት ፕሬዝዳንትን ፈቃድ ይጠይቁ።
                       </p>
+                    </div>
+                  )}
+
+                  {/* President Administrative Quick Actions */}
+                  {isPresidentOrAdmin && (
+                    <div className="pt-3 border-t border-slate-200 space-y-2">
+                      <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-2 text-xs font-bold text-indigo-900">
+                        <ShieldCheck className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                        <span>የፕሬዝዳንት አስተዳደራዊ ማጠቃለያ፡ የዚህ እጩ ሰነድ ገቢ ተደርጓል።</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReceipt(null);
+                            setCandidate(null);
+                            setFile(null);
+                            setExamCode("");
+                            setStudentIdInput("");
+                            setStep("verify");
+                          }}
+                          className="w-full py-2.5 px-4 bg-slate-900 hover:bg-black text-white rounded-xl font-bold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span>+ ለሌላ እጩ ሰነድ አስገባ</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate("/president")}
+                          className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span>ወደ ፕሬዝዳንት ገጽ ተመለስ</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

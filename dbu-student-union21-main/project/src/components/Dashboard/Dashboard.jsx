@@ -871,6 +871,43 @@ export function Dashboard() {
 						Open President Page &rarr;
 					</Link>
 				</motion.div>
+			) : !user?.isAdmin &&
+			    user?.role !== 'admin' &&
+			    user?.role !== 'system_admin' &&
+			    user?.role !== 'clubs_coordinator' &&
+			    user?.username !== 'dbu10101030' &&
+			    user?.username !== 'dbu10101011' &&
+			    user?.username !== 'dbu10101040' ? (
+				<motion.div
+					initial={{ opacity: 0, y: 15 }}
+					animate={{ opacity: 1, y: 0 }}
+					className="bg-white rounded-xl sm:rounded-2xl p-5 shadow-sm border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+				>
+					<div className="flex items-center gap-4">
+						<div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-700 to-sky-700 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-md">
+							📜
+						</div>
+						<div>
+							<div className="flex items-center gap-2">
+								<h3 className="font-bold text-gray-900 text-base">
+									Executive Committee (Sira Asfetsami) Proposal Portal
+								</h3>
+								<span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+									Directive 003/2012
+								</span>
+							</div>
+							<p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+								Are you an official shortlisted candidate for Executive Committee (ሥራ አስፈፃሚ)? Verify your exam code to view or submit your strategic proposal.
+							</p>
+						</div>
+					</div>
+					<Link
+						to="/submit-proposal"
+						className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-colors flex-shrink-0"
+					>
+						Candidate Proposal Portal &rarr;
+					</Link>
+				</motion.div>
 			) : null}
 
 			{/* Pitch Stats for Presentation (Task 4) - RESTORED */}

@@ -538,17 +538,37 @@ router.post('/president/deadline', protect, presidentOnly, handleUpdateDeadline)
 // ============================================================================
 router.get('/my-status', optionalProtect, async (req, res) => {
   try {
-    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
-    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername);
-    if (!req.user || !isPresidentOrSystemAdmin) {
+    if (req.user && isClubCoordinatorOrLeader(req.user)) {
       return res.status(403).json({
         success: false,
         isEligible: false,
-        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል ማስገባት የሚፈቀደው ለፕሬዚዳንት እና ለሲስተም አድሚን ብቻ ነው።',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና ለእጩዎች ብቻ ነው።',
       });
     }
 
     const settings = await getProposalSettings();
+
+    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
+    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername) || req.user?.role === 'president' || req.user?.role === 'admin' || req.user?.role === 'system_admin';
+
+    if (isPresidentOrSystemAdmin) {
+      return res.json({
+        success: true,
+        isEligible: false,
+        isPresident: true,
+        verified: true,
+        candidate: null,
+        proposal: null,
+        message: 'President administrator portal ready.',
+        settings: {
+          deadline: settings.deadline,
+          deadlineEthiopia: settings.deadlineEthiopia,
+          status: settings.status,
+          isOpen: settings.isOpen,
+          serverTime: settings.serverTime,
+        },
+      });
+    }
 
     if (!req.user) {
       return res.json({
@@ -650,14 +670,15 @@ router.get('/my-status', optionalProtect, async (req, res) => {
 // ============================================================================
 router.post('/verify-candidate', optionalProtect, async (req, res) => {
   try {
-    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
-    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername);
-    if (!req.user || !isPresidentOrSystemAdmin) {
+    if (req.user && isClubCoordinatorOrLeader(req.user)) {
       return res.status(403).json({
         success: false,
-        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል ማስገባት የሚፈቀደው ለፕሬዚዳንት እና ለሲስተም አድሚን ብቻ ነው።',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና ለእጩዎች ብቻ ነው።',
       });
     }
+
+    const requesterUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
+    const requesterIsPresidentOrAdmin = ['dbu10101020', 'dbu10101030'].includes(requesterUsername) || req.user?.role === 'president' || req.user?.role === 'admin' || req.user?.role === 'system_admin';
 
     const { examCode, studentId } = req.body;
 
@@ -861,18 +882,43 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
       ],
     });
 
+    const settings = await getProposalSettings();
+
+    const responseUser = requesterIsPresidentOrAdmin && req.user
+      ? {
+          id: req.user._id,
+          _id: req.user._id,
+          name: req.user.name,
+          username: req.user.username,
+          role: req.user.role,
+        }
+      : {
+          id: candidateUser._id,
+          _id: candidateUser._id,
+          name: candidateRecord.name,
+          username: candidateUser.username,
+          studentId: verifiedStudentId,
+          role: candidateUser.role,
+        };
+
+    const effectiveToken = requesterIsPresidentOrAdmin && req.headers.authorization
+      ? req.headers.authorization.split(' ')[1]
+      : sessionToken;
+
     return res.status(200).json({
       success: true,
       verified: true,
-      token: sessionToken || (req.headers.authorization ? req.headers.authorization.split(' ')[1] : null),
-      user: {
-        id: req.user._id,
-        _id: req.user._id,
-        name: candidateRecord.name,
-        username: req.user.username,
-        studentId: verifiedStudentId,
-        role: req.user.role,
+      isPresident: requesterIsPresidentOrAdmin,
+      isPortalOpen: settings.isOpen,
+      settings: {
+        deadline: settings.deadline,
+        deadlineEthiopia: settings.deadlineEthiopia,
+        status: settings.status,
+        isOpen: settings.isOpen,
+        serverTime: settings.serverTime,
       },
+      token: effectiveToken,
+      user: responseUser,
       position: chosenPosition,
       candidateCode: canonicalCode,
       studentId: verifiedStudentId,
@@ -889,13 +935,19 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
         electionId: election._id,
         electionTitle: election.title,
       },
+      canSubmit: requesterIsPresidentOrAdmin || settings.isOpen,
       canResubmit:
-        (candidate.allowResubmit !== false) &&
-        (!existingProposal || existingProposal.resubmissionAllowed !== false) &&
-        (config?.allowAllResubmit !== false),
+        requesterIsPresidentOrAdmin || (
+          settings.isOpen &&
+          (candidate.allowResubmit !== false) &&
+          (!existingProposal || existingProposal.resubmissionAllowed !== false) &&
+          (config?.allowAllResubmit !== false)
+        ),
       resubmissionAllowed:
-        (candidate.allowResubmit !== false) &&
-        (!existingProposal || existingProposal.resubmissionAllowed !== false),
+        requesterIsPresidentOrAdmin || (
+          (candidate.allowResubmit !== false) &&
+          (!existingProposal || existingProposal.resubmissionAllowed !== false)
+        ),
       proposal: existingProposal
         ? {
             id: existingProposal._id,
@@ -906,10 +958,13 @@ router.post('/verify-candidate', optionalProtect, async (req, res) => {
             candidateExamCode: existingProposal.candidateExamCode || canonicalCode,
             currentFile: existingProposal.currentFile,
             canResubmit:
-              (candidate.allowResubmit !== false) &&
-              (existingProposal.resubmissionAllowed !== false) &&
-              (config?.allowAllResubmit !== false),
-            resubmissionAllowed: existingProposal.resubmissionAllowed !== false,
+              requesterIsPresidentOrAdmin || (
+                settings.isOpen &&
+                (candidate.allowResubmit !== false) &&
+                (existingProposal.resubmissionAllowed !== false) &&
+                (config?.allowAllResubmit !== false)
+              ),
+            resubmissionAllowed: requesterIsPresidentOrAdmin || existingProposal.resubmissionAllowed !== false,
           }
         : null,
     });
@@ -927,26 +982,27 @@ const handleProposalSubmit = async (req, res) => {
   let uploadedPath = req.file ? req.file.path : null;
 
   try {
-    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
-    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername);
-    if (!req.user || !isPresidentOrSystemAdmin) {
+    if (req.user && isClubCoordinatorOrLeader(req.user)) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
         success: false,
-        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል ማስገባት የሚፈቀደው ለፕሬዚዳንት እና ለሲስተም አድሚን ብቻ ነው።',
+        message: 'ይህ ገጽ የተከለከለ ነው! የሥራ አስፈጻሚ እጩዎች ፕሮፖዛል የሚፈቀደው ለተማሪዎች ህብረት ፕሬዚዳንትና ለእጩዎች ብቻ ነው።',
       });
     }
 
+    const uUsername = (req.user?.studentId || req.user?.username || '').toLowerCase().trim();
+    const isPresidentOrSystemAdmin = ['dbu10101020', 'dbu10101030'].includes(uUsername) || req.user?.role === 'president' || req.user?.role === 'admin' || req.user?.role === 'system_admin';
+
     // Determine candidate canonical exam code & student ID from body or authenticated user
     const effectivePairs = await getEffectiveCandidatePairs();
-    let rawCode = req.body.examCode || req.body.candidateCode || req.user?.examCode;
-    let rawStudentId = req.body.studentId || req.user?.studentId || req.user?.username;
+    let rawCode = req.body.examCode || req.body.candidateCode || (!isPresidentOrSystemAdmin ? req.user?.examCode : null);
+    let rawStudentId = req.body.studentId || (!isPresidentOrSystemAdmin ? (req.user?.studentId || req.user?.username) : null);
 
     let cleanExamCode = rawCode ? String(rawCode).trim().replace(/^0+/, '') || String(rawCode).trim() : '';
     let cleanStudentId = rawStudentId ? String(rawStudentId).trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '') : '';
 
-    // If only user is present, find matching candidate pair
-    if ((!cleanExamCode || !cleanStudentId) && req.user) {
+    // If only user is present and not president, find matching candidate pair
+    if ((!cleanExamCode || !cleanStudentId) && req.user && !isPresidentOrSystemAdmin) {
       const uClean = (req.user.username || '').toLowerCase().replace(/^(?:dbu[-_/\s]*)?/i, '');
       const pair = effectivePairs.find(p => {
         const pId = String(p.studentId || '').trim().toUpperCase().replace(/^(?:DBU[-_/\s]*)?/i, '');
@@ -980,8 +1036,8 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // Check if exam code has been deactivated
-    if (matchedCandidate.isActive === false) {
+    // Check if exam code has been deactivated (President override allowed)
+    if (matchedCandidate.isActive === false && !isPresidentOrSystemAdmin) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
       return res.status(403).json({
         success: false,
@@ -989,50 +1045,47 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // Ensure candidate User exists
-    if (!req.user) {
-      let candUser = await User.findOne({
-        $or: [
-          { studentId: cleanStudentId },
-          { username: `dbu${cleanStudentId.toLowerCase()}` },
-          { username: cleanStudentId.toLowerCase() },
-        ],
+    // Ensure candidate User exists for the verified candidate
+    let candUser = await User.findOne({
+      $or: [
+        { studentId: cleanStudentId },
+        { studentId: `DBU${cleanStudentId}` },
+        { username: `dbu${cleanStudentId.toLowerCase()}` },
+        { username: cleanStudentId.toLowerCase() },
+      ],
+    });
+    if (!candUser) {
+      candUser = await User.create({
+        name: matchedCandidate.name || `Candidate (Code ${cleanExamCode})`,
+        username: `dbu${cleanStudentId.toLowerCase()}`,
+        studentId: cleanStudentId,
+        password: generateSecureCandidatePassword(),
+        department: matchedCandidate.department || '',
+        year: matchedCandidate.year || '',
+        role: 'student',
       });
-      if (!candUser) {
-        candUser = await User.create({
-          name: matchedCandidate.name || `Candidate (Code ${cleanExamCode})`,
-          username: `dbu${cleanStudentId.toLowerCase()}`,
-          studentId: cleanStudentId,
-          password: generateSecureCandidatePassword(),
-          department: matchedCandidate.department || '',
-          year: matchedCandidate.year || '',
-          role: 'student',
-        });
-      }
-      req.user = candUser;
     }
 
-    const username = (req.user?.username || `dbu${cleanStudentId.toLowerCase()}`).toLowerCase().trim();
+    const candidateUsername = (candUser.username || `dbu${cleanStudentId.toLowerCase()}`).toLowerCase().trim();
+    const verifiedCanonicalCode = matchedCandidate.canonicalCode || matchedCandidate.examCode || cleanExamCode;
+    const verifiedStudentId = cleanStudentId;
 
     // Verify candidate eligibility on the election roster
-    let eligibility = await verifyCandidateEligibility(username);
+    let eligibility = await verifyCandidateEligibility(candidateUsername);
     if (!eligibility) {
       eligibility = {
         candidate: {
-          name: req.user.name || matchedCandidate.name,
-          username: username,
-          department: req.user.department || matchedCandidate.department || '',
-          year: req.user.year || matchedCandidate.year || '',
+          name: candUser.name || matchedCandidate.name,
+          username: candidateUsername,
+          department: candUser.department || matchedCandidate.department || '',
+          year: candUser.year || matchedCandidate.year || '',
           position: 'Sira Asfetsami',
-          examCode: matchedCandidate.canonicalCode || matchedCandidate.examCode || cleanExamCode,
-          studentId: cleanStudentId,
+          examCode: verifiedCanonicalCode,
+          studentId: verifiedStudentId,
         },
         electionId: null,
       };
     }
-
-    const verifiedCanonicalCode = matchedCandidate.canonicalCode || matchedCandidate.examCode || cleanExamCode;
-    const verifiedStudentId = cleanStudentId;
 
     // Anti-Hijacking Check: verify that this canonicalCode or studentId is not claimed by another candidate
     const existingOtherProposal = await Proposal.findOne({
@@ -1040,7 +1093,7 @@ const handleProposalSubmit = async (req, res) => {
         { candidateExamCode: verifiedCanonicalCode },
         { studentId: verifiedStudentId },
       ],
-      candidateUsername: { $ne: username },
+      candidateUsername: { $ne: candidateUsername },
     });
     if (existingOtherProposal) {
       if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
@@ -1050,22 +1103,24 @@ const handleProposalSubmit = async (req, res) => {
       });
     }
 
-    // 2. Enforce Deadline using authoritative server time
+    // 2. Enforce Deadline using authoritative server time (BYPASSED FOR PRESIDENT ADMIN)
     const settings = await getProposalSettings();
-    if (!settings.config.deadline) {
-      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-      return res.status(400).json({
-        success: false,
-        message: 'Proposal submissions are currently closed because the deadline has not been set by the President.',
-      });
-    }
+    if (!isPresidentOrSystemAdmin) {
+      if (!settings.config.deadline) {
+        if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+        return res.status(400).json({
+          success: false,
+          message: 'Proposal submissions are currently closed because the deadline has not been set by the President.',
+        });
+      }
 
-    if (!settings.isOpen) {
-      if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
-      return res.status(400).json({
-        success: false,
-        message: `Submission closed. The deadline passed on ${settings.deadlineEthiopia}.`,
-      });
+      if (!settings.isOpen) {
+        if (uploadedPath && fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath);
+        return res.status(400).json({
+          success: false,
+          message: `የማስረከቢያው ጊዜ አልቋል! Submission closed. The deadline passed on ${settings.deadlineEthiopia}. Candidates can no longer submit proposals.`,
+        });
+      }
     }
 
     // 3. Ensure a file was provided
@@ -1096,7 +1151,7 @@ const handleProposalSubmit = async (req, res) => {
     // 6. Check if a proposal already exists for this candidate
     const existingProposal = await Proposal.findOne({
       $or: [
-        { candidateUsername: username },
+        { candidateUsername: candidateUsername },
         { candidateExamCode: verifiedCanonicalCode },
         { studentId: verifiedStudentId },
       ],
@@ -1105,10 +1160,12 @@ const handleProposalSubmit = async (req, res) => {
     if (existingProposal) {
       // Candidate is resubmitting an updated proposal
       const isResubmitAllowed =
-        matchedCandidate.isActive !== false &&
-        matchedCandidate.allowResubmit !== false &&
-        existingProposal.resubmissionAllowed !== false &&
-        settings.config.allowAllResubmit !== false;
+        isPresidentOrSystemAdmin || (
+          matchedCandidate.isActive !== false &&
+          matchedCandidate.allowResubmit !== false &&
+          existingProposal.resubmissionAllowed !== false &&
+          settings.config.allowAllResubmit !== false
+        );
 
       if (!isResubmitAllowed) {
         if (uploadedPath && fs.existsSync(uploadedPath)) {
@@ -1137,7 +1194,7 @@ const handleProposalSubmit = async (req, res) => {
         referenceNumber: refNumber,
         submittedAt: new Date(),
         submittedByIp: clientIp,
-        note: req.body.note ? req.body.note.trim() : `Resubmission Version ${nextVersion}`,
+        note: req.body.note ? req.body.note.trim() : (isPresidentOrSystemAdmin ? `Resubmission by President Admin (v${nextVersion})` : `Resubmission Version ${nextVersion}`),
       };
 
       if (!Array.isArray(existingProposal.versions)) {
@@ -1169,6 +1226,11 @@ const handleProposalSubmit = async (req, res) => {
       };
       existingProposal.fileData = fileBase64;
       existingProposal.status = 'SUBMITTED';
+      existingProposal.candidateUsername = candidateUsername;
+      existingProposal.studentId = verifiedStudentId;
+      existingProposal.candidateExamCode = verifiedCanonicalCode;
+      existingProposal.submittedBy = isPresidentOrSystemAdmin ? req.user?.username : candidateUsername;
+      existingProposal.submittedByRole = isPresidentOrSystemAdmin ? 'president' : 'candidate';
 
       // Reset candidate20Reset flag if candidate 20 has resubmitted
       if (verifiedCanonicalCode === '20' || verifiedStudentId === '1802083') {
@@ -1222,11 +1284,11 @@ const handleProposalSubmit = async (req, res) => {
       referenceNumber: refNumber,
       submittedAt: new Date(),
       submittedByIp: clientIp,
-      note: req.body.note ? req.body.note.trim() : 'Initial Submission',
+      note: req.body.note ? req.body.note.trim() : (isPresidentOrSystemAdmin ? 'Submitted by Student Union President Admin' : 'Initial Submission'),
     };
 
     const proposal = new Proposal({
-      candidateUsername: username,
+      candidateUsername: candidateUsername,
       candidateName: candidateData.name,
       candidateDepartment: candidateData.department,
       candidateYear: candidateData.year,
@@ -1247,6 +1309,8 @@ const handleProposalSubmit = async (req, res) => {
       versions: [versionRecord],
       status: 'SUBMITTED',
       resubmissionAllowed: true,
+      submittedBy: isPresidentOrSystemAdmin ? req.user?.username : candidateUsername,
+      submittedByRole: isPresidentOrSystemAdmin ? 'president' : 'candidate',
     });
 
     await proposal.save();
@@ -1283,8 +1347,8 @@ const handleProposalSubmit = async (req, res) => {
   }
 };
 
-router.post('/', protect, upload.single('proposalFile'), handleProposalSubmit);
-router.post('/submit', protect, upload.single('proposalFile'), handleProposalSubmit);
+router.post('/', optionalProtect, upload.single('proposalFile'), handleProposalSubmit);
+router.post('/submit', optionalProtect, upload.single('proposalFile'), handleProposalSubmit);
 
 // ============================================================================
 // 5. GET /api/proposals/download/:proposalId

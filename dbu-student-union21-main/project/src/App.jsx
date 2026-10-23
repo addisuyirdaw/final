@@ -250,20 +250,20 @@ function AppContent() {
           <Route
             path="/proposal-submission"
             element={
-              user && ['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim()) ? (
-                <ProposalSubmission />
-              ) : (
+              user && (user.username === "dbu10101040" || user.role === "clubs_coordinator") ? (
                 <Navigate to="/dashboard" replace />
+              ) : (
+                <ProposalSubmission />
               )
             }
           />
           <Route
             path="/submit-proposal"
             element={
-              user && ['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim()) ? (
-                <ProposalSubmission />
-              ) : (
+              user && (user.username === "dbu10101040" || user.role === "clubs_coordinator") ? (
                 <Navigate to="/dashboard" replace />
+              ) : (
+                <ProposalSubmission />
               )
             }
           />

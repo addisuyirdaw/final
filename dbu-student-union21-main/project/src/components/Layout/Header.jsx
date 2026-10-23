@@ -146,7 +146,7 @@ export function Header() {
 				...(electionVisible ? [{ name: "Elections", href: "/elections" }] : []),
 				...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
 				{ name: "Latest", href: "/latest" },
-				...(user && ['dbu10101020', 'dbu10101030'].includes((user.studentId || user.username || '').toLowerCase().trim())
+				...((!user || (user.username !== 'dbu10101040' && user.role !== 'clubs_coordinator'))
 					? [
 						{
 							name: "Submit Proposal",

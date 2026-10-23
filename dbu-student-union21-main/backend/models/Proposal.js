@@ -125,6 +125,14 @@ const proposalSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    submittedBy: {
+      type: String,
+      trim: true,
+    },
+    submittedByRole: {
+      type: String,
+      default: 'candidate',
+    },
     reviewNotes: {
       type: String,
       trim: true,
