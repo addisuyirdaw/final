@@ -515,7 +515,11 @@ export function Dashboard() {
 		loadDirectives();
 		// Auto-refresh every 5 minutes
 		const interval = setInterval(() => loadDashboardStats(), 5 * 60 * 1000);
-		return () => clearInterval(interval);
+		const handleClubDeleted = () => {
+			loadDashboardStats();
+		};
+		window.addEventListener("club-deleted", handleClubDeleted);
+		return () => { clearInterval(interval); window.removeEventListener("club-deleted", handleClubDeleted); };
 	}, [loadDashboardStats]);
 
 	const handleToggleFeature = async (key, displayName) => {

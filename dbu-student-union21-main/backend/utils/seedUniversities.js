@@ -114,14 +114,17 @@ const seedUniversities = async () => {
       }
     }
 
-    for (const clubData of SAMPLE_CROSS_CAMPUS_CLUBS) {
-      const existing = await CrossCampusClub.findOne({
-        name: clubData.name,
-        universityCode: clubData.universityCode,
-      });
-      if (!existing) {
-        await CrossCampusClub.create(clubData);
-        console.log(`✅ [Seed] CrossCampusClub created: ${clubData.name} (${clubData.universityCode})`);
+    const existingCrossClubs = await CrossCampusClub.countDocuments();
+    if (existingCrossClubs === 0) {
+      for (const clubData of SAMPLE_CROSS_CAMPUS_CLUBS) {
+        const existing = await CrossCampusClub.findOne({
+          name: clubData.name,
+          universityCode: clubData.universityCode,
+        });
+        if (!existing) {
+          await CrossCampusClub.create(clubData);
+          console.log(`✅ [Seed] CrossCampusClub created: ${clubData.name} (${clubData.universityCode})`);
+        }
       }
     }
   } catch (err) {

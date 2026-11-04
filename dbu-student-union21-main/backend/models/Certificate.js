@@ -40,7 +40,7 @@ const certificateSchema = new mongoose.Schema(
     profileImage: { type: String },                              // URL shown on verify page
 
     // Club info (denormalised)
-    clubId: { type: String, required: true, index: true },      // Club._id
+    clubId: { type: String, default: null, index: true },      // Club._id
     clubName: { type: String, required: true, trim: true },
 
     // Role displayed on certificate

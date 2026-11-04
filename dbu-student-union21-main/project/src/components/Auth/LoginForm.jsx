@@ -118,13 +118,13 @@ export function LoginForm() {
       }
 
       await register({
-        username: registerData.username,
+        username: registerData.username.trim().toLowerCase(),
         password: registerData.password,
-        name: registerData.name,
-        department: registerData.department,
+        name: registerData.name.trim(),
+        department: registerData.department.trim(),
         year: registerData.year,
-        phoneNumber: registerData.phoneNumber,
-        email: registerData.email,
+        phoneNumber: registerData.phoneNumber.trim() || undefined,
+        email: registerData.email.trim() || undefined,
       });
       toast.success("Registration successful");
       

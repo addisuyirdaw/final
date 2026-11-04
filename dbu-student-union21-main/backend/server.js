@@ -43,9 +43,7 @@ const proposalRoutes = require("./routes/proposals");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
-const { createDefaultAdmin } = require("./utils/createAdmin");
-const { seedUniversities } = require("./utils/seedUniversities");
-const { seedBudget } = require("./utils/seedBudget");
+const { runMigrations } = require('./utils/migrationRunner');
 
 const app = express();
 
@@ -280,110 +278,63 @@ app.use("*", (req, res) => {
 // Error handling middleware - MUST be the last middleware
 app.use(errorHandler);
 
-console.log("MongoDB URI:", process.env.MONGODB_URI);
-
-// Helper to seed standard clubs and accounts if collection is empty
-const seedClubsAndUsers = async () => {
-  try {
-    const Club = require('./models/Club');
-    const User = require('./models/User');
-
-    const adminUser = (await User.findOne({ username: 'dbu10101040' })) || (await User.findOne({ isAdmin: true }));
-
-    const clubsToEnsure = [
-      { name: "Booking Club", category: "Academic", description: "Official Booking Club dedicated to campus resources and reservation management.", founded: "2023", status: "active" },
-      { name: "Mechanical Club", category: "Technology", description: "Mechanical Engineering student club for hands-on innovation and prototyping.", founded: "2022", status: "active" },
-      { name: "Civil Engineering Club", category: "Technology", description: "Civil Engineering student society fostering architectural and structural projects.", founded: "2022", status: "active" },
-      { name: "Idea Hub", category: "Technology", description: "DBU Idea Hub fostering startup incubations and technology entrepreneurship.", founded: "2021", status: "active" },
-      { name: "Career Development Club", category: "Professional", description: "Empowering students with career counseling, CV preparation, and internship links.", founded: "2023", status: "active" },
-      { name: "Law Association Club", category: "Academic", description: "Law students association facilitating legal aid workshops and moot court sessions.", founded: "2020", status: "active" },
-      { name: "Truth Culture Club", category: "Cultural", description: "Fostering cultural diversity, arts, music, and campus community dialogue.", founded: "2021", status: "active" },
-      { name: "Debate Society", category: "Academic", description: "Developing critical thinking and public speaking skills through competitive debates.", founded: "2015", status: "active" },
-      { name: "Technology and Innovation Club", category: "Technology", description: "Software development, robotics, AI, hackathons, and tech innovation projects.", founded: "2018", status: "active" },
-      { name: "Charity and Community Service Club", category: "Service", description: "Community outreach, blood donation, tutoring local high-schoolers, and social impact projects.", founded: "2019", status: "active" }
-    ];
-
-    for (const c of clubsToEnsure) {
-      const existing = await Club.findOne({ name: c.name });
-      if (!existing) {
-        await Club.create({
-          ...c,
-          contactEmail: `${c.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@dbu.edu.et`,
-          meetingSchedule: "Weekly on Fridays at 4:00 PM",
-          requirements: "Open to all registered DBU students",
-          leadership: {
-            president: adminUser?._id,
-            vicePresident: adminUser?._id,
-            secretary: adminUser?._id,
-            treasurer: adminUser?._id
-          },
-          members: adminUser ? [{
-            user: adminUser._id,
-            fullName: adminUser.name || "Club Representative",
-            department: adminUser.department || "Information Technology",
-            year: adminUser.year || "3rd Year",
-            role: "president",
-            status: "approved",
-            joinedAt: new Date()
-          }] : []
-        });
-      }
-    }
-    console.log("✅ Core campus clubs verified & seeded");
-  } catch (err) {
-    console.warn("⚠️ Clubs seed warning:", err.message);
-  }
+const sanitizeMongoUri = (uri) => {
+  if (!uri || typeof uri !== "string") return "none";
+  return uri.replace(/\/\/[^:]+:[^@]+@/, "//***:***@");
 };
 
-// Database connection with In-Memory fallback
+// Database connection with safe environment management
 let mongodInstance = null;
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/student_union_db';
-  console.log('Attempting MongoDB connection to:', uri);
+  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/student_union_db";
+  const isProduction = process.env.NODE_ENV === "production";
+  const isTest = process.env.NODE_ENV === "test";
+  const allowMemoryFallback = process.env.ALLOW_IN_MEMORY_DB === "true" || isTest;
+
+  console.log("Attempting MongoDB connection to:", sanitizeMongoUri(uri));
 
   try {
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 2500,
-      connectTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
     });
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB Connected (Persistent): ${conn.connection.host}`);
     console.log(`✅ Database: ${conn.connection.name}`);
+    return conn;
   } catch (error) {
-    console.warn(`⚠️ Local MongoDB unreachable (${error.message}). Starting In-Memory MongoDB Server...`);
+    if (isProduction || !allowMemoryFallback) {
+      console.error(`❌ Fatal: Persistent MongoDB connection failed: ${error.message}`);
+      console.error(`❌ In-memory database fallback is prohibited in ${process.env.NODE_ENV || "production"} environment.`);
+      console.error("❌ Please ensure MONGODB_URI points to a running MongoDB database or set ALLOW_IN_MEMORY_DB=true for local dev.");
+      process.exit(1);
+    }
+
+    console.warn(`⚠️ Local MongoDB unreachable (${error.message}). Starting In-Memory MongoDB Server (dev/test only)...`);
     try {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
+      const { MongoMemoryServer } = require("mongodb-memory-server");
       mongodInstance = await MongoMemoryServer.create();
       const inMemUri = mongodInstance.getUri();
       const conn = await mongoose.connect(inMemUri);
-      console.log(`✅ In-Memory MongoDB Server Connected at: ${inMemUri}`);
+      console.log(`⚠️ Ephemeral In-Memory MongoDB Connected at: ${sanitizeMongoUri(inMemUri)} (RAM only)`);
+      return conn;
     } catch (memErr) {
-      console.error('❌ Failed to start In-Memory MongoDB Server:', memErr.message);
+      console.error("❌ Failed to start In-Memory MongoDB Server:", memErr.message);
       process.exit(1);
     }
   }
+};
 
-  // Create default admin user
-  try {
-    await createDefaultAdmin();
-  } catch (adminError) {
-    console.warn('⚠️ Admin creation warning:', adminError.message);
-  }
-
-  // Seed core clubs
-  await seedClubsAndUsers();
-
-  // Seed university & cross-campus club reference data
-  try {
-    await seedUniversities();
-  } catch (seedError) {
-    console.warn('⚠️ University seed warning:', seedError.message);
-  }
-
-  // Seed initial public financial ledger & micro-grants
-  try {
-    await seedBudget();
-  } catch (budgetError) {
-    console.warn('⚠️ Budget seed warning:', budgetError.message);
+// Initialize database connection
+const initializeDatabase = async () => {
+  await connectDB();
+  if (process.env.RUN_MIGRATIONS_ON_STARTUP === 'true') {
+    try {
+      await runMigrations({ silent: false });
+    } catch (migrationError) {
+      console.error("❌ Database migration error during startup:", migrationError.message);
+    }
+  } else {
+    console.log("🚀 Database connection verified. Normal server startup ready.");
   }
 };
 
@@ -392,7 +343,7 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    await connectDB();
+    await initializeDatabase();
 
     // Initialize scheduled database backup cron job
     try {
@@ -468,7 +419,9 @@ process.on("uncaughtException", (err) => {
 });
 
 // Start the server
-startServer();
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;
 

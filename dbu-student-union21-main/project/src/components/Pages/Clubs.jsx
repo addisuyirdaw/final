@@ -2206,26 +2206,37 @@ export function Clubs() {
   };
 
   const handleDeleteClub = async (clubId) => {
-    if (!user?.isAdmin && user?.role !== 'president') {
+    if (!user?.isAdmin && user?.role !== "president") {
       toast.error("You do not have permission to delete clubs");
       return;
     }
 
-    if (!confirm("Are you sure you want to delete this club?")) {
+    if (!confirm("Are you sure you want to permanently delete this club?")) {
       return;
     }
 
-    // ── Instant optimistic removal so the carousel updates immediately ──
+    // Instant optimistic state cleanup across carousel & grid
     setClubs(prev => prev.filter(c => String(c._id || c.id) !== String(clubId)));
+    if (String(selectedClubDetails?._id || selectedClubDetails?.id) === String(clubId)) {
+      setSelectedClubDetails(null);
+    }
+    if (String(selectedClub?._id || selectedClub?.id) === String(clubId)) {
+      setSelectedClub(null);
+    }
+    if (String(expandedClubId) === String(clubId)) {
+      setExpandedClubId(null);
+    }
 
     try {
       await apiService.deleteClub(clubId);
       toast.success("Club deleted successfully!");
+      // Broadcast global event to synchronize Dashboard, Admin, and Explorer views
+      window.dispatchEvent(new CustomEvent("club-deleted", { detail: { clubId } }));
       // Background sync to confirm server state
       fetchClubs();
     } catch (error) {
       console.error("Failed to delete club:", error);
-      toast.error("Failed to delete club");
+      toast.error(error.message || "Failed to delete club");
       // Restore clubs list on failure
       fetchClubs();
     }

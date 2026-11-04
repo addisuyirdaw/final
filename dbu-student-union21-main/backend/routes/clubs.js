@@ -12,6 +12,11 @@ const Reservation = require('../models/Reservation');
 const SystemConfig = require('../models/SystemConfig');
 const Attendance = require('../models/Attendance');
 const AttendanceSession = require('../models/AttendanceSession');
+const ClubAnnouncement = require('../models/ClubAnnouncement');
+const LeadershipHandover = require('../models/LeadershipHandover');
+const Message = require('../models/Message');
+const MicroGrant = require('../models/MicroGrant');
+const Certificate = require('../models/Certificate');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const { sendRepresentativeAppointmentEmail, sendMemberApprovalEmail, sendRestrictionEmail, sendUnrestrictionEmail } = require('../utils/emailService');
@@ -104,6 +109,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
       return {
         id: club._id,
+        _id: club._id,
         name: club.name,
         description: club.description,
         category: club.category,
@@ -667,37 +673,143 @@ router.put('/:id', protect, clubLeader, async (req, res) => {
   }
 });
 
-// @desc    Delete club
+/**
+ * Helper to execute operations in a transaction when replicaSet is available,
+ * or gracefully fallback to sequential execution on standalone MongoDB instances.
+ */
+const executeWithTransaction = async (operation) => {
+  const session = await mongoose.startSession();
+  let useTransaction = false;
+  try {
+    session.startTransaction();
+    useTransaction = true;
+  } catch (initErr) {
+    useTransaction = false;
+  }
+
+  try {
+    const result = await operation(useTransaction ? session : null);
+    if (useTransaction) {
+      await session.commitTransaction();
+    }
+    return result;
+  } catch (error) {
+    if (useTransaction) {
+      try {
+        await session.abortTransaction();
+      } catch (abortErr) {
+        // Ignore abort errors
+      }
+    }
+    // If standalone MongoDB does not support replica set transactions, execute sequentially
+    if (
+      useTransaction &&
+      error.message &&
+      (error.message.includes("replica set") ||
+        error.message.includes("Transactions are not supported") ||
+        error.message.includes("Transaction numbers are only allowed"))
+    ) {
+      console.warn("⚠️ ReplicaSet transaction not supported on this instance; executing operations sequentially.");
+      return await operation(null);
+    }
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+// @desc    Delete club permanently and clean up related records
 // @route   DELETE /api/clubs/:id
 // @access  Private/Admin
-router.delete('/:id', protect, adminOnly, async (req, res) => {
+router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
-    const club = await Club.findById(req.params.id);
-    if (!club) {
-      return res.status(404).json({
+    const { id } = req.params;
+
+    // 1. Validate ID format
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
         success: false,
-        message: 'Club not found'
+        message: "Invalid club ID format",
       });
     }
 
-    // Remove club from users' joinedClubs array
-    await User.updateMany(
-      { joinedClubs: club._id },
-      { $pull: { joinedClubs: club._id } }
-    );
+    // 2. Confirm existence
+    const club = await Club.findById(id);
+    if (!club) {
+      return res.status(404).json({
+        success: false,
+        message: "Club not found",
+      });
+    }
 
-    await Club.findByIdAndDelete(req.params.id);
+    const clubId = club._id;
+    const clubName = club.name;
 
-    res.json({
+    // 3. Perform atomic cleanup and permanent deletion
+    await executeWithTransaction(async (session) => {
+      const opts = session ? { session } : {};
+
+      // A. Clean up User references
+      await User.updateMany(
+        { joinedClubs: clubId },
+        { $pull: { joinedClubs: clubId } },
+        opts
+      );
+      await User.updateMany(
+        { clubId: clubId },
+        { $unset: { clubId: "" } },
+        opts
+      );
+
+      // B. Permanently delete direct operational child records belonging exclusively to this club
+      await Project.deleteMany({ clubId }, opts);
+      await Task.deleteMany({ clubId }, opts);
+      await ClubAnnouncement.deleteMany({ clubId }, opts);
+      await ClubRenewal.deleteMany({ club: clubId }, opts);
+      await LeadershipHandover.deleteMany({ club: clubId }, opts);
+      await ActivityReport.deleteMany({ club: clubId }, opts);
+      await Attendance.deleteMany({ clubId }, opts);
+      await AttendanceSession.deleteMany({ clubId }, opts);
+      await Reservation.deleteMany({ clubId }, opts);
+      await Message.deleteMany({ club: clubId }, opts);
+
+      // C. Preserve historical and audit records without breaking data integrity
+      // Preserve financial ledger while archiving the club reference
+      await Transaction.updateMany(
+        { clubId },
+        { $set: { clubId: null, archivedClubName: clubName } },
+        opts
+      );
+      await MicroGrant.updateMany(
+        { clubId },
+        { $set: { clubId: null, archivedClubName: clubName } },
+        opts
+      );
+      // Preserve student earned certificates
+      await Certificate.updateMany(
+        { $or: [{ clubId: clubId }, { clubId: clubId.toString() }] },
+        { $set: { clubId: null, clubName: clubName } },
+        opts
+      );
+
+      // D. Permanently delete the club document itself
+      await Club.findByIdAndDelete(clubId, opts);
+    });
+
+    console.log(`🗑️ Club "${clubName}" (${clubId}) permanently deleted.`);
+
+    return res.json({
       success: true,
-      message: 'Club deleted successfully'
+      message: "Club deleted successfully",
+      deletedId: clubId.toString(),
+      deletedName: clubName,
     });
   } catch (error) {
-    console.error('Delete club error:', error);
-    res.status(500).json({
+    console.error("Delete club error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Server error deleting club',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: "Server error deleting club",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });

@@ -330,7 +330,12 @@ export function AdminDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+    const handleClubDeleted = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener("club-deleted", handleClubDeleted);
     fetchDepartments();
+    return () => window.removeEventListener("club-deleted", handleClubDeleted);
   }, [selectedTimeframe]);
 
   const fetchDashboardData = async () => {

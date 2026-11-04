@@ -26,7 +26,7 @@ const validateUserRegistration = [
     .matches(/^dbu\d{6,8}$/i)
     .withMessage('Username must start with dbu followed by 8 digits'),
   body('email')
-    .optional()
+    .optional({ values: 'falsy' })
     .isEmail()
     .withMessage('Please provide a valid email'),
   body('department')

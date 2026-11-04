@@ -59,8 +59,17 @@ class ApiService {
 
       if (!response.ok) {
         let msg = data.message || `HTTP error! status: ${response.status}`;
-        if (data.error) msg += ` - Detail: ${data.error}`;
-        
+        if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+          const details = data.errors
+            .map((err) => (typeof err === "string" ? err : err.msg || err.message || ""))
+            .filter(Boolean)
+            .join(", ");
+          if (details) {
+            msg = `${msg}: ${details}`;
+          }
+        } else if (data.error) {
+          msg += ` - Detail: ${data.error}`;
+        }
         // Handle unauthorized globally - force logout immediately
         if (response.status === 401) {
           console.warn("Session invalid or expired (401) - forcing logout");
@@ -1328,4 +1337,4 @@ class ApiService {
   }
 }
 
-export const apiService = new ApiService();
+export const apiService = new ApiService();
