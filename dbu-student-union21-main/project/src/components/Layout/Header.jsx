@@ -163,7 +163,7 @@ export function Header() {
 		<header className="bg-white shadow-sm border-b border-gray-200">
 			{/* Very Top Utility Bar */}
 			<div className="bg-sky-700 text-white">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
 					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
 						<div className="flex flex-wrap items-center gap-4 sm:gap-6">
 							<span className="inline-flex items-center gap-1.5">
@@ -190,16 +190,16 @@ export function Header() {
 
 			{/* University Brand Bar */}
 			<div className="bg-white border-b border-gray-200">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
 					<div className="flex items-center justify-between gap-4">
 						<div className="flex items-center gap-3">
 							<img
 								src="/image.png/dbu-logo.png"
 								alt="Debre Berhan University Logo"
-								className="w-20 h-20 md:w-24 md:h-24 object-contain rounded-md border border-sky-100 bg-white p-1"
+								className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain rounded-md border border-sky-100 bg-white p-1"
 							/>
 							<div>
-							<p className="text-2xl md:text-4xl font-bold text-sky-700 leading-none">
+							<p className="text-xl sm:text-2xl md:text-4xl font-bold text-sky-700 leading-none">
 								Debre Berhan University
 							</p>
 							<p className="text-xs md:text-sm text-gray-600 mt-1">
@@ -220,7 +220,7 @@ export function Header() {
 			</div>
 
 			{/* Main Header */}
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div className="flex justify-between items-center py-4">
 					{/* Desktop Navigation */}
 					<nav className="hidden xl:flex items-center gap-x-2.5 2xl:gap-x-4 text-xs 2xl:text-sm font-medium whitespace-nowrap">

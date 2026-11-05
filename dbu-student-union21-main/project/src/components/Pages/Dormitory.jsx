@@ -207,21 +207,21 @@ export const Dormitory = () => {
   }, {});
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-28 pb-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 pt-8 sm:pt-12 pb-20 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto">
 
         {/* Page Header */}
-        <div className="text-center mb-16 relative">
+        <div className="text-center mb-12 sm:mb-16 relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-6 opacity-10">
-            <Home className="w-24 h-24 text-emerald-600" />
+            <Home className="w-20 sm:w-24 h-20 sm:h-24 text-emerald-600" />
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-100 uppercase tracking-widest mb-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-100 uppercase tracking-widest mb-3 sm:mb-4">
             <Sparkles className="w-3.5 h-3.5" /> Campus Living
           </span>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-950 mb-4 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-950 mb-3 sm:mb-4 tracking-tight">
             Dormitory Management
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-6">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto mb-6">
             Meet the residential advisors, room allocation coordinators, and dormitory supervisors overseeing student accommodation services.
           </p>
 
@@ -270,7 +270,7 @@ export const Dormitory = () => {
                 </div>
 
                 {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
                   {deptProfiles.map((profile, index) => {
                     const imageUrl = profile.imageUrl?.startsWith("/uploads")
                       ? `${API_BASE}${profile.imageUrl}`
@@ -282,12 +282,12 @@ export const Dormitory = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className={`relative bg-white rounded-2xl p-6 shadow-sm border ${profile.isActive === false ? 'opacity-60 border-amber-200 bg-amber-50/10' : 'border-gray-200/80 hover:border-emerald-200'} flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(16,185,129,0.08)] group`}
+                        className={`relative bg-white rounded-2xl p-5 sm:p-6 shadow-sm border ${profile.isActive === false ? 'opacity-60 border-amber-200 bg-amber-50/10' : 'border-gray-200/80 hover:border-emerald-200'} flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-[0_10px_30px_rgba(16,185,129,0.08)] group`}
                         onClick={() => navigate(`/profile/${profile._id}`)}
                       >
                         {/* RBAC Action Overlay Bar */}
                         {isAdmin && (
-                          <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-emerald-100">
+                          <div className="absolute top-2 right-2 flex gap-1.5 z-10 bg-white/95 p-1 rounded-md shadow border border-emerald-100">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -317,27 +317,27 @@ export const Dormitory = () => {
                             Deactivated
                           </span>
                         )}
-                        <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-emerald-50 bg-gray-50 shadow-md flex items-center justify-center">
+                        <div className="w-36 h-44 sm:w-44 sm:h-52 rounded-2xl mb-5 overflow-hidden border-4 border-emerald-50 bg-gray-50 shadow-md flex items-center justify-center flex-shrink-0">
                           <img
                             src={imageUrl}
                             alt={profile.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
-                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=ECFDF5&color=059669&size=192`;
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=ECFDF5&color=059669&size=256&bold=true`;
                             }}
                           />
                         </div>
 
                         {/* Name and Title */}
-                        <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors line-clamp-1">
                           {profile.name}
                         </h3>
-                        <p className="text-emerald-600 font-semibold text-sm mb-4">
+                        <p className="text-emerald-600 font-semibold text-xs sm:text-sm mb-3 min-h-[1.25rem]">
                           {profile.title}
                         </p>
 
                         {/* Bio Excerpt */}
-                        <div className="text-gray-600 text-sm mb-6 flex-grow text-left w-full bg-gray-50 p-4 rounded-xl border border-gray-100 line-clamp-3">
+                        <div className="text-gray-600 text-xs sm:text-sm mb-5 flex-grow text-left w-full bg-gray-50/80 p-3.5 rounded-xl border border-gray-100 line-clamp-3">
                           <p>{profile.background || "No bio summary listed."}</p>
                         </div>
 

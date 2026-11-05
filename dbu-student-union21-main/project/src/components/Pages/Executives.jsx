@@ -200,33 +200,118 @@ export const Executives = () => {
   };
 
   // ── HARDCODED SEMANTIC SECTIONS (no dynamic dept grouping to avoid typos) ──
-  // The backend already returns profiles sorted by priority ASC, createdAt DESC.
-  // We render them in a single, canonical labeled section per page.
+  // Sections: University President, Vice Presidents, Senior Administration
+  // Uses priority with intelligent fallback to title match if default priority was used
   const EXEC_SECTIONS = [
-    { label: 'University President',        min: 1,  max: 1  },
-    { label: 'Vice Presidents',             min: 2,  max: 2  },
-    { label: 'Senior Administration',       min: 3,  max: 10 },
+    { key: "president", label: "University President" },
+    { key: "vice_president", label: "Vice Presidents" },
+    { key: "administration", label: "Senior Administration" },
   ];
 
-  const getSectionProfiles = (min, max) =>
-    profiles.filter(p => (p.priority ?? 10) >= min && (p.priority ?? 10) <= max);
+  const getSectionProfiles = (sectionKey) => {
+    return profiles.filter((p) => {
+      const titleLower = (p.title || "").toLowerCase().trim();
+      const priority = p.priority ?? 10;
+
+      const isPres =
+        priority === 1 ||
+        (priority >= 3 && (titleLower === "president" || (titleLower.includes("president") && !titleLower.includes("vice") && !titleLower.includes("vp"))));
+      if (sectionKey === "president") return isPres;
+
+      const isVP =
+        priority === 2 ||
+        (priority >= 3 && (titleLower.includes("vice president") || titleLower.includes("vp")));
+      if (sectionKey === "vice_president") return isVP;
+
+      if (sectionKey === "administration") {
+        return !isPres && !isVP;
+      }
+      return false;
+    });
+  };
+
+  const renderProfileCard = (profile, index) => {
+    const imageUrl = profile.imageUrl?.startsWith("/uploads")
+      ? `${API_BASE}${profile.imageUrl}`
+      : (profile.imageUrl || "");
+    return (
+      <motion.div
+        key={profile._id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05 }}
+        className={`relative bg-white rounded-2xl p-5 sm:p-6 shadow-sm border ${
+          profile.isActive === false
+            ? 'opacity-60 border-amber-200 bg-amber-50/10'
+            : 'border-gray-200/80 hover:border-blue-200'
+        } flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-[0_10px_30px_rgba(30,58,138,0.08)] group`}
+        onClick={() => navigate(`/profile/${profile._id}`)}
+      >
+        {isAdmin && (
+          <div className="absolute top-2 right-2 flex gap-1.5 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleEditClick(profile); }}
+              className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
+              title="Edit leadership details"
+            >✏️ Edit</button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleDeactivateToggleClick(profile); }}
+              className={`${
+                profile.isActive === false
+                  ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
+                  : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
+              } font-bold text-xs px-2 py-1 rounded transition-colors`}
+              title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
+            >
+              {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
+            </button>
+          </div>
+        )}
+        {profile.isActive === false && (
+          <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
+            Deactivated
+          </span>
+        )}
+        <div className="w-36 h-44 sm:w-44 sm:h-52 rounded-2xl mb-5 overflow-hidden border-4 border-sky-100 bg-sky-50/50 shadow-md flex items-center justify-center flex-shrink-0">
+          <img
+            src={imageUrl}
+            alt={profile.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A&size=256&bold=true`;
+            }}
+          />
+        </div>
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors line-clamp-1">{profile.name}</h3>
+        <p className="text-blue-600 font-semibold text-xs sm:text-sm mb-3 min-h-[1.25rem]">{profile.title}</p>
+        <div className="text-gray-600 text-xs sm:text-sm mb-5 flex-grow text-left w-full bg-gray-50/80 p-3.5 rounded-xl border border-gray-100 line-clamp-3">
+          <p>{profile.background || "No bio summary listed."}</p>
+        </div>
+        <div className="mt-auto w-full pt-4 border-t border-gray-100">
+          <span className="text-blue-700 font-bold hover:underline flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+            View Full Profile <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </span>
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-28 pb-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 pt-8 sm:pt-12 pb-20 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto">
         
         {/* Page Header */}
-        <div className="text-center mb-16 relative">
+        <div className="text-center mb-12 sm:mb-16 relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-6 opacity-10">
-            <Award className="w-24 h-24 text-sky-700" />
+            <Award className="w-20 sm:w-24 h-20 sm:h-24 text-sky-700" />
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-100 uppercase tracking-widest mb-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-100 uppercase tracking-widest mb-3 sm:mb-4">
             <Sparkles className="w-3.5 h-3.5" /> DBU Administration
           </span>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-950 mb-4 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-950 mb-3 sm:mb-4 tracking-tight">
             University Executives
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-6">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto mb-6">
             Meet the leadership steering Debre Berhan University's vision, academic distinction, and student union affairs.
           </p>
 
@@ -234,7 +319,7 @@ export const Executives = () => {
             <div className="flex justify-center">
               <button
                 onClick={handleAddClick}
-                className="mb-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-200"
+                className="mb-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 sm:py-3 px-5 sm:px-6 rounded-lg shadow-md transition duration-200 text-sm sm:text-base cursor-pointer"
               >
                 ➕ Add Completely New Leader
               </button>
@@ -263,86 +348,40 @@ export const Executives = () => {
             <p className="text-gray-500 text-sm px-6">No profiles found. Seed data or add them through the Admin console.</p>
           </div>
         ) : (
-          <div className="space-y-16">
+          <div className="space-y-12 sm:space-y-16">
             {/* ── University Executives: hardcoded semantic sections ── */}
-            {EXEC_SECTIONS.map(({ label, min, max }) => {
-              const sectionProfiles = getSectionProfiles(min, max);
+            {EXEC_SECTIONS.map(({ key, label }) => {
+              const sectionProfiles = getSectionProfiles(key);
               if (sectionProfiles.length === 0) return null;
               return (
-                <div key={label} className="space-y-6">
+                <div key={key} className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
                       {label}
                     </h2>
                     <div className="h-[2px] bg-sky-100 w-full rounded-full" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {sectionProfiles.map((profile, index) => {
-                      const imageUrl = profile.imageUrl?.startsWith("/uploads")
-                        ? `${API_BASE}${profile.imageUrl}`
-                        : (profile.imageUrl || "");
-                      return (
-                        <motion.div
-                          key={profile._id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className={`relative bg-white rounded-2xl p-6 shadow-sm border ${
-                            profile.isActive === false
-                              ? 'opacity-60 border-amber-200 bg-amber-50/10'
-                              : 'border-gray-200/80 hover:border-blue-200'
-                          } flex flex-col items-center text-center h-full cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0_10px_30px_rgba(30,58,138,0.08)] group`}
-                          onClick={() => navigate(`/profile/${profile._id}`)}
-                        >
-                          {isAdmin && (
-                            <div className="absolute top-2 right-2 flex gap-2 z-10 bg-white/95 p-1 rounded-md shadow border border-sky-100">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleEditClick(profile); }}
-                                className="text-blue-600 hover:text-blue-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50 transition-colors"
-                                title="Edit leadership details"
-                              >✏️ Edit</button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeactivateToggleClick(profile); }}
-                                className={`${
-                                  profile.isActive === false
-                                    ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
-                                    : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
-                                } font-bold text-xs px-2 py-1 rounded transition-colors`}
-                                title={profile.isActive === false ? "Activate profile" : "Deactivate profile"}
-                              >
-                                {profile.isActive === false ? "✅ Activate" : "🚫 Deactivate"}
-                              </button>
-                            </div>
-                          )}
-                          {profile.isActive === false && (
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider mb-3">
-                              Deactivated
-                            </span>
-                          )}
-                          <div className="w-40 h-48 rounded-2xl mb-6 overflow-hidden border-4 border-sky-55 bg-gray-50 shadow-md">
-                            <img
-                              src={imageUrl}
-                              alt={profile.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=EBF5FF&color=1E3A8A&size=192`;
-                              }}
-                            />
-                          </div>
-                          <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">{profile.name}</h3>
-                          <p className="text-blue-600 font-semibold text-sm mb-4">{profile.title}</p>
-                          <div className="text-gray-600 text-sm mb-6 flex-grow text-left w-full bg-gray-50 p-4 rounded-xl border border-gray-100 line-clamp-3">
-                            <p>{profile.background || "No bio summary listed."}</p>
-                          </div>
-                          <div className="mt-auto w-full pt-4 border-t border-gray-100">
-                            <span className="text-blue-700 font-bold hover:underline flex items-center justify-center gap-1.5 text-sm">
-                              View Full Profile <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
+                  {sectionProfiles.length === 1 ? (
+                    <div className="flex justify-center">
+                      <div className="w-full max-w-sm sm:max-w-md">
+                        {renderProfileCard(sectionProfiles[0], 0)}
+                      </div>
+                    </div>
+                  ) : sectionProfiles.length === 2 ? (
+                    <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
+                      {sectionProfiles.map((profile, index) => (
+                        <div key={profile._id} className="w-full sm:w-[320px] lg:w-[360px]">
+                          {renderProfileCard(profile, index)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+                      {sectionProfiles.map((profile, index) =>
+                        renderProfileCard(profile, index)
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -267,7 +267,7 @@ export const LeadershipProfile = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-28 pb-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 pt-8 sm:pt-12 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <Link to={backUrl} className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition-colors">

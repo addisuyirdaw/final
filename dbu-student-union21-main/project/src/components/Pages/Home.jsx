@@ -463,7 +463,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 			{/* Hero Action Bar — Buttons below carousel, guests only */}
 			{!user && (
 				<div className="bg-gradient-to-r from-blue-700 to-blue-900 py-5 px-4">
-					<div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+					<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
 						<div className="text-white text-center sm:text-left">
 							<h3 className="font-bold text-lg text-white">DBU Campus Life & Leadership Portal</h3>
 							<p className="text-blue-200 text-sm">Your unified gateway to student governance, campus services, and organization directories.</p>
@@ -493,7 +493,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 			{/* Official Directives Section — only for guests before login */}
 			{!user && (
 				<section className="py-12 bg-white border-b border-gray-200">
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 						<div className="flex flex-col md:flex-row items-center justify-between mb-8">
 							<div>
 								<h2 className="text-3xl font-bold text-red-700 flex items-center gap-2">
@@ -611,7 +611,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 
 			{/* Stats Section */}
 			<section className="py-16 bg-white">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 						{statsArray.map((stat, index) => (
 							<motion.div
@@ -632,7 +632,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 
 			{/* Features Section */}
 			<section id="services-section" className="py-20 bg-gray-50">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="text-center mb-16">
 						<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
 							Our Services
@@ -672,7 +672,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 
 			{/* Upcoming Club Events Hub */}
 			<section className="py-16 bg-blue-50">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="flex flex-col md:flex-row items-center justify-between mb-8">
 						<div>
 							<h2 className="text-3xl font-bold text-gray-900 mb-2">Upcoming Club Events</h2>
@@ -723,7 +723,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 
 			{/* Leadership Hub Section */}
 			<section id="leadership" className="py-20 bg-white scroll-mt-24">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="text-center mb-14">
 						<h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">
 							Leadership &amp; Administration
@@ -814,7 +814,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 			{/* The four gateway cards above route to dedicated directory pages — no profile listing here */}
 			{/* Announcements Section */}
 			<section className="py-20 bg-white">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="text-center mb-16">
 						<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
 							Latest Announcements
@@ -852,7 +852,7 @@ const DEFAULT_CAROUSEL_SLIDES = [
 
 
 			<section className="py-20 bg-gradient-to-r from-blue-700 to-blue-500 text-white">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 					<h2 className="text-3xl md:text-4xl font-bold mb-4">
 						Join the Student Affairs Community
 					</h2>
