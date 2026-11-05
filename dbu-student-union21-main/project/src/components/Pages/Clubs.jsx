@@ -2881,8 +2881,9 @@ export function Clubs() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 mb-14">
             {(filteredClubs || []).length > 0 ? (
               (filteredClubs || []).map((club, index) => {
-                const isUserLoggedIn = Boolean(user && (user._id || user.id));
-                const validUserId = isUserLoggedIn ? String(user._id || user.id) : null;
+                const userId = user?._id || user?.id;
+                const isUserLoggedIn = Boolean(user && userId);
+                const validUserId = isUserLoggedIn ? String(userId) : null;
                 const isLeader = Boolean(validUserId && (
                   String(club?.leadership?.president?._id || club?.leadership?.president) === validUserId ||
                   String(club?.leadership?.vicePresident?._id || club?.leadership?.vicePresident) === validUserId ||
