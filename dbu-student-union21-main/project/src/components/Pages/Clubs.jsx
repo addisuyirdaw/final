@@ -1220,7 +1220,12 @@ export function Clubs() {
     return matchesCategory && matchesSearch;
   });
 
-  const isRotaractClub = (club) => Boolean(club && club.name && /rotaract/i.test(club.name));
+  const isRotaractClub = (club) => {
+    if (!club) return false;
+    const name = String(club.name || "").toLowerCase();
+    const desc = String(club.description || "").toLowerCase();
+    return name.includes("rotaract") || desc.includes("rotaract");
+  };
 
   const handleJoinClub = (club) => {
     if (!user) {
@@ -1238,10 +1243,12 @@ export function Clubs() {
     setSelectedClub(club);
 
     if (isRotaractClub(club)) {
+      setShowJoinModal(false);
       setShowRotaractModal(true);
       return;
     }
 
+    setShowRotaractModal(false);
     setJoinFormData({
       fullName: user.name || "",
       department: user.department || "",
@@ -3063,8 +3070,8 @@ export function Clubs() {
           </div>
         )}
 
-        {/* Join Club Modal */}
-        {showJoinModal && selectedClub && (
+        {/* Join Club Modal (Standard Clubs Only) */}
+        {showJoinModal && selectedClub && !isRotaractClub(selectedClub) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">

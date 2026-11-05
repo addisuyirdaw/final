@@ -158,7 +158,7 @@ export function RotaractRecruitmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-rose-100">
         {/* Header Banner */}
         <div className="relative bg-gradient-to-r from-rose-900 via-rose-800 to-indigo-900 text-white p-6 sm:p-8 shrink-0">
@@ -716,7 +716,7 @@ export function RotaractApplicationDetailsModal({
   const hasAppData = Boolean(request.applicationData);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-rose-100">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-rose-900 via-rose-800 to-indigo-900 text-white p-6 shrink-0 flex items-start justify-between">
