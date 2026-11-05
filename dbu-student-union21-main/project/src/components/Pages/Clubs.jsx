@@ -2429,21 +2429,15 @@ export function Clubs() {
               </motion.div>
             )}
             <p className="text-base sm:text-lg text-blue-100 max-w-2xl mx-auto leading-relaxed">
-              Explore extracurricular opportunities, build leadership skills, and connect with peers. Apply directly to any club without prior account setup.
+              Explore extracurricular opportunities, build leadership skills, and connect with peers. Select a club below to apply for membership.
             </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-5 flex justify-center">
               <a
                 href="#directory"
-                className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl shadow-md hover:bg-blue-50 transition transform hover:-translate-y-0.5 text-sm">
-                <span>Browse Club Directory</span>
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">#directory</span>
+                className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-6 py-2.5 rounded-xl shadow-md hover:bg-blue-50 transition transform hover:-translate-y-0.5 text-sm">
+                <span>Browse Clubs & Register</span>
+                <span>↓</span>
               </a>
-              {!user && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-100 bg-white/10 px-3 py-2 rounded-xl border border-white/20">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Direct Student Application • No Prior Login Needed
-                </span>
-              )}
             </div>
           </motion.div>
         </div>
@@ -3205,7 +3199,7 @@ export function Clubs() {
                     Join {selectedClub.name}
                   </h2>
                   <p className="text-xs text-blue-100 mt-1">
-                    Fill in your details below to apply directly. No account required.
+                    Fill in your student details below to apply for membership.
                   </p>
                 </div>
                 <button
