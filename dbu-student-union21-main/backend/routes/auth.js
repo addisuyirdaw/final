@@ -4,6 +4,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Club = require("../models/Club");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
@@ -87,6 +88,37 @@ router.post("/register", validateUserRegistration, async (req, res) => {
 
 		// Generate token
 		const token = generateToken(user._id);
+
+		// Link any prior public club membership applications submitted by studentId or email
+		try {
+			const clubsWithMember = await Club.find({
+				$or: [
+					{ "members.studentId": new RegExp(`^${user.username}$`, "i") },
+					{ "members.email": user.email.toLowerCase() }
+				]
+			});
+
+			for (const c of clubsWithMember) {
+				let changed = false;
+				for (const m of c.members) {
+					const matchId = m.studentId && m.studentId.toLowerCase() === user.username.toLowerCase();
+					const matchMail = m.email && m.email.toLowerCase() === user.email.toLowerCase();
+					if ((matchId || matchMail) && !m.user) {
+						m.user = user._id;
+						changed = true;
+						if (m.status === 'approved') {
+							user.joinedClubs.addToSet(c._id);
+						}
+					}
+				}
+				if (changed) await c.save();
+			}
+			if (user.isModified('joinedClubs')) {
+				await user.save();
+			}
+		} catch (linkErr) {
+			console.warn("Auto-linking club applications on registration failed:", linkErr.message);
+		}
 
 		console.log('Registration successful:', username);
 		return res.status(201).json({

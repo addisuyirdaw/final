@@ -817,7 +817,7 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
 // @desc    Join club
 // @route   POST /api/clubs/:id/join
 // @access  Private
-router.post('/:id/join', protect, async (req, res) => {
+router.post('/:id/join', optionalAuth, async (req, res) => {
   try {
     const result = await clubService.joinClub(req.params.id, req.user, req.body);
     

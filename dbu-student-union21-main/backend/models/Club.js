@@ -126,7 +126,24 @@ const clubSchema = new mongoose.Schema({
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true
+      required: false,
+      default: null
+    },
+    studentId: {
+      type: String,
+      trim: true
+    },
+    contact: {
+      type: String,
+      trim: true
+    },
+    phone: {
+      type: String,
+      trim: true
+    },
+    email: {
+      type: String,
+      trim: true
     },
     fullName: {
       type: String,
@@ -273,6 +290,8 @@ clubSchema.index({ name: 1 });
 clubSchema.index({ category: 1 });
 clubSchema.index({ status: 1 });
 clubSchema.index({ 'members.user': 1 });
+clubSchema.index({ 'members.studentId': 1 });
+clubSchema.index({ 'members.email': 1 });
 
 // Virtual for member count
 clubSchema.virtual('memberCount').get(function () {

@@ -70,12 +70,24 @@ export function Clubs() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showRotaractModal, setShowRotaractModal] = useState(false);
   const [submittingRotaract, setSubmittingRotaract] = useState(false);
+  const [submittingJoin, setSubmittingJoin] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(null);
+  const [appliedClubIds, setAppliedClubIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem("dbu_applied_club_ids");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [viewingApplication, setViewingApplication] = useState(null);
   const [selectedClub, setSelectedClub] = useState(null);
   const [joinFormData, setJoinFormData] = useState({
     fullName: "",
+    studentId: "",
     department: "",
-    year: "",
+    year: "1st Year",
+    contact: "",
     background: "",
   });
   const [joinRequests, setJoinRequests] = useState([]);
@@ -954,6 +966,18 @@ export function Clubs() {
   };
 
   useEffect(() => {
+    if (window.location.hash === "#directory") {
+      const scrollTimer = setTimeout(() => {
+        const el = document.getElementById("directory");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 150);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [loading]);
+
+  useEffect(() => {
     if ((showCreateEvent || isCoordinator || user?.isAdmin) && systemResources.length === 0) {
       apiService.getResources()
         .then(res => setSystemResources(res.resources || []))
@@ -1228,15 +1252,31 @@ export function Clubs() {
   };
 
   const handleJoinClub = (club) => {
-    if (!user) {
-      toast.error("Please login to join clubs");
-      navigate("/login");
+    if (!club) return;
+
+    if (user?.isAdmin && !isAcademicAdmin) {
+      // Show club details/members for admin instead of join form
+      handleViewMembers(club);
       return;
     }
 
-    if (user.isAdmin && !isAcademicAdmin) {
-      // Show club details for admin instead of join form
-      handleViewMembers(club);
+    const clubId = String(club._id || club.id);
+    const userId = user?._id || user?.id;
+
+    // Check if already an approved active member
+    const activeMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) && 
+      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'approved'));
+    if (activeMember) {
+      toast.success("You are already an active member of this club!");
+      return;
+    }
+
+    // Check if pending locally or in database
+    const hasAppliedLocally = appliedClubIds.includes(clubId);
+    const isPending = hasAppliedLocally || (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
+      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
+    if (isPending) {
+      toast.error("Your join application for this club is already pending leadership review.");
       return;
     }
 
@@ -1250,9 +1290,11 @@ export function Clubs() {
 
     setShowRotaractModal(false);
     setJoinFormData({
-      fullName: user.name || "",
-      department: user.department || "",
-      year: user.year || "",
+      fullName: user?.name || "",
+      studentId: user?.username || "",
+      department: user?.department || "",
+      year: user?.year || "1st Year",
+      contact: user?.phoneNumber || user?.phone || user?.email || "",
       background: "",
     });
     setShowJoinModal(true);
@@ -1262,18 +1304,37 @@ export function Clubs() {
     if (!selectedClub) return;
     try {
       setSubmittingRotaract(true);
-      const response = await apiService.joinClub(selectedClub._id || selectedClub.id, {
+      const clubId = String(selectedClub._id || selectedClub.id);
+      const response = await apiService.joinClub(clubId, {
         fullName: formData.fullName,
+        studentId: formData.studentId,
         department: formData.department,
         year: formData.year,
-        background: `[Rotaract Application] ${formData.motivation}`,
+        contact: formData.phone || formData.email,
+        phone: formData.phone,
+        email: formData.email,
+        background: `[Rotaract Application] ${formData.motivation || ""}`,
         applicationData: formData
       });
+
+      const updated = Array.from(new Set([...appliedClubIds, clubId]));
+      setAppliedClubIds(updated);
+      try {
+        localStorage.setItem("dbu_applied_club_ids", JSON.stringify(updated));
+      } catch (err) {}
+
+      setShowRotaractModal(false);
+      setSubmissionSuccess({
+        clubName: selectedClub.name,
+        studentId: formData.studentId || "N/A",
+        fullName: formData.fullName,
+        message: response?.message || "Rotaract recruitment application submitted successfully! Club leadership will verify your responses before approval."
+      });
+
       toast.success(
         response?.message || 
         "Rotaract recruitment application submitted successfully! Club leadership will verify your responses before approval."
       );
-      setShowRotaractModal(false);
       await fetchClubs();
     } catch (error) {
       console.error("Failed to submit Rotaract application:", error);
@@ -1285,41 +1346,84 @@ export function Clubs() {
 
   const handleSubmitJoinRequest = async (e) => {
     e.preventDefault();
+    if (!selectedClub) return;
 
-    const fullName = joinFormData.fullName || user?.name || "";
-    const department = joinFormData.department || user?.department || "";
-    const year = joinFormData.year || user?.year || "";
-    const background = joinFormData.background?.trim() || "";
+    const fullName = (joinFormData.fullName || user?.name || "").trim();
+    const studentId = (joinFormData.studentId || user?.username || "").trim();
+    const department = (joinFormData.department || user?.department || "").trim();
+    const year = (joinFormData.year || user?.year || "1st Year").trim();
+    const contact = (joinFormData.contact || user?.phoneNumber || user?.phone || user?.email || "").trim();
+    const background = (joinFormData.background || "").trim();
 
-    if (!fullName || !department || !year) {
-      toast.error("Please fill all required profile fields");
+    if (!fullName) {
+      toast.error("Please enter your full name");
       return;
     }
-
+    if (!studentId) {
+      toast.error("Please enter your Student ID number");
+      return;
+    }
+    if (!department) {
+      toast.error("Please enter your department/field of study");
+      return;
+    }
+    if (!year) {
+      toast.error("Please select your academic year");
+      return;
+    }
+    if (!contact) {
+      toast.error("Please provide your phone number or email");
+      return;
+    }
     if (!background) {
       toast.error("Please explain why you want to join this club");
       return;
     }
 
     try {
-      const response = await apiService.joinClub(selectedClub._id || selectedClub.id, {
+      setSubmittingJoin(true);
+      const clubId = String(selectedClub._id || selectedClub.id);
+      const response = await apiService.joinClub(clubId, {
         fullName,
+        studentId,
         department,
         year,
+        contact,
+        phone: contact,
+        email: contact.includes("@") ? contact : "",
         background
       });
-      toast.success(response?.message || "Welcome! You have successfully joined the club.");
+
+      const updated = Array.from(new Set([...appliedClubIds, clubId]));
+      setAppliedClubIds(updated);
+      try {
+        localStorage.setItem("dbu_applied_club_ids", JSON.stringify(updated));
+      } catch (err) {}
+
       setShowJoinModal(false);
       setJoinFormData({
         fullName: "",
+        studentId: "",
         department: "",
-        year: "",
+        year: "1st Year",
+        contact: "",
         background: "",
       });
+
+      setSubmissionSuccess({
+        clubName: selectedClub.name,
+        studentId: studentId,
+        fullName: fullName,
+        message: response?.message || `Your membership application to ${selectedClub.name} was submitted successfully!`
+      });
+
+      toast.success(response?.message || "Application submitted successfully!");
       await fetchClubs();
     } catch (error) {
       console.error("Failed to join club:", error);
-      toast.error(error.message || "Failed to join club");
+      toast.error(error.message || "Failed to submit membership application");
+    } finally {
+      setSubmittingJoin(false);
     }
   };
 
@@ -2305,34 +2409,48 @@ export function Clubs() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
+      <section className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.6 }}
             className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Student Clubs
+            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+              Student Clubs & Organizations
             </h1>
             {!loading && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-8 border border-white/30">
-                < Award className="w-5 h-5" />
-                <span className="font-semibold">{clubs.length} Clubs Active to Join</span>
+                className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full mb-4 border border-white/30 text-xs sm:text-sm">
+                <Award className="w-4 h-4 text-amber-300" />
+                <span className="font-semibold">{clubs.length} Officially Active Clubs</span>
               </motion.div>
             )}
-            <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto">
-              Join {clubs.length > 0 ? `one of our ${clubs.length}` : "one of our many"} student clubs and organizations to pursue
-              your interests, develop new skills, and connect with like-minded peers.
+            <p className="text-base sm:text-lg text-blue-100 max-w-2xl mx-auto leading-relaxed">
+              Explore extracurricular opportunities, build leadership skills, and connect with peers. Apply directly to any club without prior account setup.
             </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <a
+                href="#directory"
+                className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl shadow-md hover:bg-blue-50 transition transform hover:-translate-y-0.5 text-sm">
+                <span>Browse Club Directory</span>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">#directory</span>
+              </a>
+              {!user && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-100 bg-white/10 px-3 py-2 rounded-xl border border-white/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Direct Student Application • No Prior Login Needed
+                </span>
+              )}
+            </div>
           </motion.div>
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="directory" className="scroll-mt-6"></div>
         {/* High-level Non-Sensitive Overview Summary for All Visitors */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-center gap-4">
@@ -2837,10 +2955,12 @@ export function Clubs() {
                                   toast.success("You are already an active member of this club!");
                                   return;
                                 }
-                                const isPending = (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
+                                const clubId = String(club._id || club.id);
+                                const hasAppliedLocally = appliedClubIds.includes(clubId);
+                                const isPending = hasAppliedLocally || (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
                                   club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
                                 if (isPending) {
-                                  toast.error("Your join request is already pending approval.");
+                                  toast.error("Your join application is already pending review.");
                                   return;
                                 }
                                 handleJoinClub(club);
@@ -2850,7 +2970,7 @@ export function Clubs() {
                               ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                               : activeMember
                                 ? "bg-emerald-500 text-white cursor-default"
-                                : ((club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
+                                : (appliedClubIds.includes(String(club._id || club.id)) || (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
                                   ? "bg-amber-500 text-white cursor-default"
                                   : "bg-blue-600 hover:bg-blue-700 text-white"
                             }`}
@@ -2860,6 +2980,7 @@ export function Clubs() {
                               {((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
                                 ? "Manage"
                                  : (() => {
+                                   if (appliedClubIds.includes(String(club._id || club.id))) return "Pending";
                                    if (club.userMembershipStatus) {
                                      if (club.userMembershipStatus === 'pending') return "Pending";
                                      if (club.userMembershipStatus === 'approved') return "Joined";
@@ -3070,69 +3191,161 @@ export function Clubs() {
           </div>
         )}
 
-        {/* Join Club Modal (Standard Clubs Only) */}
+        {/* Join Club Modal (Standard Clubs Only - Direct Application) */}
         {showJoinModal && selectedClub && !isRotaractClub(selectedClub) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-fadeIn">
+            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-100 flex flex-col">
+              {/* Modal Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-t-2xl">
+                <div>
+                  <span className="inline-block bg-white/20 text-blue-100 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-1.5">
+                    Membership Application
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold">
                     Join {selectedClub.name}
                   </h2>
-                  <button
-                    onClick={() => setShowJoinModal(false)}
-                    className="text-gray-400 hover:text-gray-600">
-                    ✕
-                  </button>
+                  <p className="text-xs text-blue-100 mt-1">
+                    Fill in your details below to apply directly. No account required.
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowJoinModal(false)}
+                  className="text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                <form onSubmit={handleSubmitJoinRequest} className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-sm text-blue-900 space-y-2 mb-4">
-                    <p className="flex justify-between">
-                      <span className="font-semibold text-blue-700">Full Name:</span>
-                      <span className="text-gray-800">{joinFormData.fullName || user?.name}</span>
-                    </p>
-                    <p className="flex justify-between">
-                      <span className="font-semibold text-blue-700">Department:</span>
-                      <span className="text-gray-800">{joinFormData.department || user?.department}</span>
-                    </p>
-                    <p className="flex justify-between">
-                      <span className="font-semibold text-blue-700">Academic Year:</span>
-                      <span className="text-gray-800">{joinFormData.year || user?.year}</span>
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Why do you want to join this club? *
+              {/* Form Content */}
+              <form onSubmit={handleSubmitJoinRequest} className="p-5 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Full Name */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Full Name <span className="text-rose-500">*</span>
                     </label>
-                    <textarea
+                    <input
+                      type="text"
                       required
-                      value={joinFormData.background}
-                      onChange={(e) =>
-                        setJoinFormData({ ...joinFormData, background: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      rows="3"
-                      placeholder="Tell us about your background and motivation"
+                      value={joinFormData.fullName}
+                      onChange={(e) => setJoinFormData({ ...joinFormData, fullName: e.target.value })}
+                      placeholder="e.g. Abebe Bikila"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                     />
                   </div>
 
-                  <div className="flex gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowJoinModal(false)}
-                      className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                      Submit Request
-                    </button>
+                  {/* Student ID */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Student ID Number <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={joinFormData.studentId}
+                      onChange={(e) => setJoinFormData({ ...joinFormData, studentId: e.target.value })}
+                      placeholder="e.g. DBU/1234/14"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition font-mono"
+                    />
                   </div>
-                </form>
-              </div>
+
+                  {/* Academic Year */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Academic Year <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={joinFormData.year}
+                      onChange={(e) => setJoinFormData({ ...joinFormData, year: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
+                      <option value="1st Year">1st Year</option>
+                      <option value="2nd Year">2nd Year</option>
+                      <option value="3rd Year">3rd Year</option>
+                      <option value="4th Year">4th Year</option>
+                      <option value="5th Year">5th Year</option>
+                      <option value="Postgraduate">Postgraduate</option>
+                    </select>
+                  </div>
+
+                  {/* Department */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Department / Field <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={joinFormData.department}
+                      onChange={(e) => setJoinFormData({ ...joinFormData, department: e.target.value })}
+                      placeholder="e.g. Computer Science"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    />
+                  </div>
+
+                  {/* Phone or Email */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Phone Number or Email <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={joinFormData.contact}
+                      onChange={(e) => setJoinFormData({ ...joinFormData, contact: e.target.value })}
+                      placeholder="e.g. 0911234567 or email"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    />
+                  </div>
+                </div>
+
+                {/* Why join / background */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Why do you want to join this club? <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={joinFormData.background}
+                    onChange={(e) =>
+                      setJoinFormData({ ...joinFormData, background: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    rows="3"
+                    placeholder="Briefly describe your motivation, relevant skills, or interests..."
+                  />
+                </div>
+
+                {/* Helper notice */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-600 flex items-center gap-2">
+                  <span className="text-base">📌</span>
+                  <span>
+                    Your application will be sent directly to <strong>{selectedClub.name}</strong> leadership for review.
+                  </span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowJoinModal(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl transition text-sm">
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingJoin}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+                    {submittingJoin ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <span>Submit Application</span>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -3157,6 +3370,76 @@ export function Clubs() {
           onReject={(memberId) => handleRejectRequest(selectedClub?._id || selectedClub?.id, memberId)}
           canManage={Boolean(user?.isAdmin || isCoordinator || (String(selectedClub?._id || selectedClub?.id) && String(selectedClub?.leadership?.president?._id || selectedClub?.leadership?.president) === String(user?._id || user?.id)))}
         />
+
+        {/* Submission Success & Optional Account Creation Modal */}
+        {submissionSuccess && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-[110] animate-fadeIn">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-100 text-center">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-1">
+                Application Received!
+              </h3>
+              <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+                {submissionSuccess.message}
+              </p>
+
+              {/* Summary Card */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 text-left space-y-2 mb-5 text-xs">
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Club:</span>
+                  <span className="font-bold text-slate-800">{submissionSuccess.clubName}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Applicant:</span>
+                  <span className="font-semibold text-slate-800">{submissionSuccess.fullName}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Student ID:</span>
+                  <span className="font-mono font-semibold text-blue-600">{submissionSuccess.studentId}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-500 font-medium">Status:</span>
+                  <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                    ⏳ Pending Review
+                  </span>
+                </div>
+              </div>
+
+              {/* Optional Portal Registration */}
+              {!user && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-xl p-3.5 text-left mb-5">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xl">💡</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-blue-950 mb-1">
+                        Optional: Create Your Student Portal Account
+                      </h4>
+                      <p className="text-[11px] text-blue-800 leading-relaxed mb-2.5">
+                        You can create an account using your student ID anytime to track this application, participate in union elections, and access campus AI services.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setSubmissionSuccess(null);
+                          navigate(`/register?studentId=${encodeURIComponent(submissionSuccess.studentId)}&name=${encodeURIComponent(submissionSuccess.fullName)}`);
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs transition">
+                        Create Student Account →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setSubmissionSuccess(null)}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition text-sm">
+                Done & Continue Browsing
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Club Details Modal for Admin */}
         {showClubDetails && selectedClubDetails && (
@@ -4714,10 +4997,12 @@ export function Clubs() {
                             toast.success("You are already an active member!");
                             return;
                           }
-                          const isPending = (selectedClubDetails.userMembershipStatus === 'pending') || (userId && Array.isArray(selectedClubDetails?.members) &&
+                          const clubId = String(selectedClubDetails._id || selectedClubDetails.id);
+                          const hasAppliedLocally = appliedClubIds.includes(clubId);
+                          const isPending = hasAppliedLocally || (selectedClubDetails.userMembershipStatus === 'pending') || (userId && Array.isArray(selectedClubDetails?.members) &&
                             selectedClubDetails.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
                           if (isPending) {
-                            toast.error("Your join request is already pending.");
+                            toast.error("Your join request is already pending approval.");
                             return;
                           }
                           setShowClubDetails(false);
@@ -5674,12 +5959,22 @@ export function Clubs() {
                             <p className="text-sm text-gray-600">
                               {request.department} - {request.year}
                             </p>
-                            {request.user?.username && (
-                              <p className="text-sm text-gray-600">
-                                Username: {request.user.username}
+                            {(request.studentId || request.applicationData?.studentId || request.user?.username) && (
+                              <p className="text-sm font-semibold text-blue-700">
+                                Student ID: {request.studentId || request.applicationData?.studentId || request.user?.username}
                               </p>
                             )}
-                            <p className="text-xs text-gray-500">
+                            {(request.contact || request.phone || request.email || request.applicationData?.email || request.applicationData?.phone) && (
+                              <p className="text-xs text-slate-600">
+                                Contact: {request.contact || request.phone || request.email || request.applicationData?.phone || request.applicationData?.email}
+                              </p>
+                            )}
+                            {!request.user && (
+                              <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                Direct Student Applicant
+                              </span>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
                               Applied: {new Date(request.joinedAt).toLocaleDateString()}
                             </p>
                           </div>

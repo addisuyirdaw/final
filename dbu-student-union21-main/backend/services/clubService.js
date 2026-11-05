@@ -15,7 +15,17 @@ class ClubService {
    * @returns {Object} Result indicating success, autoApproved status, message, and statusCode.
    */
   async joinClub(clubId, authUser, joinDetails) {
-    const { fullName, department, year, background, applicationData } = joinDetails;
+    const { 
+      fullName, 
+      studentId, 
+      department, 
+      year, 
+      contact, 
+      phone, 
+      email, 
+      background, 
+      applicationData 
+    } = (joinDetails || {});
 
     const club = await Club.findById(clubId);
     if (!club) {
@@ -34,11 +44,25 @@ class ClubService {
       };
     }
 
-    const isRotaract = Boolean(club.name && /rotaract/i.test(club.name));
+    const isRotaract = Boolean(
+      (club.name && /rotaract/i.test(club.name)) ||
+      (club.description && /rotaract/i.test(club.description))
+    );
 
-    const resolvedFullName = fullName || applicationData?.fullName || authUser.name;
-    const resolvedDepartment = department || applicationData?.department || authUser.department;
-    const resolvedYear = year || applicationData?.year || authUser.year;
+    const resolvedFullName = (fullName || applicationData?.fullName || authUser?.name || '').trim();
+    const resolvedDepartment = (department || applicationData?.department || authUser?.department || '').trim();
+    const resolvedYear = (year || applicationData?.year || authUser?.year || '').trim();
+    const resolvedStudentId = (studentId || applicationData?.studentId || authUser?.username || '').trim();
+    let resolvedPhone = (phone || applicationData?.phone || authUser?.phoneNumber || authUser?.phone || '').trim();
+    let resolvedEmail = (email || applicationData?.email || authUser?.email || '').trim().toLowerCase();
+    const resolvedContact = (contact || resolvedPhone || resolvedEmail || '').trim();
+
+    if (!resolvedEmail && resolvedContact.includes('@')) {
+      resolvedEmail = resolvedContact.toLowerCase();
+    }
+    if (!resolvedPhone && resolvedContact && !resolvedContact.includes('@')) {
+      resolvedPhone = resolvedContact;
+    }
 
     if (!resolvedFullName || !resolvedDepartment || !resolvedYear) {
       return {
@@ -48,17 +72,23 @@ class ClubService {
       };
     }
 
-    const resolvedBackground = (background || applicationData?.motivation || '').trim();
-
-    if (!resolvedBackground) {
+    if (!authUser && !resolvedStudentId) {
       return {
         success: false,
         statusCode: 400,
-        message: isRotaract
-          ? 'Please specify why you want to join the Rotaract club'
-          : 'Please specify why you want to join this club'
+        message: 'Student ID number is required'
       };
     }
+
+    if (!authUser && !resolvedContact) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: 'Please provide a contact phone number or email address'
+      };
+    }
+
+    const resolvedBackground = (background || applicationData?.motivation || 'Applied to join the club').trim();
 
     if (isRotaract && applicationData) {
       // Validate key recruitment questionnaire requirements
@@ -87,37 +117,87 @@ class ClubService {
       }
     }
 
-    // Check if user is already a member
-    const existingMember = club.members.find(member =>
-      member.user.toString() === authUser._id.toString()
-    );
+    // Attempt to associate with an existing User account if available
+    let targetUser = authUser || null;
+    if (!targetUser && (resolvedStudentId || resolvedEmail)) {
+      try {
+        const query = [];
+        if (resolvedStudentId) {
+          query.push({ username: new RegExp(`^${resolvedStudentId}$`, 'i') });
+        }
+        if (resolvedEmail) {
+          query.push({ email: resolvedEmail });
+        }
+        if (query.length > 0) {
+          const matched = await User.findOne({ $or: query });
+          if (matched) {
+            targetUser = matched;
+          }
+        }
+      } catch (err) {
+        console.warn('Matching user account lookup error:', err.message);
+      }
+    }
+
+    // Check if user has already applied or is a member (Duplicate prevention)
+    const existingMember = club.members.find(member => {
+      // 1. Check by User ObjectId if linked
+      if (targetUser && member.user && String(member.user._id || member.user) === String(targetUser._id)) {
+        return true;
+      }
+      // 2. Check by Student ID
+      const mStudentId = (member.studentId || member.applicationData?.studentId || '').trim().toLowerCase();
+      if (resolvedStudentId && mStudentId && mStudentId === resolvedStudentId.toLowerCase()) {
+        return true;
+      }
+      // 3. Check by Email
+      const mEmail = (member.email || member.applicationData?.email || '').trim().toLowerCase();
+      if (resolvedEmail && mEmail && mEmail === resolvedEmail) {
+        return true;
+      }
+      // 4. Check by Phone
+      const mPhone = (member.phone || member.applicationData?.phone || (!member.contact?.includes('@') ? member.contact : '') || '').trim();
+      if (resolvedPhone && mPhone && mPhone === resolvedPhone) {
+        return true;
+      }
+      // 5. Check by Direct Contact Match
+      const mContact = (member.contact || '').trim().toLowerCase();
+      if (resolvedContact && mContact && mContact === resolvedContact.toLowerCase()) {
+        return true;
+      }
+      return false;
+    });
 
     if (existingMember) {
       if (existingMember.status === 'pending') {
         return {
           success: false,
           statusCode: 400,
-          message: 'Your join request is already pending approval'
+          message: 'An application with these student details is already pending approval for this club.'
         };
       }
       if (existingMember.status === 'approved') {
         return {
           success: false,
           statusCode: 400,
-          message: 'You are already a member of this club'
+          message: 'This student is already an approved member of this club.'
         };
       }
     }
 
-    // For Rotaract, verification is strictly required based on the recruitment questionnaire
-    const isAutoApprove = !isRotaract && club.requireApproval === false;
+    // Unauthenticated/guest applications always require manual leadership review
+    const isAutoApprove = Boolean(targetUser && !isRotaract && club.requireApproval === false);
     const memberStatus = isAutoApprove ? 'approved' : 'pending';
 
     club.members.push({
-      user: authUser._id,
+      user: targetUser ? targetUser._id : null,
+      studentId: resolvedStudentId || (targetUser ? targetUser.username : ''),
       fullName: resolvedFullName,
       department: resolvedDepartment,
       year: resolvedYear,
+      contact: resolvedContact,
+      phone: resolvedPhone,
+      email: resolvedEmail,
       background: resolvedBackground,
       applicationData: applicationData || null,
       role: 'member',
@@ -128,16 +208,16 @@ class ClubService {
 
     await club.save();
 
-    if (isAutoApprove) {
+    if (isAutoApprove && targetUser) {
       // Automatically add club to user's joinedClubs
-      await User.findByIdAndUpdate(authUser._id, {
+      await User.findByIdAndUpdate(targetUser._id, {
         $addToSet: { joinedClubs: club._id }
       });
 
       // Send confirmation email asynchronously
       try {
-        if (authUser.email) {
-          await sendMemberApprovalEmail(authUser.email, resolvedFullName, club.name);
+        if (targetUser.email) {
+          await sendMemberApprovalEmail(targetUser.email, resolvedFullName, club.name);
         }
       } catch (emailErr) {
         console.warn('Auto-approval email dispatch failed:', emailErr.message);
@@ -157,7 +237,7 @@ class ClubService {
       autoApproved: false,
       message: isRotaract
         ? 'Rotaract recruitment application submitted successfully. Club leadership will verify your responses before approval.'
-        : 'Join request submitted successfully. Waiting for admin approval.'
+        : `Your membership application to ${club.name} has been submitted successfully! Club leaders will review your application.`
     };
   }
 }

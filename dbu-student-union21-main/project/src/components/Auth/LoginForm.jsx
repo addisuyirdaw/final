@@ -1,28 +1,50 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, User, Lock, KeyRound } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
-export function LoginForm() {
+export function LoginForm({ initialRegister = false }) {
+  const [searchParams] = useSearchParams();
+  const modeParam = searchParams.get("mode");
+  const studentIdParam = searchParams.get("studentId") || searchParams.get("username") || "";
+  const nameParam = searchParams.get("name") || "";
+  const deptParam = searchParams.get("dept") || searchParams.get("department") || "";
+  const yearParam = searchParams.get("year") || "";
+
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
+  const [showRegister, setShowRegister] = useState(initialRegister || modeParam === "register");
   const [registerData, setRegisterData] = useState({
-    username: "",
+    username: studentIdParam,
     password: "",
     confirmPassword: "",
-    name: "",
-    department: "",
-    year: "",
+    name: nameParam,
+    department: deptParam,
+    year: yearParam,
     phoneNumber: "",
     email: "",
   });
+
+  useEffect(() => {
+    if (studentIdParam || nameParam) {
+      setRegisterData((prev) => ({
+        ...prev,
+        username: studentIdParam || prev.username,
+        name: nameParam || prev.name,
+        department: deptParam || prev.department,
+        year: yearParam || prev.year,
+      }));
+    }
+    if (initialRegister || modeParam === "register") {
+      setShowRegister(true);
+    }
+  }, [studentIdParam, nameParam, deptParam, yearParam, initialRegister, modeParam]);
 
   const { login, register } = useAuth();
 

@@ -89,6 +89,16 @@ function AppContent() {
             }
           />
           <Route
+            path="/register"
+            element={
+              user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <LoginForm initialRegister={true} />
+              )
+            }
+          />
+          <Route
             path="/forgot-password"
             element={
               user ? <Navigate to="/dashboard" replace /> : <ForgotPassword />

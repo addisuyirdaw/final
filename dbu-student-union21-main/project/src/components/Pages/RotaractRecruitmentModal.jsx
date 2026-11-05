@@ -54,6 +54,7 @@ export function RotaractRecruitmentModal({
 }) {
   const [formData, setFormData] = useState({
     fullName: user?.name || "",
+    studentId: user?.username || "",
     gender: "",
     age: "",
     phone: user?.phoneNumber || user?.phone || "",
@@ -92,6 +93,7 @@ export function RotaractRecruitmentModal({
   const validate = () => {
     const errs = {};
     if (!formData.fullName.trim()) errs.fullName = "Full name is required";
+    if (!formData.studentId.trim()) errs.studentId = "Student ID number is required";
     if (!formData.gender) errs.gender = "Please select your gender";
     if (!formData.age || isNaN(formData.age) || Number(formData.age) <= 0) {
       errs.age = "Please provide a valid age";
@@ -225,6 +227,24 @@ export function RotaractRecruitmentModal({
                 }`}
               />
               {errors.fullName && <p className="text-xs text-rose-600 mt-1">{errors.fullName}</p>}
+            </div>
+
+            {/* Student ID Number */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                Student ID Number <span className="text-rose-600 font-bold">*</span>
+                <span className="text-xs text-slate-400 font-normal ml-1.5">(e.g. DBU/1234/14 or dbu10101030)</span>
+              </label>
+              <input
+                type="text"
+                value={formData.studentId}
+                onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                placeholder="Enter your DBU student ID"
+                className={`w-full px-4 py-2.5 rounded-lg border text-sm transition focus:ring-2 focus:outline-none ${
+                  errors.studentId ? "border-rose-400 focus:ring-rose-200 bg-rose-50/30" : "border-slate-300 focus:border-rose-600 focus:ring-rose-100"
+                }`}
+              />
+              {errors.studentId && <p className="text-xs text-rose-600 mt-1">{errors.studentId}</p>}
             </div>
 
             {/* Q2. Gender */}
@@ -769,6 +789,10 @@ export function RotaractApplicationDetailsModal({
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="text-xs text-slate-400 block">1. Full Name</span>
                     <span className="font-semibold text-slate-800">{app.fullName || request.fullName}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <span className="text-xs text-slate-400 block">Student ID Number</span>
+                    <span className="font-semibold text-slate-800">{app.studentId || request.studentId || request.user?.username || "N/A"}</span>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                     <span className="text-xs text-slate-400 block">2. Gender</span>
