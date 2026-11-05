@@ -6794,31 +6794,6 @@ export function Clubs() {
           </div>
         )}
 
-        {/* Create Club CTA */}
-        <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-2xl p-6 lg:p-8 text-center text-white">
-          <div className="max-w-2xl mx-auto">
-            <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl lg:text-3xl font-bold mb-4">
-              Want to Start a New Club?
-            </h2>
-            <p className="text-green-100 mb-6 text-lg">
-              Have an idea for a new club or organization? We support student
-              initiatives and can help you get started with the registration process.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => user?.isAdmin ? setShowNewClubForm(true) : toast.info("Contact an admin to start a new club")}
-                className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                Start a Club
-              </button>
-              <button className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition-colors">
-                Learn More
-              </button>
-            </div>
-          </div>
-        </div>
         {/* Ask Question Modal */}
         {showAskModal && selectedClub && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
