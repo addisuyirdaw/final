@@ -76,14 +76,11 @@ export function Clubs() {
   const [submittingRotaract, setSubmittingRotaract] = useState(false);
   const [submittingJoin, setSubmittingJoin] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(null);
-  const [appliedClubIds, setAppliedClubIds] = useState(() => {
+  useEffect(() => {
     try {
-      const stored = localStorage.getItem("dbu_applied_club_ids");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+      localStorage.removeItem("dbu_applied_club_ids");
+    } catch (_) {}
+  }, []);
 
   // ── Club Proposals Feature State ──
   const [showNewProposalModal, setShowNewProposalModal] = useState(false);
@@ -1283,23 +1280,25 @@ export function Clubs() {
     }
 
     const clubId = String(club._id || club.id);
-    const userId = user?._id || user?.id;
+    const isUserLoggedIn = Boolean(user && (user._id || user.id));
+    const validUserId = isUserLoggedIn ? String(user._id || user.id) : null;
 
-    // Check if already an approved active member
-    const activeMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) && 
-      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'approved'));
-    if (activeMember) {
-      toast.success("You are already an active member of this club!");
-      return;
-    }
+    if (isUserLoggedIn) {
+      // Check if already an approved active member (only for logged-in users)
+      const activeMember = (club.userMembershipStatus === 'approved') || 
+        (Array.isArray(club?.members) && club.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'approved'));
+      if (activeMember) {
+        toast.success("You are already an active member of this club!");
+        return;
+      }
 
-    // Check if pending locally or in database
-    const hasAppliedLocally = appliedClubIds.includes(clubId);
-    const isPending = hasAppliedLocally || (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
-      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
-    if (isPending) {
-      toast.error("Your join application for this club is already pending leadership review.");
-      return;
+      // Check if pending in database (only for logged-in users)
+      const isPending = (club.userMembershipStatus === 'pending') || 
+        (Array.isArray(club?.members) && club.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'pending'));
+      if (isPending) {
+        toast.error("Your join application for this club is already pending leadership review.");
+        return;
+      }
     }
 
     setSelectedClub(club);
@@ -1338,12 +1337,6 @@ export function Clubs() {
         background: `[Rotaract Application] ${formData.motivation || ""}`,
         applicationData: formData
       });
-
-      const updated = Array.from(new Set([...appliedClubIds, clubId]));
-      setAppliedClubIds(updated);
-      try {
-        localStorage.setItem("dbu_applied_club_ids", JSON.stringify(updated));
-      } catch (err) {}
 
       setShowRotaractModal(false);
       setSubmissionSuccess({
@@ -1415,12 +1408,6 @@ export function Clubs() {
         email: contact.includes("@") ? contact : "",
         background
       });
-
-      const updated = Array.from(new Set([...appliedClubIds, clubId]));
-      setAppliedClubIds(updated);
-      try {
-        localStorage.setItem("dbu_applied_club_ids", JSON.stringify(updated));
-      } catch (err) {}
 
       setShowJoinModal(false);
       setJoinFormData({
@@ -2894,15 +2881,26 @@ export function Clubs() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 mb-14">
             {(filteredClubs || []).length > 0 ? (
               (filteredClubs || []).map((club, index) => {
-                const userId = user?._id || user?.id;
-                const isLeader = userId && (
-                  String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId) ||
-                  String(club?.leadership?.vicePresident?._id || club?.leadership?.vicePresident) === String(userId) ||
-                  String(club?.leadership?.secretary?._id || club?.leadership?.secretary) === String(userId) ||
-                  String(club?.leadership?.treasurer?._id || club?.leadership?.treasurer) === String(userId)
-                );
-                const activeMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) && 
-                  club.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
+                const isUserLoggedIn = Boolean(user && (user._id || user.id));
+                const validUserId = isUserLoggedIn ? String(user._id || user.id) : null;
+                const isLeader = Boolean(validUserId && (
+                  String(club?.leadership?.president?._id || club?.leadership?.president) === validUserId ||
+                  String(club?.leadership?.vicePresident?._id || club?.leadership?.vicePresident) === validUserId ||
+                  String(club?.leadership?.secretary?._id || club?.leadership?.secretary) === validUserId ||
+                  String(club?.leadership?.treasurer?._id || club?.leadership?.treasurer) === validUserId
+                ));
+                const activeMember = Boolean(isUserLoggedIn && (
+                  (club.userMembershipStatus === 'approved') || 
+                  (Array.isArray(club?.members) && club.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'approved'))
+                ));
+                const isPendingMember = Boolean(isUserLoggedIn && (
+                  (club.userMembershipStatus === 'pending') || 
+                  (Array.isArray(club?.members) && club.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'pending'))
+                ));
+                const isRejectedMember = Boolean(isUserLoggedIn && (
+                  (club.userMembershipStatus === 'rejected') || 
+                  (Array.isArray(club?.members) && club.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'rejected'))
+                ));
 
                 return (
                   <motion.div
@@ -3023,11 +3021,7 @@ export function Clubs() {
                                   toast.success("You are already an active member of this club!");
                                   return;
                                 }
-                                const clubId = String(club._id || club.id);
-                                const hasAppliedLocally = appliedClubIds.includes(clubId);
-                                const isPending = hasAppliedLocally || (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) &&
-                                  club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
-                                if (isPending) {
+                                if (isPendingMember) {
                                   toast.error("Your join application is already pending review.");
                                   return;
                                 }
@@ -3038,34 +3032,26 @@ export function Clubs() {
                               ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                               : activeMember
                                 ? "bg-emerald-500 text-white cursor-default"
-                                : (appliedClubIds.includes(String(club._id || club.id)) || (club.userMembershipStatus === 'pending') || (userId && Array.isArray(club?.members) && club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending')))
+                                : isPendingMember
                                   ? "bg-amber-500 text-white cursor-default"
-                                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                                  : isRejectedMember
+                                    ? "bg-rose-500 text-white cursor-default"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white"
                             }`}
                           >
                             <Users className="w-3.5 h-3.5" />
                             <span className="truncate">
                               {((user?.isAdmin && !isAcademicAdmin) || isLeader || isCoordinator)
                                 ? "Manage"
-                                 : (() => {
-                                   if (appliedClubIds.includes(String(club._id || club.id))) return "Pending";
-                                   if (club.userMembershipStatus) {
-                                     if (club.userMembershipStatus === 'pending') return "Pending";
-                                     if (club.userMembershipStatus === 'approved') return "Joined";
-                                     if (club.userMembershipStatus === 'rejected') return "Rejected";
-                                   }
-                                   const membersArr = Array.isArray(club?.members) ? club.members : [];
-                                   if (membersArr.length > 0) {
-                                     const userId = user?._id || user?.id;
-                                     const existingMember = membersArr.find(m => String(m?.user?._id || m?.user) === String(userId));
-                                     if (existingMember) {
-                                       if (existingMember.status === 'pending') return "Pending";
-                                       if (existingMember.status === 'approved') return "Joined";
-                                       if (existingMember.status === 'rejected') return "Rejected";
-                                     }
-                                   }
-                                   return "Join";
-                                 })()}
+                                : isUserLoggedIn
+                                  ? activeMember
+                                    ? "Joined"
+                                    : isPendingMember
+                                      ? "Pending"
+                                      : isRejectedMember
+                                        ? "Rejected"
+                                        : "Join"
+                                  : "Join"}
                             </span>
                           </button>
 
@@ -5103,21 +5089,21 @@ export function Clubs() {
                     {!(user?.isAdmin || isCoordinator || isLeader) && (
                       <button
                         onClick={() => {
-                          const userId = user?._id || user?.id;
-                          const activeMember = (selectedClubDetails.userMembershipStatus === 'approved') || (userId && Array.isArray(selectedClubDetails?.members) && 
-                            selectedClubDetails.members.some(m => (String(m?.user?._id || m?.user) === String(userId)) && m?.status === 'approved'));
-                          
-                          if (activeMember) {
-                            toast.success("You are already an active member!");
-                            return;
-                          }
-                          const clubId = String(selectedClubDetails._id || selectedClubDetails.id);
-                          const hasAppliedLocally = appliedClubIds.includes(clubId);
-                          const isPending = hasAppliedLocally || (selectedClubDetails.userMembershipStatus === 'pending') || (userId && Array.isArray(selectedClubDetails?.members) &&
-                            selectedClubDetails.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'pending'));
-                          if (isPending) {
-                            toast.error("Your join request is already pending approval.");
-                            return;
+                          const isUserLoggedIn = Boolean(user && (user._id || user.id));
+                          const validUserId = isUserLoggedIn ? String(user._id || user.id) : null;
+                          if (isUserLoggedIn) {
+                            const activeMember = (selectedClubDetails.userMembershipStatus === 'approved') || 
+                              (Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'approved'));
+                            if (activeMember) {
+                              toast.success("You are already an active member!");
+                              return;
+                            }
+                            const isPending = (selectedClubDetails.userMembershipStatus === 'pending') || 
+                              (Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'pending'));
+                            if (isPending) {
+                              toast.error("Your join request is already pending approval.");
+                              return;
+                            }
                           }
                           setShowClubDetails(false);
                           handleJoinClub(selectedClubDetails);
