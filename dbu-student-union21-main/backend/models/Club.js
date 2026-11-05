@@ -144,6 +144,10 @@ const clubSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    applicationData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
     role: {
       type: String,
       enum: ['member', 'officer', 'president', 'vice_president', 'secretary', 'treasurer'],

@@ -15,27 +15,7 @@ class ClubService {
    * @returns {Object} Result indicating success, autoApproved status, message, and statusCode.
    */
   async joinClub(clubId, authUser, joinDetails) {
-    const { fullName, department, year, background } = joinDetails;
-
-    const resolvedFullName = fullName || authUser.name;
-    const resolvedDepartment = department || authUser.department;
-    const resolvedYear = year || authUser.year;
-
-    if (!resolvedFullName || !resolvedDepartment || !resolvedYear) {
-      return {
-        success: false,
-        statusCode: 400,
-        message: 'Full name, department, and academic year are required'
-      };
-    }
-
-    if (!background || !background.trim()) {
-      return {
-        success: false,
-        statusCode: 400,
-        message: 'Please specify why you want to join this club'
-      };
-    }
+    const { fullName, department, year, background, applicationData } = joinDetails;
 
     const club = await Club.findById(clubId);
     if (!club) {
@@ -52,6 +32,59 @@ class ClubService {
         statusCode: 400,
         message: 'Cannot join inactive club'
       };
+    }
+
+    const isRotaract = Boolean(club.name && /rotaract/i.test(club.name));
+
+    const resolvedFullName = fullName || applicationData?.fullName || authUser.name;
+    const resolvedDepartment = department || applicationData?.department || authUser.department;
+    const resolvedYear = year || applicationData?.year || authUser.year;
+
+    if (!resolvedFullName || !resolvedDepartment || !resolvedYear) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: 'Full name, department, and academic year are required'
+      };
+    }
+
+    const resolvedBackground = (background || applicationData?.motivation || '').trim();
+
+    if (!resolvedBackground) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: isRotaract
+          ? 'Please specify why you want to join the Rotaract club'
+          : 'Please specify why you want to join this club'
+      };
+    }
+
+    if (isRotaract && applicationData) {
+      // Validate key recruitment questionnaire requirements
+      const requiredFields = [
+        { key: 'gender', label: 'Gender' },
+        { key: 'age', label: 'Age' },
+        { key: 'phone', label: 'Phone number' },
+        { key: 'telegram', label: 'Telegram username' },
+        { key: 'institution', label: 'University/Institution' },
+        { key: 'knowledge', label: 'What you know about Rotaract club' },
+        { key: 'motivation', label: 'Why you want to join the Rotaract club' },
+        { key: 'expectations', label: 'What you hope to gain' },
+        { key: 'contribution', label: 'How you can contribute' },
+        { key: 'willingToParticipate', label: 'Willingness to participate in meetings' },
+        { key: 'timeCommitment', label: 'Dedicated weekly time commitment' }
+      ];
+
+      for (const field of requiredFields) {
+        if (!applicationData[field.key] || !String(applicationData[field.key]).trim()) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: `Rotaract recruitment requirement missing: ${field.label}`
+          };
+        }
+      }
     }
 
     // Check if user is already a member
@@ -76,10 +109,8 @@ class ClubService {
       }
     }
 
-    // Check requireApproval configuration:
-    // If false: Auto-approve upon join!
-    // If true (or undefined): Member stays pending until manually approved.
-    const isAutoApprove = club.requireApproval === false;
+    // For Rotaract, verification is strictly required based on the recruitment questionnaire
+    const isAutoApprove = !isRotaract && club.requireApproval === false;
     const memberStatus = isAutoApprove ? 'approved' : 'pending';
 
     club.members.push({
@@ -87,7 +118,8 @@ class ClubService {
       fullName: resolvedFullName,
       department: resolvedDepartment,
       year: resolvedYear,
-      background: background.trim(),
+      background: resolvedBackground,
+      applicationData: applicationData || null,
       role: 'member',
       status: memberStatus,
       joinedAt: new Date(),
@@ -123,7 +155,9 @@ class ClubService {
       success: true,
       statusCode: 200,
       autoApproved: false,
-      message: 'Join request submitted successfully. Waiting for admin approval.'
+      message: isRotaract
+        ? 'Rotaract recruitment application submitted successfully. Club leadership will verify your responses before approval.'
+        : 'Join request submitted successfully. Waiting for admin approval.'
     };
   }
 }

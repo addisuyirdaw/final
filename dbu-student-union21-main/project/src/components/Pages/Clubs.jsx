@@ -15,6 +15,7 @@ import truthLogo from "../../assets/club-logos/truth.png";
 import ideaLogo from "../../assets/club-logos/idea.png";
 import lawLogo from "../../assets/club-logos/law.png";
 import mechanicalLogo from "../../assets/club-logos/mechanical.png";
+import { RotaractRecruitmentModal, RotaractApplicationDetailsModal } from "./RotaractRecruitmentModal";
 
 const DEFAULT_LOGOS = {
   "Book Club": bookingLogo,
@@ -67,6 +68,9 @@ export function Clubs() {
     requireApproval: true,
   });
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showRotaractModal, setShowRotaractModal] = useState(false);
+  const [submittingRotaract, setSubmittingRotaract] = useState(false);
+  const [viewingApplication, setViewingApplication] = useState(null);
   const [selectedClub, setSelectedClub] = useState(null);
   const [joinFormData, setJoinFormData] = useState({
     fullName: "",
@@ -1216,6 +1220,8 @@ export function Clubs() {
     return matchesCategory && matchesSearch;
   });
 
+  const isRotaractClub = (club) => Boolean(club && club.name && /rotaract/i.test(club.name));
+
   const handleJoinClub = (club) => {
     if (!user) {
       toast.error("Please login to join clubs");
@@ -1230,6 +1236,12 @@ export function Clubs() {
     }
 
     setSelectedClub(club);
+
+    if (isRotaractClub(club)) {
+      setShowRotaractModal(true);
+      return;
+    }
+
     setJoinFormData({
       fullName: user.name || "",
       department: user.department || "",
@@ -1237,6 +1249,31 @@ export function Clubs() {
       background: "",
     });
     setShowJoinModal(true);
+  };
+
+  const handleSubmitRotaractApplication = async (formData) => {
+    if (!selectedClub) return;
+    try {
+      setSubmittingRotaract(true);
+      const response = await apiService.joinClub(selectedClub._id || selectedClub.id, {
+        fullName: formData.fullName,
+        department: formData.department,
+        year: formData.year,
+        background: `[Rotaract Application] ${formData.motivation}`,
+        applicationData: formData
+      });
+      toast.success(
+        response?.message || 
+        "Rotaract recruitment application submitted successfully! Club leadership will verify your responses before approval."
+      );
+      setShowRotaractModal(false);
+      await fetchClubs();
+    } catch (error) {
+      console.error("Failed to submit Rotaract application:", error);
+      toast.error(error.message || "Failed to submit recruitment application");
+    } finally {
+      setSubmittingRotaract(false);
+    }
   };
 
   const handleSubmitJoinRequest = async (e) => {
@@ -3092,6 +3129,27 @@ export function Clubs() {
             </div>
           </div>
         )}
+
+        {/* Rotaract 19-Question Recruitment Modal */}
+        <RotaractRecruitmentModal
+          isOpen={showRotaractModal}
+          onClose={() => setShowRotaractModal(false)}
+          onSubmit={handleSubmitRotaractApplication}
+          user={user}
+          clubName={selectedClub?.name}
+          submitting={submittingRotaract}
+        />
+
+        {/* Rotaract 19-Question Application Details & Verification Modal */}
+        <RotaractApplicationDetailsModal
+          isOpen={Boolean(viewingApplication)}
+          onClose={() => setViewingApplication(null)}
+          request={viewingApplication}
+          clubName={selectedClub?.name}
+          onApprove={(memberId) => handleApproveRequest(selectedClub?._id || selectedClub?.id, memberId)}
+          onReject={(memberId) => handleRejectRequest(selectedClub?._id || selectedClub?.id, memberId)}
+          canManage={Boolean(user?.isAdmin || isCoordinator || (String(selectedClub?._id || selectedClub?.id) && String(selectedClub?.leadership?.president?._id || selectedClub?.leadership?.president) === String(user?._id || user?.id)))}
+        />
 
         {/* Club Details Modal for Admin */}
         {showClubDetails && selectedClubDetails && (
@@ -5589,12 +5647,23 @@ export function Clubs() {
                     (joinRequests || []).map((request) => (
                       <div
                         key={request._id}
-                        className="border border-gray-200 rounded-lg p-4">
+                        className={`border rounded-xl p-4 transition ${
+                          request.applicationData
+                            ? "border-rose-200 bg-rose-50/20 shadow-xs"
+                            : "border-gray-200"
+                        }`}>
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h3 className="font-semibold text-gray-900">
-                              {request.fullName}
-                            </h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-gray-900">
+                                {request.fullName}
+                              </h3>
+                              {request.applicationData && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                  ⚜️ Rotaract Recruitment (19 Answers)
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-600">
                               {request.department} - {request.year}
                             </p>
@@ -5626,13 +5695,56 @@ export function Clubs() {
                              )}
                            </div>
                         </div>
-                        {request.background && (
-                          <div>
-                            <p className="text-sm font-medium text-gray-700 mb-1">
-                              Background:
-                            </p>
-                            <p className="text-sm text-gray-600">{request.background}</p>
+
+                        {request.applicationData ? (
+                          <div className="mt-3 pt-3 border-t border-rose-100 space-y-2">
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                              {request.applicationData.phone && (
+                                <span className="flex items-center gap-1 font-medium text-slate-700">
+                                  📞 {request.applicationData.phone}
+                                </span>
+                              )}
+                              {request.applicationData.telegram && (
+                                <span className="flex items-center gap-1 font-medium text-sky-700">
+                                  ✈️ {request.applicationData.telegram}
+                                </span>
+                              )}
+                              {request.applicationData.timeCommitment && (
+                                <span className="flex items-center gap-1 font-medium text-purple-700">
+                                  ⏱️ {request.applicationData.timeCommitment}
+                                </span>
+                              )}
+                              {request.applicationData.volunteerExperience && (
+                                <span className="flex items-center gap-1 font-medium text-emerald-700">
+                                  🤝 Volunteer: {request.applicationData.volunteerExperience}
+                                </span>
+                              )}
+                            </div>
+
+                            {request.background && (
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                <span className="font-semibold text-slate-700">Motivation: </span>
+                                {request.applicationData.motivation || request.background}
+                              </p>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setViewingApplication(request)}
+                              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition"
+                            >
+                              📋 View Complete 19-Question Application
+                            </button>
                           </div>
+                        ) : (
+                          request.background && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700 mb-1">
+                                Background:
+                              </p>
+                              <p className="text-sm text-gray-600">{request.background}</p>
+                            </div>
+                          )
                         )}
                       </div>
                     ))
