@@ -40,6 +40,7 @@ const resourceRoutes = require("./routes/resources");
 const handoverRoutes = require("./routes/handover");
 const renewalRoutes = require("./routes/renewals");
 const proposalRoutes = require("./routes/proposals");
+const clubProposalRoutes = require("./routes/clubProposals");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -264,6 +265,7 @@ app.use("/api/clubs/:clubId/projects/:projectId/tasks", taskRoutes);
 app.use("/api/clubs/:clubId/announcements", announcementRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/proposals", proposalRoutes);
+app.use("/api/club-proposals", clubProposalRoutes);
 
 
 // 404 handler

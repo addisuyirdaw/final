@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Loader, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign } from "lucide-react";
+import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Loader, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { CertificateTemplate } from "../CertificateTemplate";
@@ -16,6 +16,10 @@ import ideaLogo from "../../assets/club-logos/idea.png";
 import lawLogo from "../../assets/club-logos/law.png";
 import mechanicalLogo from "../../assets/club-logos/mechanical.png";
 import { RotaractRecruitmentModal, RotaractApplicationDetailsModal } from "./RotaractRecruitmentModal";
+import { NewClubProposalModal } from "../ClubProposals/NewClubProposalModal";
+import { ProposalSuccessModal } from "../ClubProposals/ProposalSuccessModal";
+import { ProposalStatusLookupModal } from "../ClubProposals/ProposalStatusLookupModal";
+import { AdminClubProposalsModal } from "../ClubProposals/AdminClubProposalsModal";
 
 const DEFAULT_LOGOS = {
   "Book Club": bookingLogo,
@@ -80,6 +84,15 @@ export function Clubs() {
       return [];
     }
   });
+
+  // ── Club Proposals Feature State ──
+  const [showNewProposalModal, setShowNewProposalModal] = useState(false);
+  const [showProposalSuccessModal, setShowProposalSuccessModal] = useState(false);
+  const [proposalSuccessDetails, setProposalSuccessDetails] = useState(null);
+  const [showStatusLookupModal, setShowStatusLookupModal] = useState(false);
+  const [initialLookupReferenceId, setInitialLookupReferenceId] = useState("");
+  const [showAdminProposalsModal, setShowAdminProposalsModal] = useState(false);
+  const [pendingProposalsCount, setPendingProposalsCount] = useState(0);
   const [viewingApplication, setViewingApplication] = useState(null);
   const [selectedClub, setSelectedClub] = useState(null);
   const [joinFormData, setJoinFormData] = useState({
@@ -1106,6 +1119,15 @@ export function Clubs() {
       fetchTemplates();
       if (isCoordinator) {
         fetchCertRules();
+      }
+      if (isCoordinator || user.isAdmin || user.role === 'president') {
+        apiService.getClubProposals({ limit: 1 })
+          .then((res) => {
+            if (res?.counts?.pending !== undefined) {
+              setPendingProposalsCount(res.counts.pending);
+            }
+          })
+          .catch(() => {});
       }
     }
   }, [user, isCoordinator]);
@@ -2492,6 +2514,42 @@ export function Clubs() {
           </div>
         </div>
 
+        {/* Have an Idea for a New Club? - Student Initiative Callout */}
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-500/20 mb-8 overflow-hidden relative">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+            <div className="max-w-2xl space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400 text-slate-950 uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" />
+                Student Initiative
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                Have an Idea for a New Club?
+              </h2>
+              <p className="text-sm sm:text-base text-indigo-100 leading-relaxed">
+                Have an idea for a student organization that does not exist at DBU yet? Submit your proposal for review and help create new opportunities for students.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto shrink-0">
+              <button
+                onClick={() => setShowNewProposalModal(true)}
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-0.5 text-sm sm:text-base"
+              >
+                <span>Propose a New Club</span>
+                <span>→</span>
+              </button>
+              <button
+                onClick={() => {
+                  setInitialLookupReferenceId("");
+                  setShowStatusLookupModal(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-3 rounded-xl border border-white/20 transition text-sm"
+              >
+                <span>Check Proposal Status</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Admin Controls */}
         {((user?.isAdmin && !isAcademicAdmin) || isEditing) && (
           <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
@@ -2499,53 +2557,69 @@ export function Clubs() {
               <h2 className="text-xl font-semibold text-gray-900">
                 {isEditing ? "Edit Club" : "Admin Controls"}
               </h2>
-              <button
-                onClick={() => {
-                  if (showNewClubForm && isEditing) {
-                    setIsEditing(false);
-                    setEditingClubId(null);
-                    setNewClub({
-                      name: "",
-                      category: "Academic",
-                      description: "",
-                      imageFile: null,
-                      imagePreview: "",
-                      contactEmail: "",
-                      contactPhone: "",
-                      website: "",
-                      officeLocation: "",
-                      meetingSchedule: "",
-                      requirements: "",
-                    });
-                  }
-                  setShowNewClubForm(!showNewClubForm);
-                }}
-                className={`${isEditing ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"} text-white px-4 py-2 rounded-lg transition-colors flex items-center`}>
-                {isEditing ? (
-                  <>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Cancel Edit
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create New Club
-                  </>
-                )}
-              </button>
-              {(isCoordinator || user?.isAdmin) && (
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={fetchPendingReports}
-                  className="relative bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Review Reports
-                  {(pendingReports || []).length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
-                      {(pendingReports || []).length}
-                    </span>
+                  onClick={() => {
+                    if (showNewClubForm && isEditing) {
+                      setIsEditing(false);
+                      setEditingClubId(null);
+                      setNewClub({
+                        name: "",
+                        category: "Academic",
+                        description: "",
+                        imageFile: null,
+                        imagePreview: "",
+                        contactEmail: "",
+                        contactPhone: "",
+                        website: "",
+                        officeLocation: "",
+                        meetingSchedule: "",
+                        requirements: "",
+                      });
+                    }
+                    setShowNewClubForm(!showNewClubForm);
+                  }}
+                  className={`${isEditing ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"} text-white px-4 py-2 rounded-lg transition-colors flex items-center`}>
+                  {isEditing ? (
+                    <>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Cancel Edit
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create New Club
+                    </>
                   )}
                 </button>
-              )}
+                {(isCoordinator || user?.isAdmin) && (
+                  <>
+                    <button
+                      onClick={() => setShowAdminProposalsModal(true)}
+                      className="relative bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center font-bold text-sm shadow-xs"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Review Proposals
+                      {pendingProposalsCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold animate-pulse shadow-md">
+                          {pendingProposalsCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={fetchPendingReports}
+                      className="relative bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Review Reports
+                      {(pendingReports || []).length > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                          {(pendingReports || []).length}
+                        </span>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {showNewClubForm && (
@@ -3434,6 +3508,52 @@ export function Clubs() {
             </div>
           </div>
         )}
+
+        {/* ── New Student Club Proposal Modals ── */}
+        <NewClubProposalModal
+          isOpen={showNewProposalModal}
+          onClose={() => setShowNewProposalModal(false)}
+          user={user}
+          onSubmitted={(details) => {
+            setProposalSuccessDetails(details);
+            setShowProposalSuccessModal(true);
+            if (user && (isCoordinator || user.isAdmin)) {
+              setPendingProposalsCount((prev) => prev + 1);
+            }
+          }}
+        />
+
+        <ProposalSuccessModal
+          isOpen={showProposalSuccessModal}
+          onClose={() => {
+            setShowProposalSuccessModal(false);
+            setProposalSuccessDetails(null);
+          }}
+          details={proposalSuccessDetails}
+          onCheckStatus={(refId) => {
+            setInitialLookupReferenceId(refId);
+            setShowStatusLookupModal(true);
+          }}
+        />
+
+        <ProposalStatusLookupModal
+          isOpen={showStatusLookupModal}
+          onClose={() => {
+            setShowStatusLookupModal(false);
+            setInitialLookupReferenceId("");
+          }}
+          initialReferenceId={initialLookupReferenceId}
+        />
+
+        <AdminClubProposalsModal
+          isOpen={showAdminProposalsModal}
+          onClose={() => setShowAdminProposalsModal(false)}
+          user={user}
+          onClubCreated={() => {
+            fetchClubs();
+            setPendingProposalsCount((prev) => Math.max(0, prev - 1));
+          }}
+        />
 
         {/* Club Details Modal for Admin */}
         {showClubDetails && selectedClubDetails && (

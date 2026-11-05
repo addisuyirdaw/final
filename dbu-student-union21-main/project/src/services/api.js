@@ -448,6 +448,54 @@ class ApiService {
     });
   }
 
+  // ── Club Proposals API ──
+  async submitClubProposal(data) {
+    return this.request('/club-proposals', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getClubProposalStatus(referenceId) {
+    return this.request(`/club-proposals/status/${encodeURIComponent(referenceId)}`);
+  }
+
+  async getClubProposals(params = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.status) searchParams.append('status', params.status);
+    if (params.category) searchParams.append('category', params.category);
+    if (params.search) searchParams.append('search', params.search);
+    if (params.page) searchParams.append('page', params.page);
+    if (params.limit) searchParams.append('limit', params.limit);
+    const queryString = searchParams.toString();
+    return this.request(`/club-proposals${queryString ? '?' + queryString : ''}`);
+  }
+
+  async getClubProposal(id) {
+    return this.request(`/club-proposals/${id}`);
+  }
+
+  async updateClubProposalStatus(id, updateData) {
+    return this.request(`/club-proposals/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(updateData)
+    });
+  }
+
+  async addClubProposalNote(id, note) {
+    return this.request(`/club-proposals/${id}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ note })
+    });
+  }
+
+  async createClubFromProposal(id, clubData = {}) {
+    return this.request(`/club-proposals/${id}/create-club`, {
+      method: 'POST',
+      body: JSON.stringify(clubData)
+    });
+  }
+
   async approveClubMember(clubId, memberId) {
     return this.request(`/clubs/${clubId}/members/${memberId}/approve`, {
       method: 'PATCH'
