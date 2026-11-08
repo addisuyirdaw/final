@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Loader, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign, Sparkles } from "lucide-react";
+import { Users, Calendar, Award, Search, Filter, Plus, MapPin, Mail, Phone, Globe, Trash2, Edit, FileText, CheckCircle, XCircle, AlertCircle, AlertTriangle, Loader, MoreVertical, UserMinus, Download, Upload, BookOpen, X, DollarSign, Sparkles, Send, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { CertificateTemplate } from "../CertificateTemplate";
@@ -1249,8 +1249,8 @@ export function Clubs() {
 
   const filteredClubs = clubs.filter((club) => {
     const userId = user?._id || user?.id;
-    const isUserMember = userId && Array.isArray(club?.members) &&
-      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'approved');
+    const isUserMember = (club.userMembershipStatus === 'approved') || (userId && Array.isArray(club?.members) &&
+      club.members.some(m => String(m?.user?._id || m?.user) === String(userId) && m?.status === 'approved'));
 
     const matchesCategory =
       selectedCategory === "All" ||
@@ -3066,6 +3066,20 @@ export function Clubs() {
                             <span>→</span>
                           </button>
                         </div>
+
+                        {/* Official Telegram Group Button - ONLY for Approved Rotaract Members */}
+                        {activeMember && isRotaractClub(club) && (
+                          <a
+                            href="https://t.me/+UG0nguXE1KphZTg0"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 w-full py-2 px-3 rounded-xl font-bold bg-[#0088cc] hover:bg-[#0077b5] text-white transition-all flex items-center justify-center gap-2 text-xs shadow-md"
+                          >
+                            <Send className="w-3.5 h-3.5 -translate-x-0.5" />
+                            <span className="truncate">Join Official Telegram Group</span>
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-80" />
+                          </a>
+                        )}
 
                         {(!loginMatch && (activeMember || isCoordinator || userId && (String(club?.leadership?.president?._id || club?.leadership?.president) === String(userId))) ||
                          (!loginMatch && !isLeader && !user?.isAdmin && user?.username !== 'dbu10101030') ||
@@ -5087,33 +5101,71 @@ export function Clubs() {
                 {/* Tab-Specific Action Buttons */}
                 {activeWorkspaceTab === 'overview' && (
                   <div className="flex justify-center space-x-4 mt-6">
-                    {!(user?.isAdmin || isCoordinator || isLeader) && (
-                      <button
-                        onClick={() => {
-                          const isUserLoggedIn = Boolean(user && (user._id || user.id));
-                          const validUserId = isUserLoggedIn ? String(user._id || user.id) : null;
-                          if (isUserLoggedIn) {
-                            const activeMember = (selectedClubDetails.userMembershipStatus === 'approved') || 
-                              (Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'approved'));
-                            if (activeMember) {
-                              toast.success("You are already an active member!");
-                              return;
-                            }
-                            const isPending = (selectedClubDetails.userMembershipStatus === 'pending') || 
-                              (Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'pending'));
-                            if (isPending) {
-                              toast.error("Your join request is already pending approval.");
-                              return;
-                            }
-                          }
-                          setShowClubDetails(false);
-                          handleJoinClub(selectedClubDetails);
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:scale-[1.02]"
-                      >
-                        Join Club
-                      </button>
-                    )}
+                    {!(user?.isAdmin || isCoordinator || isLeader) && (() => {
+                      const isUserLoggedIn = Boolean(user && (user._id || user.id));
+                      const validUserId = isUserLoggedIn ? String(user._id || user.id) : null;
+                      const activeMember = Boolean(isUserLoggedIn && (
+                        (selectedClubDetails.userMembershipStatus === 'approved') || 
+                        (Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'approved'))
+                      ));
+                      const isPendingMember = Boolean(isUserLoggedIn && (
+                        (selectedClubDetails.userMembershipStatus === 'pending') || 
+                        (Array.isArray(selectedClubDetails?.members) && selectedClubDetails.members.some(m => m?.user && String(m?.user?._id || m?.user) === validUserId && m?.status === 'pending'))
+                      ));
+
+                      if (activeMember) {
+                        if (isRotaractClub(selectedClubDetails)) {
+                          return (
+                            <div className="flex flex-col items-center gap-3 w-full max-w-md">
+                              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                <span>Official Member • Approved</span>
+                              </div>
+                              <a
+                                href="https://t.me/+UG0nguXE1KphZTg0"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full inline-flex items-center justify-center gap-2 bg-[#0088cc] hover:bg-[#0077b5] text-white px-8 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all transform hover:scale-[1.02] text-sm"
+                              >
+                                <Send className="w-4 h-4" />
+                                <span>Join Official Telegram Group</span>
+                                <ExternalLink className="w-4 h-4 opacity-80" />
+                              </a>
+                              <p className="text-[11px] text-gray-500 text-center">
+                                ℹ️ Note: Telegram has its own join-request approval process controlled by group administrators.
+                              </p>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-sm cursor-default">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Joined • Active Member</span>
+                          </div>
+                        );
+                      }
+
+                      if (isPendingMember) {
+                        return (
+                          <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-sm shadow-sm cursor-default">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Membership Request Pending Review</span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          onClick={() => {
+                            setShowClubDetails(false);
+                            handleJoinClub(selectedClubDetails);
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:scale-[1.02]"
+                        >
+                          Join Club
+                        </button>
+                      );
+                    })()}
                     {isCoordinator && (
                       <button
                         onClick={() => {

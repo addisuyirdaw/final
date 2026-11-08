@@ -101,11 +101,20 @@ router.get('/', optionalAuth, async (req, res) => {
     const transformedClubs = clubs.map(club => {
       let userMembershipStatus = null;
       if (req.user && club.members) {
-        const userMember = club.members.find(m => m.user && m.user.toString() === req.user._id.toString());
+        const userMember = club.members.find(m => 
+          (m.user && m.user.toString() === req.user._id.toString()) ||
+          (!m.user && req.user.username && m.studentId && m.studentId.trim().toUpperCase() === req.user.username.trim().toUpperCase()) ||
+          (!m.user && req.user.email && m.email && m.email.trim().toLowerCase() === req.user.email.trim().toLowerCase())
+        );
         if (userMember) {
           userMembershipStatus = userMember.status;
         }
       }
+
+      const isRotaract = Boolean(
+        (club.name && /rotaract/i.test(club.name)) ||
+        (club.description && /rotaract/i.test(club.description))
+      );
 
       return {
         id: club._id,
@@ -124,7 +133,9 @@ router.get('/', optionalAuth, async (req, res) => {
         leadership: club.leadership,
         socialMedia: club.socialMedia,
         createdAt: club.createdAt,
-        userMembershipStatus
+        userMembershipStatus,
+        // Only expose official Telegram invite URL if user is approved in Rotaract Club
+        ...(isRotaract && userMembershipStatus === 'approved' ? { telegramInviteUrl: 'https://t.me/+UG0nguXE1KphZTg0' } : {})
       };
     });
 
@@ -547,9 +558,33 @@ router.get('/:id', optionalAuth, async (req, res) => {
       });
     }
 
+    let userMembershipStatus = null;
+    if (req.user && club.members) {
+      const userMember = club.members.find(m => 
+        (m.user && (m.user._id || m.user).toString() === req.user._id.toString()) ||
+        (!m.user && req.user.username && m.studentId && m.studentId.trim().toUpperCase() === req.user.username.trim().toUpperCase()) ||
+        (!m.user && req.user.email && m.email && m.email.trim().toLowerCase() === req.user.email.trim().toLowerCase())
+      );
+      if (userMember) {
+        userMembershipStatus = userMember.status;
+      }
+    }
+
+    const clubObj = club.toObject ? club.toObject() : { ...club };
+    clubObj.userMembershipStatus = userMembershipStatus;
+    const isRotaract = Boolean(
+      (club.name && /rotaract/i.test(club.name)) ||
+      (club.description && /rotaract/i.test(club.description))
+    );
+    if (isRotaract && userMembershipStatus === 'approved') {
+      clubObj.telegramInviteUrl = 'https://t.me/+UG0nguXE1KphZTg0';
+    } else {
+      delete clubObj.telegramInviteUrl;
+    }
+
     res.json({
       success: true,
-      club
+      club: clubObj
     });
   } catch (error) {
     console.error('Get club error:', error);
@@ -891,13 +926,25 @@ router.patch('/:id/members/:memberId/approve', protect, clubLeader, async (req, 
       });
     }
 
+    const isRotaract = Boolean(
+      (club.name && /rotaract/i.test(club.name)) ||
+      (club.description && /rotaract/i.test(club.description))
+    );
+    const rotaractTelegramUrl = isRotaract ? 'https://t.me/+UG0nguXE1KphZTg0' : null;
+
     // Send confirmation email asynchronously without failing request
     try {
+      let email = member.email;
+      let name = member.fullName || 'Student';
       if (targetUserId) {
         const student = await User.findById(targetUserId);
-        if (student && student.email) {
-          await sendMemberApprovalEmail(student.email, student.name, club.name);
+        if (student) {
+          email = student.email || email;
+          name = student.name || name;
         }
+      }
+      if (email) {
+        await sendMemberApprovalEmail(email, name, club.name, rotaractTelegramUrl);
       }
     } catch (err) {
       console.warn('Member approval email failed:', err.message);
@@ -906,7 +953,8 @@ router.patch('/:id/members/:memberId/approve', protect, clubLeader, async (req, 
     res.json({
       success: true,
       message: 'Member approved successfully',
-      memberId: member._id
+      memberId: member._id,
+      ...(isRotaract ? { telegramInviteUrl: 'https://t.me/+UG0nguXE1KphZTg0' } : {})
     });
   } catch (error) {
     console.error('Approve member error:', error);

@@ -28,7 +28,9 @@ import {
 	ChevronRight,
 	QrCode,
 	HeartHandshake,
-	MapPin
+	MapPin,
+	Send,
+	ExternalLink
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -351,6 +353,8 @@ export function Dashboard() {
 	const [upcomingEvents, setUpcomingEvents] = useState([]);
 	const [myEvents, setMyEvents] = useState([]);
 	const [myEventsLoading, setMyEventsLoading] = useState(false);
+	const [myClubs, setMyClubs] = useState([]);
+	const [myClubsLoading, setMyClubsLoading] = useState(false);
 
 	const isInstitutionalUser = Boolean(
 		user?.isAdmin ||
@@ -467,7 +471,7 @@ export function Dashboard() {
 				setUpcomingEvents([]);
 			}
 
-			// Student-only: My joined clubs upcoming events
+			// Student-only: My joined clubs upcoming events & memberships
 			if (!isInstitutionalUser) {
 				try {
 					setMyEventsLoading(true);
@@ -482,6 +486,43 @@ export function Dashboard() {
 					setMyEvents([]);
 				} finally {
 					setMyEventsLoading(false);
+				}
+
+				if (user) {
+					try {
+						setMyClubsLoading(true);
+						const clubsData = await apiService.getClubs({ limit: 100 });
+						const clubsList = Array.isArray(clubsData) ? clubsData : (clubsData?.clubs || clubsData?.data || []);
+						const currentUserId = String(user._id || user.id);
+						const userClubs = clubsList.filter(c => {
+							if (c.userMembershipStatus) return true;
+							if (Array.isArray(c.members)) {
+								return c.members.some(m => 
+									String(m?.user?._id || m?.user) === currentUserId ||
+									(user.username && m?.studentId && m.studentId.trim().toUpperCase() === user.username.trim().toUpperCase()) ||
+									(user.email && m?.email && m.email.trim().toLowerCase() === user.email.trim().toLowerCase())
+								);
+							}
+							return false;
+						}).map(c => {
+							let status = c.userMembershipStatus;
+							if (!status && Array.isArray(c.members)) {
+								const m = c.members.find(m => 
+									String(m?.user?._id || m?.user) === currentUserId ||
+									(user.username && m?.studentId && m.studentId.trim().toUpperCase() === user.username.trim().toUpperCase()) ||
+									(user.email && m?.email && m.email.trim().toLowerCase() === user.email.trim().toLowerCase())
+								);
+								if (m) status = m.status;
+							}
+							return { ...c, calculatedStatus: status || 'pending' };
+						});
+						setMyClubs(userClubs);
+					} catch (cErr) {
+						console.error('Error fetching student clubs in dashboard:', cErr);
+						setMyClubs([]);
+					} finally {
+						setMyClubsLoading(false);
+					}
 				}
 			}
 
@@ -763,6 +804,18 @@ export function Dashboard() {
 	};
 
 	// Use database directives
+
+	const rotaractClub = myClubs.find(c => {
+		const name = String(c.name || '').toLowerCase();
+		const desc = String(c.description || '').toLowerCase();
+		return name.includes('rotaract') || desc.includes('rotaract');
+	});
+	const isRotaractApproved = Boolean(
+		rotaractClub && (rotaractClub.userMembershipStatus === 'approved' || rotaractClub.calculatedStatus === 'approved')
+	);
+	const isRotaractPending = Boolean(
+		rotaractClub && !isRotaractApproved && (rotaractClub.userMembershipStatus === 'pending' || rotaractClub.calculatedStatus === 'pending')
+	);
 
 	return (
 		<div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
@@ -1098,6 +1151,131 @@ export function Dashboard() {
 							</Link>
 						</div>
 					</motion.div>
+
+					{/* Official Rotaract Telegram Integration - Displayed ONLY to Approved Members */}
+					{isRotaractApproved && (
+						<motion.div
+							initial={{ opacity: 0, y: 15 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.25 }}
+							className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-50 via-indigo-50/40 to-blue-50 border-2 border-[#0088cc]/30 p-5 sm:p-6 shadow-sm">
+							<div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+								<div className="flex items-start gap-4">
+									<div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#0088cc] text-white flex items-center justify-center flex-shrink-0 shadow-md">
+										<Send className="w-6 h-6 sm:w-7 sm:h-7 -translate-x-0.5 translate-y-0.5" />
+									</div>
+									<div>
+										<div className="flex items-center gap-2 flex-wrap">
+											<span className="text-xs font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+												<CheckCircle className="w-3.5 h-3.5" /> Approved Member
+											</span>
+											<span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-[#0088cc] border border-sky-200">
+												Rotaract Club of Debre Berhan
+											</span>
+										</div>
+										<h3 className="text-lg sm:text-xl font-extrabold text-gray-900 mt-1.5">
+											Join Official Telegram Group
+										</h3>
+										<p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-xl leading-relaxed">
+											Congratulations! Your Rotaract Club membership has been approved by the club leadership. Connect with fellow members and stay updated with official initiatives.
+										</p>
+										<p className="text-[11px] text-amber-700 font-medium mt-1.5 flex items-center gap-1">
+											<span>ℹ️</span>
+											<span>Telegram group administrators will review and approve your join request upon entry.</span>
+										</p>
+									</div>
+								</div>
+
+								<div className="w-full md:w-auto flex-shrink-0">
+									<a
+										href="https://t.me/+UG0nguXE1KphZTg0"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-[#0088cc] hover:bg-[#0077b5] active:scale-[0.98] shadow-md hover:shadow-lg transition-all text-sm tracking-wide">
+										<Send className="w-4 h-4" />
+										<span>Join Official Telegram Group</span>
+										<ExternalLink className="w-4 h-4 opacity-80" />
+									</a>
+								</div>
+							</div>
+						</motion.div>
+					)}
+
+					{/* My Club Memberships Strip */}
+					{myClubs.length > 0 && (
+						<motion.div
+							initial={{ opacity: 0, y: 15 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.28 }}
+							className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+							<div className="flex items-center justify-between mb-4">
+								<h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+									<Users className="w-5 h-5 text-emerald-600" />
+									My Club Memberships
+								</h3>
+								<Link to="/clubs" className="text-xs font-semibold text-emerald-600 hover:text-emerald-800">
+									Browse Clubs →
+								</Link>
+							</div>
+
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+								{myClubs.map((club) => {
+									const isClubRotaract = String(club.name || '').toLowerCase().includes('rotaract') || String(club.description || '').toLowerCase().includes('rotaract');
+									const isApproved = club.calculatedStatus === 'approved' || club.userMembershipStatus === 'approved';
+									const isPending = !isApproved && (club.calculatedStatus === 'pending' || club.userMembershipStatus === 'pending');
+
+									return (
+										<div
+											key={club._id || club.id}
+											className="border border-gray-100 rounded-xl p-3.5 bg-gray-50/40 hover:bg-gray-50 flex flex-col justify-between transition-colors">
+											<div>
+												<div className="flex items-center justify-between gap-2 mb-1.5">
+													<span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider truncate">
+														{club.category || 'Club'}
+													</span>
+													<span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+														isApproved
+															? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+															: isPending
+																? 'bg-amber-100 text-amber-800 border border-amber-200'
+																: 'bg-rose-100 text-rose-800 border border-rose-200'
+													}`}>
+														{isApproved ? '✓ Approved' : isPending ? '⏳ Pending Review' : 'Rejected'}
+													</span>
+												</div>
+												<h4 className="font-bold text-gray-900 text-sm truncate">
+													{club.name}
+												</h4>
+												<p className="text-xs text-gray-500 line-clamp-2 mt-1">
+													{club.description}
+												</p>
+											</div>
+
+											<div className="pt-3 mt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+												<Link
+													to={`/clubs/${club._id || club.id}`}
+													className="text-xs font-semibold text-blue-600 hover:text-blue-800">
+													View Details
+												</Link>
+
+												{isClubRotaract && isApproved && (
+													<a
+														href="https://t.me/+UG0nguXE1KphZTg0"
+														target="_blank"
+														rel="noopener noreferrer"
+														className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0088cc] hover:bg-[#0077b5] px-3 py-1.5 rounded-lg transition-colors shadow-xs">
+														<Send className="w-3.5 h-3.5" />
+														<span>Telegram</span>
+														<ExternalLink className="w-3 h-3 opacity-80" />
+													</a>
+												)}
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						</motion.div>
+					)}
 
 					{/* My Upcoming Events Strip */}
 					<motion.div

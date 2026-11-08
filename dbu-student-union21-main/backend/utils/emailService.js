@@ -63,12 +63,25 @@ const sendRepresentativeAppointmentEmail = async (email, name, clubName) => {
     return sendEmail({ to: email, subject: "New Role: Club Representative Appointment", html });
 };
 
-const sendMemberApprovalEmail = async (email, name, clubName) => {
+const sendMemberApprovalEmail = async (email, name, clubName, telegramLink = null) => {
+    const telegramSection = telegramLink ? `
+        <div style="margin-top: 20px; padding: 16px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
+            <p style="margin: 0 0 8px 0; font-weight: bold; color: #0284c7; font-size: 15px;">Official Telegram Community</p>
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #334155; line-height: 1.5;">
+                As an approved member, you are invited to join the official Rotaract Telegram group. Note that group administrators review and approve all join requests.
+            </p>
+            <a href="${telegramLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #0088cc; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px;">
+                Join Official Telegram Group
+            </a>
+        </div>
+    ` : '';
+
     const html = `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h1 style="color: #10b981;">Welcome to ${clubName}!</h1>
             <p>Hello ${name}, your request to join <strong>${clubName}</strong> has been approved by the Club Representative.</p>
             <p>You are now an official member of the club. Stay tuned for upcoming events and announcements!</p>
+            ${telegramSection}
             <hr />
             <p style="font-size: 12px; color: #999;">DBU Student Council Management System</p>
         </div>
