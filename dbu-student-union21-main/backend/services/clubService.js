@@ -216,8 +216,9 @@ class ClubService {
 
       // Send confirmation email asynchronously
       try {
-        if (targetUser.email) {
-          await sendMemberApprovalEmail(targetUser.email, resolvedFullName, club.name);
+        const recipientEmail = (targetUser && targetUser.email) ? targetUser.email : resolvedEmail;
+        if (recipientEmail) {
+          await sendMemberApprovalEmail(recipientEmail, resolvedFullName, club.name);
         }
       } catch (emailErr) {
         console.warn('Auto-approval email dispatch failed:', emailErr.message);

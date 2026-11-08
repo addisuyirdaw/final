@@ -65,28 +65,38 @@ const sendRepresentativeAppointmentEmail = async (email, name, clubName) => {
 
 const sendMemberApprovalEmail = async (email, name, clubName, telegramLink = null) => {
     const telegramSection = telegramLink ? `
-        <div style="margin-top: 20px; padding: 16px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
-            <p style="margin: 0 0 8px 0; font-weight: bold; color: #0284c7; font-size: 15px;">Official Telegram Community</p>
-            <p style="margin: 0 0 12px 0; font-size: 13px; color: #334155; line-height: 1.5;">
-                As an approved member, you are invited to join the official Rotaract Telegram group. Note that group administrators review and approve all join requests.
+        <div style="margin-top: 20px; padding: 18px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;">
+            <p style="margin: 0 0 6px 0; font-weight: bold; color: #0284c7; font-size: 15px;">⚜️ Official Telegram Community</p>
+            <p style="margin: 0 0 14px 0; font-size: 13px; color: #334155; line-height: 1.5;">
+                As an approved member, you are invited to join the official Rotaract Telegram group. Note that group administrators review and approve all join requests upon entry.
             </p>
-            <a href="${telegramLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #0088cc; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px;">
+            <a href="${telegramLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #0088cc; color: #ffffff; padding: 11px 22px; text-decoration: none; border-radius: 7px; font-weight: bold; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 Join Official Telegram Group
             </a>
         </div>
     ` : '';
 
     const html = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h1 style="color: #10b981;">Welcome to ${clubName}!</h1>
-            <p>Hello ${name}, your request to join <strong>${clubName}</strong> has been approved by the Club Representative.</p>
-            <p>You are now an official member of the club. Stay tuned for upcoming events and announcements!</p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px; margin: 0 auto; color: #1e293b;">
+            <div style="margin-bottom: 20px;">
+                <span style="background-color: #dcfce7; color: #15803d; font-size: 12px; font-weight: bold; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em;">Membership Approved</span>
+            </div>
+            <h1 style="color: #059669; margin: 0 0 16px 0; font-size: 22px;">🎉 Congratulations & Welcome to ${clubName}!</h1>
+            <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">Hello <strong>${name}</strong>,</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 14px 0;">
+                Congratulations! Your application to join <strong>${clubName}</strong> has been officially approved by the club leadership.
+            </p>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 14px 0;">
+                You are now an official member of the club. We are excited to have you contribute, connect with peers, and take part in upcoming activities, workshops, and initiatives.
+            </p>
             ${telegramSection}
-            <hr />
-            <p style="font-size: 12px; color: #999;">DBU Student Council Management System</p>
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+                <p style="margin: 0;">DBU Student Union • Student Council Management System</p>
+                <p style="margin: 4px 0 0 0;">Debre Berhan University, Ethiopia</p>
+            </div>
         </div>
     `;
-    return sendEmail({ to: email, subject: `Welcome to ${clubName}!`, html });
+    return sendEmail({ to: email, subject: `🎉 Congratulations & Welcome to ${clubName}!`, html });
 };
 
 const sendRestrictionEmail = async (email, name, reason) => {
