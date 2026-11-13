@@ -1,15 +1,13 @@
 /**
- * DBU Student Union - All-Years Student Club Registration & Scheduled Maintenance Page
+ * DBU Student Union - Clean Minimal Student Club Registration Page
  *
  * Connected directly to Google Sheets via Apps Script Webhook.
- * Bypasses backend to ensure 100% uptime for all-years student registration.
+ * Allows multi-club registration per student with server-side per-club duplicate check.
  *
  * @format
  */
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import toast from "react-hot-toast";
 import {
   CheckCircle,
   AlertTriangle,
@@ -22,10 +20,7 @@ import {
   BookOpen,
   ArrowRight,
   RefreshCw,
-  Sparkles,
   Calendar,
-  X,
-  Lock,
 } from "lucide-react";
 
 // Verified Google Apps Script Webhook URL (Official DBU Deployment)
@@ -77,7 +72,6 @@ const STUDY_YEARS = [
 ];
 
 export const Home = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     fullName: "",
     studentId: "",
@@ -93,41 +87,12 @@ export const Home = () => {
   const [registeredName, setRegisteredName] = useState("");
   const [registeredYear, setRegisteredYear] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showNoticeModal, setShowNoticeModal] = useState(false);
 
-  // Auto-show maintenance notice if redirected via ?service=...
+  // Smooth scroll to registration form when clicking any inactive navbar links
   useEffect(() => {
-    const serviceParam = searchParams.get("service");
-    if (serviceParam) {
-      setShowNoticeModal(true);
-      toast(
-        "Notice: This service is under scheduled maintenance. Club Registration is actively open below.",
-        {
-          id: "service-redirect-notice",
-          icon: "🛠️",
-          duration: 5000,
-          style: {
-            borderRadius: "12px",
-            background: "#0f172a",
-            color: "#f8fafc",
-            fontSize: "13px",
-            fontWeight: "500",
-            border: "1px solid #334155",
-          },
-        }
-      );
-      searchParams.delete("service");
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
-  // Intercept navigation on Header / Navbar links to prevent navigating to broken pages
-  useEffect(() => {
-    const handleNavIntercept = (e) => {
-      // Don't intercept clicks inside the registration form, modal, or success card
+    const handleNavClick = (e) => {
       if (
         e.target.closest("#registration-form") ||
-        e.target.closest("#maintenance-modal") ||
         e.target.closest("#success-card")
       ) {
         return;
@@ -137,8 +102,8 @@ export const Home = () => {
       const button = e.target.closest("button");
 
       if (anchor) {
-        const href = anchor.getAttribute("href") || anchor.getAttribute("to") || "";
-        // If clicking external link to DBU portal or an internal path that is not root/hash
+        const href =
+          anchor.getAttribute("href") || anchor.getAttribute("to") || "";
         if (
           href &&
           href !== "/" &&
@@ -149,30 +114,17 @@ export const Home = () => {
         ) {
           e.preventDefault();
           e.stopPropagation();
-          e.stopImmediatePropagation?.();
-          setShowNoticeModal(true);
-          toast(
-            "Notice: This service is under scheduled maintenance. Club Registration is actively open below.",
-            {
-              id: "nav-maintenance-notice",
-              icon: "🛠️",
-              duration: 5000,
-              style: {
-                borderRadius: "12px",
-                background: "#0f172a",
-                color: "#f8fafc",
-                fontSize: "13px",
-                fontWeight: "500",
-                border: "1px solid #334155",
-              },
-            }
-          );
+          document
+            .getElementById("registration-form")
+            ?.scrollIntoView({ behavior: "smooth" });
           return false;
         }
       }
 
       if (button) {
-        const text = (button.innerText || button.textContent || "").toLowerCase().trim();
+        const text = (button.innerText || button.textContent || "")
+          .toLowerCase()
+          .trim();
         if (
           text.includes("login") ||
           text.includes("admin panel") ||
@@ -180,31 +132,16 @@ export const Home = () => {
         ) {
           e.preventDefault();
           e.stopPropagation();
-          e.stopImmediatePropagation?.();
-          setShowNoticeModal(true);
-          toast(
-            "Notice: Portal login is temporarily offline during maintenance. Club registration is open below.",
-            {
-              id: "btn-maintenance-notice",
-              icon: "🔒",
-              duration: 5000,
-              style: {
-                borderRadius: "12px",
-                background: "#0f172a",
-                color: "#f8fafc",
-                fontSize: "13px",
-                fontWeight: "500",
-                border: "1px solid #334155",
-              },
-            }
-          );
+          document
+            .getElementById("registration-form")
+            ?.scrollIntoView({ behavior: "smooth" });
           return false;
         }
       }
     };
 
-    document.addEventListener("click", handleNavIntercept, true);
-    return () => document.removeEventListener("click", handleNavIntercept, true);
+    document.addEventListener("click", handleNavClick, true);
+    return () => document.removeEventListener("click", handleNavClick, true);
   }, []);
 
   const handleChange = (e) => {
@@ -219,14 +156,13 @@ export const Home = () => {
     setStatus("idle");
     setErrorMessage("");
 
-    // Basic input trimming and normalization
     const cleanFullName = formData.fullName.trim();
     const cleanStudentId = formData.studentId.trim().toUpperCase();
     const cleanDepartment = formData.department.trim();
     const rawPhone = formData.phone.trim().replace(/[\s\-\(\)]/g, "");
     const cleanClubName = formData.clubName;
 
-    // Comprehensive frontend validation
+    // Validation
     if (
       !cleanFullName ||
       !cleanStudentId ||
@@ -236,48 +172,26 @@ export const Home = () => {
       !cleanClubName
     ) {
       setStatus("error");
-      setErrorMessage(
-        "Please fill in all required fields (including Year of Study and Club Selection)."
-      );
+      setErrorMessage("Please fill in all required fields.");
       setLoading(false);
       return;
     }
 
-    // Phone number format validation (Ethiopian numbers: 09..., 07..., or +251...)
+    // Ethiopian Phone validation
     const ethiopianPhoneRegex = /^(?:\+251|0)?([79]\d{8})$/;
     const phoneMatch = rawPhone.match(ethiopianPhoneRegex);
     if (!phoneMatch) {
       setStatus("error");
       setErrorMessage(
-        "Invalid phone number. Please enter a valid Ethiopian mobile number (e.g., 0912345678 or 0712345678)."
+        "Please enter a valid Ethiopian phone number (e.g., 0912345678 or 0712345678)."
       );
       setLoading(false);
       return;
     }
 
-    // Standardize phone to 10-digit local format: "09..." or "07..."
     const standardizedPhone = "0" + phoneMatch[1];
 
-    // Client-side quick check: prevent registering for the EXACT SAME club twice on this device
-    const registrationKey = `${cleanStudentId}::${cleanClubName}`;
-    try {
-      const existingRegistrations = JSON.parse(
-        localStorage.getItem("dbu_registered_club_keys") || "[]"
-      );
-
-      if (existingRegistrations.includes(registrationKey)) {
-        setStatus("duplicate");
-        setErrorMessage(
-          `Notice: You have already registered for ${cleanClubName} with Student ID ${cleanStudentId}.`
-        );
-        setLoading(false);
-        return;
-      }
-    } catch {
-      // LocalStorage access fallback (e.g. private browsing)
-    }
-
-    // Exact 5 payload keys matching Google Apps Script doPost(e) contract
+    // Payload strictly matching Google Apps Script doPost(e) contract
     const payload = {
       fullName: cleanFullName,
       studentId: cleanStudentId,
@@ -302,40 +216,26 @@ export const Home = () => {
       const result = await response.json();
 
       if (result.status === "success") {
-        setRegisteredClub(formData.clubName);
-        setRegisteredName(formData.fullName.trim());
+        setRegisteredClub(cleanClubName);
+        setRegisteredName(cleanFullName);
         setRegisteredYear(formData.year);
-        // Persist submitted Student ID + Club composite key locally
-        try {
-          const keys = JSON.parse(
-            localStorage.getItem("dbu_registered_club_keys") || "[]"
-          );
-          if (!keys.includes(registrationKey)) keys.push(registrationKey);
-          localStorage.setItem(
-            "dbu_registered_club_keys",
-            JSON.stringify(keys)
-          );
-        } catch {
-          // ignore storage error
-        }
         setStatus("success");
       } else if (result.status === "duplicate") {
         setStatus("duplicate");
         setErrorMessage(
-          result.message ||
-            `You are already registered for ${cleanClubName} with Student ID ${cleanStudentId}.`
+          result.message || `You are already registered for ${cleanClubName}!`
         );
       } else {
         setStatus("error");
         setErrorMessage(
-          result.message || "An error occurred while saving your registration. Please try again."
+          result.message || "An error occurred while saving your registration."
         );
       }
     } catch (err) {
-      console.error("Submission failed:", err);
+      console.error("Submission error:", err);
       setStatus("error");
       setErrorMessage(
-        "Network issue: Unable to record registration in Google Sheet. Please check your connection and try again."
+        "Network issue: Unable to save registration. Please check your connection and try again."
       );
     } finally {
       setLoading(false);
@@ -356,129 +256,49 @@ export const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/40 to-slate-100 text-slate-800 py-8 px-4 sm:px-6 lg:px-8">
-      {/* 🛑 Navigation Intercept Modal */}
-      {showNoticeModal && (
-        <div
-          id="maintenance-modal"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setShowNoticeModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-100 text-left relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setShowNoticeModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-amber-100 text-amber-700 rounded-xl shrink-0 mt-0.5">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                  Notice: Service Under Maintenance
-                </h3>
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 mt-0.5">
-                  Scheduled System Upgrade
-                </p>
-                <div className="mt-3 text-xs sm:text-sm text-slate-600 space-y-2 leading-relaxed">
-                  <p>
-                    The main portal dashboard and other services are temporarily offline for scheduled system upgrades.
-                  </p>
-                  <p className="font-semibold text-blue-900 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-                    ✨ Student Club Registration is actively open for all academic years (Freshman to 5th Year). Please use the registration form below!
-                  </p>
-                </div>
-
-                <div className="mt-5 flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNoticeModal(false);
-                      document
-                        .getElementById("registration-form")
-                        ?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow transition cursor-pointer"
-                  >
-                    Go to Registration Form
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowNoticeModal(false)}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-3xl mx-auto">
-        {/* University Header Branding */}
+    <div className="min-h-screen bg-slate-50 text-slate-800 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto">
+        {/* Minimal University Branding */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold uppercase tracking-wider mb-3">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold uppercase tracking-wider mb-2">
             <GraduationCap className="w-4 h-4" />
             Debre Berhan University • Student Union
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Debre Berhan University Student Club Registration
+            Student Club Registration
           </h1>
-          <p className="text-sm sm:text-base text-slate-600 mt-1 font-medium">
-            Official Registration Portal for All Academic Years (Freshman to 5th Year)
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
+            Open to All Academic Years (Freshman to 5th Year Students)
           </p>
         </div>
 
-        {/* 🛠️ Scheduled Maintenance Alert Banner */}
-        <div className="bg-amber-50 border-l-4 border-amber-500 rounded-xl p-4 sm:p-5 shadow-sm mb-8">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg text-amber-700 shrink-0 mt-0.5">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-amber-900 flex items-center gap-2">
-                🛠️ System Under Scheduled Maintenance
-              </h2>
-              <p className="text-xs sm:text-sm text-amber-800 mt-1 leading-relaxed">
-                The main student union portal is undergoing scheduled maintenance. However, Student Club Registration is actively open for all students (Freshman to 5th Year). Please complete the form below to register for your club!
-              </p>
-              <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-md border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Club Registration Active for All Academic Years
-              </div>
-            </div>
-          </div>
+        {/* Clean Maintenance Info Note */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-6 text-xs sm:text-sm text-amber-900 flex items-center gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            Portal dashboard is under scheduled maintenance. <strong>Club Registration is active below.</strong>
+          </span>
         </div>
 
-        {/* Registration Card / Success State */}
+        {/* Form Container */}
         <div
           id="registration-form"
-          className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden"
+          className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden"
         >
           {status === "success" ? (
-            /* 🎉 Success Card */
-            <div id="success-card" className="p-6 sm:p-10 text-center">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-10 h-10" />
+            /* Confirmation Screen */
+            <div id="success-card" className="p-6 sm:p-8 text-center">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-8 h-8" />
               </div>
-              <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full uppercase tracking-wider mb-2">
+              <span className="inline-block px-3 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full uppercase tracking-wider mb-2">
                 Registration Confirmed
               </span>
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                Your Registration Has Been Successfully Submitted!
-              </h3>
-              <p className="text-slate-600 text-sm sm:text-base max-w-md mx-auto mb-6">
-                Dear <strong>{registeredName}</strong>, your membership application for <strong>{registeredClub}</strong> has been successfully recorded. Club leadership will contact you shortly.
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                Registration Submitted Successfully!
+              </h2>
+              <p className="text-slate-600 text-sm max-w-md mx-auto mb-6">
+                Dear <strong>{registeredName}</strong>, your application to join <strong>{registeredClub}</strong> has been recorded.
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-sm mx-auto mb-6 text-left text-xs sm:text-sm space-y-1.5">
@@ -507,48 +327,47 @@ export const Home = () => {
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition shadow-md hover:shadow-lg text-sm cursor-pointer"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow text-sm cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                Register Another Student
+                Register for Another Club
               </button>
             </div>
           ) : (
-            /* 📝 Registration Form */
-            <div className="p-6 sm:p-8">
-              <div className="border-b border-slate-100 pb-4 mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Club Membership Application Form
+            /* Registration Form */
+            <div className="p-6 sm:p-7">
+              <div className="border-b border-slate-100 pb-3 mb-5">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  Club Membership Form
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Open to All Debre Berhan University Students (Freshman – 5th Year)
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Students may register for multiple clubs by submitting separate applications.
                 </p>
               </div>
 
               {/* Duplicate Submission Alert */}
               {status === "duplicate" && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
-                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="mb-5 p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-amber-900 text-xs sm:text-sm">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
                     <strong>Already Registered:</strong>{" "}
-                    {errorMessage ||
-                      "You have already registered for this club with this Student ID. You may still apply to any other club!"}
+                    {errorMessage || "You have already registered for this club with this Student ID. You may choose any other club!"}
                   </div>
                 </div>
               )}
 
               {/* Error Alert */}
               {status === "error" && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800 text-sm">
-                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-red-800 text-xs sm:text-sm">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <div>
-                    {errorMessage || "Network issue encountered. Please try again."}
+                    {errorMessage || "Network error. Please try again."}
                   </div>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Full Name */}
                 <div>
                   <label
@@ -558,7 +377,7 @@ export const Home = () => {
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
                       type="text"
                       id="fullName"
@@ -567,7 +386,7 @@ export const Home = () => {
                       value={formData.fullName}
                       onChange={handleChange}
                       placeholder="e.g. Abebe Kebede"
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
                     />
                   </div>
                 </div>
@@ -581,7 +400,7 @@ export const Home = () => {
                     Student ID <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <BookOpen className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <BookOpen className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
                       type="text"
                       id="studentId"
@@ -590,12 +409,12 @@ export const Home = () => {
                       value={formData.studentId}
                       onChange={handleChange}
                       placeholder="DBU/..."
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none uppercase transition"
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none uppercase transition"
                     />
                   </div>
                 </div>
 
-                {/* Department / Stream */}
+                {/* Department */}
                 <div>
                   <label
                     htmlFor="department"
@@ -604,7 +423,7 @@ export const Home = () => {
                     Department / Field of Study <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <Building className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <Building className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
                       type="text"
                       id="department"
@@ -612,13 +431,13 @@ export const Home = () => {
                       required
                       value={formData.department}
                       onChange={handleChange}
-                      placeholder="e.g. Computer Science, Medicine, Civil Eng, Natural Science..."
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
+                      placeholder="e.g. Computer Science, Medicine, Civil Eng..."
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
                     />
                   </div>
                 </div>
 
-                {/* Year of Study Dropdown */}
+                {/* Year of Study */}
                 <div>
                   <label
                     htmlFor="year"
@@ -627,14 +446,14 @@ export const Home = () => {
                     Year of Study <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
                     <select
                       id="year"
                       name="year"
                       required
                       value={formData.year}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
                     >
                       <option value="" disabled>
                         -- Select Year of Study --
@@ -657,7 +476,7 @@ export const Home = () => {
                     Phone Number <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
                       type="tel"
                       id="phone"
@@ -666,12 +485,12 @@ export const Home = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="09... / 07..."
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
                     />
                   </div>
                 </div>
 
-                {/* Club Selection Dropdown (DBU Clubs) */}
+                {/* Select Club */}
                 <div>
                   <label
                     htmlFor="clubName"
@@ -685,7 +504,7 @@ export const Home = () => {
                     required
                     value={formData.clubName}
                     onChange={handleChange}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
                   >
                     <option value="" disabled>
                       -- Select a Club --
@@ -696,9 +515,6 @@ export const Home = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Students may register for multiple clubs by submitting separate applications.
-                  </p>
                 </div>
 
                 {/* Submit Button */}
@@ -706,11 +522,11 @@ export const Home = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base cursor-pointer"
+                    className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-xl transition duration-150 shadow disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base cursor-pointer"
                   >
                     {loading ? (
                       <>
-                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        <RefreshCw className="w-4 h-4 animate-spin" />
                         Submitting Application...
                       </>
                     ) : (
@@ -726,10 +542,9 @@ export const Home = () => {
           )}
         </div>
 
-        {/* Footer info */}
-        <div className="mt-8 text-center text-xs text-slate-500 space-y-1">
-          <p>© 2026 Debre Berhan University Student Union. All rights reserved.</p>
-          <p>Debre Berhan University Student Union • Empowering Students for Excellence</p>
+        {/* Minimal Footer */}
+        <div className="mt-6 text-center text-xs text-slate-500">
+          © 2026 Debre Berhan University Student Union
         </div>
       </div>
     </div>

@@ -84,7 +84,7 @@ function AppContent() {
               user ? (
                 <Navigate to="/dashboard" replace />
               ) : (
-                <Navigate to="/?service=login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -94,7 +94,7 @@ function AppContent() {
               user ? (
                 <Navigate to="/dashboard" replace />
               ) : (
-                <Navigate to="/?service=register" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -121,10 +121,10 @@ function AppContent() {
             }
           />
 
-          {/* Temporary Maintenance Routing - redirects broken pages to active registration portal */}
-          <Route path="/clubs" element={<Navigate to="/?service=clubs" replace />} />
-          <Route path="/clubs/:id" element={<Navigate to="/?service=clubs" replace />} />
-          <Route path="/events" element={<Navigate to="/?service=events" replace />} />
+          {/* Temporary Maintenance Routing - redirects broken pages to clean registration portal */}
+          <Route path="/clubs" element={<Navigate to="/" replace />} />
+          <Route path="/clubs/:id" element={<Navigate to="/" replace />} />
+          <Route path="/events" element={<Navigate to="/" replace />} />
 
           <Route
             path="/elections"
@@ -135,7 +135,7 @@ function AppContent() {
             }
           />
 
-          <Route path="/services" element={<Navigate to="/?service=services" replace />} />
+          <Route path="/services" element={<Navigate to="/" replace />} />
 
           <Route path="/latest" element={<Latest />} />
 
@@ -278,9 +278,9 @@ function AppContent() {
               )
             }
           />
-          <Route path="/executives" element={<Navigate to="/?service=executives" replace />} />
-          <Route path="/student-union" element={<Navigate to="/?service=student-union" replace />} />
-          <Route path="/cross-campus" element={<Navigate to="/?service=cross-campus" replace />} />
+          <Route path="/executives" element={<Navigate to="/" replace />} />
+          <Route path="/student-union" element={<Navigate to="/" replace />} />
+          <Route path="/cross-campus" element={<Navigate to="/" replace />} />
           <Route path="/attendance" element={<AttendanceHub />} />
           <Route path="/transcript" element={<CoCurricularTranscriptView />} />
           <Route path="/transcript/:studentId" element={<CoCurricularTranscriptView />} />
