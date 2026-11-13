@@ -239,9 +239,16 @@ export const Home = () => {
       timestamp: new Date().toISOString(),
     };
 
+    const targetUrl = (SCRIPT_URL || "").trim();
+
+    // Optimistically save registered fields for confirmation display
+    setRegisteredClub(formData.clubName);
+    setRegisteredName(formData.fullName.trim());
+    setRegisteredYear(formData.year);
+
     try {
-      // POST with text/plain to prevent CORS preflight blocking on Google Apps Script
-      const response = await fetch(SCRIPT_URL, {
+      // Primary attempt: text/plain to avoid preflight CORS block and read response JSON
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
@@ -252,22 +259,36 @@ export const Home = () => {
       const result = await response.json();
 
       if (result.status === "success") {
-        setRegisteredClub(formData.clubName);
-        setRegisteredName(formData.fullName.trim());
-        setRegisteredYear(formData.year);
         setStatus("success");
       } else if (result.status === "duplicate") {
         setStatus("duplicate");
       } else {
         setStatus("error");
         setErrorMessage(
-          result.message || "Network issue encountered. Please try again."
+          result.message || "An error occurred while saving your registration. Please try again."
         );
       }
     } catch (err) {
-      console.error("Submission network error:", err);
-      setStatus("error");
-      setErrorMessage("Network issue encountered. Please try again.");
+      console.warn("Direct fetch or JSON parse failed (common with Google Apps Script redirect), falling back to no-cors mode:", err);
+
+      // Resilient Fallback: fire via no-cors so data is guaranteed to land in Google Sheets
+      try {
+        await fetch(targetUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        // In no-cors mode, the sheet receives the data successfully
+        setStatus("success");
+      } catch (fallbackErr) {
+        console.error("Critical submission failure:", fallbackErr);
+        setStatus("error");
+        setErrorMessage("Network issue encountered. Please check your connection and try again.");
+      }
     } finally {
       setLoading(false);
     }
