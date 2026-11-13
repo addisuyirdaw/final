@@ -28,13 +28,20 @@ import {
   Lock,
 } from "lucide-react";
 
-// Google Apps Script Webhook URL (configured via Vercel env or fallback)
-const SCRIPT_URL =
-  (typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    (import.meta.env.VITE_GOOGLE_SCRIPT_URL ||
-      import.meta.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL)) ||
+// Verified Google Apps Script Webhook URL (Official DBU Deployment)
+const VERIFIED_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzzaz6SauYQRNyiyTyqhlchUH0tghfx2qObh5yJ8GiLjRPVrVaiq-5CFddGbKxATh1_vg/exec";
+
+// Resolve script URL and automatically sanitize any lowercase 'Ath1_vg' env typo to 'ATh1_vg'
+const SCRIPT_URL = (() => {
+  const envUrl =
+    (typeof import.meta !== "undefined" &&
+      import.meta.env &&
+      (import.meta.env.VITE_GOOGLE_SCRIPT_URL ||
+        import.meta.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL)) ||
+    VERIFIED_SCRIPT_URL;
+  return envUrl.replace("Ath1_vg", "ATh1_vg").trim();
+})();
 
 // The Authentic DBU Student Union Clubs (from DBU Portal Database)
 const DBU_CLUBS = [
@@ -229,26 +236,17 @@ export const Home = () => {
       return;
     }
 
+    // Exact 5 payload keys matching Google Apps Script doPost(e) contract
     const payload = {
       fullName: formData.fullName.trim(),
       studentId: formData.studentId.trim().toUpperCase(),
-      department: `${formData.department.trim()} [${formData.year}]`,
-      year: formData.year,
+      department: formData.department.trim(),
       phone: formData.phone.trim(),
       clubName: formData.clubName,
-      timestamp: new Date().toISOString(),
     };
 
-    const targetUrl = (SCRIPT_URL || "").trim();
-
-    // Optimistically save registered fields for confirmation display
-    setRegisteredClub(formData.clubName);
-    setRegisteredName(formData.fullName.trim());
-    setRegisteredYear(formData.year);
-
     try {
-      // Primary attempt: text/plain to avoid preflight CORS block and read response JSON
-      const response = await fetch(targetUrl, {
+      const response = await fetch(SCRIPT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
@@ -256,9 +254,16 @@ export const Home = () => {
         body: JSON.stringify(payload),
       });
 
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}`);
+      }
+
       const result = await response.json();
 
       if (result.status === "success") {
+        setRegisteredClub(formData.clubName);
+        setRegisteredName(formData.fullName.trim());
+        setRegisteredYear(formData.year);
         setStatus("success");
       } else if (result.status === "duplicate") {
         setStatus("duplicate");
@@ -269,26 +274,11 @@ export const Home = () => {
         );
       }
     } catch (err) {
-      console.warn("Direct fetch or JSON parse failed (common with Google Apps Script redirect), falling back to no-cors mode:", err);
-
-      // Resilient Fallback: fire via no-cors so data is guaranteed to land in Google Sheets
-      try {
-        await fetch(targetUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        // In no-cors mode, the sheet receives the data successfully
-        setStatus("success");
-      } catch (fallbackErr) {
-        console.error("Critical submission failure:", fallbackErr);
-        setStatus("error");
-        setErrorMessage("Network issue encountered. Please check your connection and try again.");
-      }
+      console.error("Submission failed:", err);
+      setStatus("error");
+      setErrorMessage(
+        "Network issue: Unable to record registration in Google Sheet. Please check your connection and try again."
+      );
     } finally {
       setLoading(false);
     }
