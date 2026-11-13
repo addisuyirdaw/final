@@ -258,24 +258,17 @@ export const Home = () => {
     // Standardize phone to 10-digit local format: "09..." or "07..."
     const standardizedPhone = "0" + phoneMatch[1];
 
-    // Client-side quick check: prevent duplicate Student ID or Phone on the same device
+    // Client-side quick check: prevent registering for the EXACT SAME club twice on this device
+    const registrationKey = `${cleanStudentId}::${cleanClubName}`;
     try {
-      const existingIds = JSON.parse(localStorage.getItem("dbu_reg_ids") || "[]");
-      const existingPhones = JSON.parse(localStorage.getItem("dbu_reg_phones") || "[]");
+      const existingRegistrations = JSON.parse(
+        localStorage.getItem("dbu_registered_club_keys") || "[]"
+      );
 
-      if (existingIds.includes(cleanStudentId)) {
+      if (existingRegistrations.includes(registrationKey)) {
         setStatus("duplicate");
         setErrorMessage(
-          `Duplicate Not Allowed: Student ID ${cleanStudentId} has already been registered on this device.`
-        );
-        setLoading(false);
-        return;
-      }
-
-      if (existingPhones.includes(standardizedPhone)) {
-        setStatus("duplicate");
-        setErrorMessage(
-          `Duplicate Not Allowed: Phone number ${standardizedPhone} has already been registered on this device.`
+          `Notice: You have already registered for ${cleanClubName} with Student ID ${cleanStudentId}.`
         );
         setLoading(false);
         return;
@@ -312,14 +305,16 @@ export const Home = () => {
         setRegisteredClub(formData.clubName);
         setRegisteredName(formData.fullName.trim());
         setRegisteredYear(formData.year);
-        // Persist submitted Student ID & Phone locally to prevent future duplicates on this device
+        // Persist submitted Student ID + Club composite key locally
         try {
-          const ids = JSON.parse(localStorage.getItem("dbu_reg_ids") || "[]");
-          const phones = JSON.parse(localStorage.getItem("dbu_reg_phones") || "[]");
-          if (!ids.includes(cleanStudentId)) ids.push(cleanStudentId);
-          if (!phones.includes(standardizedPhone)) phones.push(standardizedPhone);
-          localStorage.setItem("dbu_reg_ids", JSON.stringify(ids));
-          localStorage.setItem("dbu_reg_phones", JSON.stringify(phones));
+          const keys = JSON.parse(
+            localStorage.getItem("dbu_registered_club_keys") || "[]"
+          );
+          if (!keys.includes(registrationKey)) keys.push(registrationKey);
+          localStorage.setItem(
+            "dbu_registered_club_keys",
+            JSON.stringify(keys)
+          );
         } catch {
           // ignore storage error
         }
@@ -328,7 +323,7 @@ export const Home = () => {
         setStatus("duplicate");
         setErrorMessage(
           result.message ||
-            "Duplicate Not Allowed: This Student ID or Phone Number has already been registered."
+            `You are already registered for ${cleanClubName} with Student ID ${cleanStudentId}.`
         );
       } else {
         setStatus("error");
@@ -536,9 +531,9 @@ export const Home = () => {
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
                   <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong>Duplicate Not Allowed:</strong>{" "}
+                    <strong>Already Registered:</strong>{" "}
                     {errorMessage ||
-                      "This Student ID or Phone Number has already been registered. Duplicates are strictly not allowed."}
+                      "You have already registered for this club with this Student ID. You may still apply to any other club!"}
                   </div>
                 </div>
               )}
