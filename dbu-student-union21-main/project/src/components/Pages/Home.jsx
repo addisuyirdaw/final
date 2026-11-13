@@ -41,13 +41,14 @@ const DBU_CLUBS = [
   "Rotaract Club of Debre Berhan",
   "Booking Club",
   "Career Development Club",
-  "Charity Club (በጎ አድራጎት ክበብ)",
+  "Charity Club",
   "Charity and Community Service Club",
   "Civil Engineering Club",
   "DBU Legal Practice and Advocacy Club",
   "Debate Society",
   "Finance Club",
   "Food Engineering Student Association club",
+  "Hohe Tesfa Club",
   "Hult Prize Club",
   "Idea Hub",
   "Law Association Club",
@@ -55,18 +56,17 @@ const DBU_CLUBS = [
   "Tecktonic Club",
   "Technology and Innovation Club",
   "Truth Culture Club",
-  "ሆሄ ተስፋ ክበብ",
 ];
 
 // Study Years for All DBU Students
 const STUDY_YEARS = [
-  "Freshman (የመጀመሪያ ዓመት ፍሬሽማን)",
-  "1st Year (1ኛ ዓመት)",
-  "2nd Year (2ኛ ዓመት)",
-  "3rd Year (3ኛ ዓመት)",
-  "4th Year (4ኛ ዓመት)",
-  "5th Year (5ኛ ዓመት)",
-  "Postgraduate (ድህረ-ምረቃ / ማስተርስ)",
+  "Freshman",
+  "1st Year",
+  "2nd Year",
+  "3rd Year",
+  "4th Year",
+  "5th Year",
+  "Postgraduate",
 ];
 
 export const Home = () => {
@@ -94,7 +94,7 @@ export const Home = () => {
     if (serviceParam) {
       setShowNoticeModal(true);
       toast(
-        "ይቅርታ! ይህ አገልግሎት በጊዜያዊ ጥገና ላይ ነው። በአሁኑ ሰዓት የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው። እባክዎ ከታች ያለውን ፎርም ይጠቀሙ።",
+        "Notice: This service is under scheduled maintenance. Club Registration is actively open below.",
         {
           id: "service-redirect-notice",
           icon: "🛠️",
@@ -145,7 +145,7 @@ export const Home = () => {
           e.stopImmediatePropagation?.();
           setShowNoticeModal(true);
           toast(
-            "ይቅርታ! ይህ አገልግሎት በጊዜያዊ ጥገና ላይ ነው። በአሁኑ ሰዓት የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው። እባክዎ ከታች ያለውን ፎርም ይጠቀሙ።",
+            "Notice: This service is under scheduled maintenance. Club Registration is actively open below.",
             {
               id: "nav-maintenance-notice",
               icon: "🛠️",
@@ -176,7 +176,7 @@ export const Home = () => {
           e.stopImmediatePropagation?.();
           setShowNoticeModal(true);
           toast(
-            "ይቅርታ! ይህ አገልግሎት በጊዜያዊ ጥገና ላይ ነው። በአሁኑ ሰዓት የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው።",
+            "Notice: Portal login is temporarily offline during maintenance. Club registration is open below.",
             {
               id: "btn-maintenance-notice",
               icon: "🔒",
@@ -223,7 +223,7 @@ export const Home = () => {
     ) {
       setStatus("error");
       setErrorMessage(
-        "እባክዎ ሁሉንም አስፈላጊ መረጃዎች (የጥናት ዓመት እና ክለብ ጨምሮ) በትክክል ይሙሉ (Please fill in all required fields)."
+        "Please fill in all required fields (including Year of Study and Club Selection)."
       );
       setLoading(false);
       return;
@@ -261,13 +261,13 @@ export const Home = () => {
       } else {
         setStatus("error");
         setErrorMessage(
-          result.message || "የኔትወርክ ችግር አለ፤ እባክዎ እንደገና ይሞክሩ።"
+          result.message || "Network issue encountered. Please try again."
         );
       }
     } catch (err) {
       console.error("Submission network error:", err);
       setStatus("error");
-      setErrorMessage("የኔትወርክ ችግር አለ፤ እባክዎ እንደገና ይሞክሩ።");
+      setErrorMessage("Network issue encountered. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -302,7 +302,7 @@ export const Home = () => {
             <button
               type="button"
               onClick={() => setShowNoticeModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -313,17 +313,17 @@ export const Home = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                  ይቅርታ! ይህ አገልግሎት በጥገና ላይ ነው
+                  Notice: Service Under Maintenance
                 </h3>
                 <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 mt-0.5">
-                  Service Temporarily Under Maintenance
+                  Scheduled System Upgrade
                 </p>
                 <div className="mt-3 text-xs sm:text-sm text-slate-600 space-y-2 leading-relaxed">
                   <p>
-                    ዋናው የፖርታል ዳሽቦርድና ሌሎች አገልግሎቶች ለተወሰነ ጊዜ በጥገና ላይ ናቸው።
+                    The main portal dashboard and other services are temporarily offline for scheduled system upgrades.
                   </p>
                   <p className="font-semibold text-blue-900 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-                    ✨ በአሁኑ ሰዓት ለሁሉም ዓመት ተማሪዎች (ከፍሬሽማን እስከ 5ኛ ዓመት) የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው። እባክዎ ከታች ያለውን ፎርም ይጠቀሙ!
+                    ✨ Student Club Registration is actively open for all academic years (Freshman to 5th Year). Please use the registration form below!
                   </p>
                 </div>
 
@@ -338,7 +338,7 @@ export const Home = () => {
                     }}
                     className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow transition cursor-pointer"
                   >
-                    ወደ ምዝገባው ቅጽ ሂድ (Go to Registration)
+                    Go to Registration Form
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button
@@ -346,7 +346,7 @@ export const Home = () => {
                     onClick={() => setShowNoticeModal(false)}
                     className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer"
                   >
-                    እሺ (Close)
+                    Close
                   </button>
                 </div>
               </div>
@@ -363,10 +363,10 @@ export const Home = () => {
             Debre Berhan University • Student Union
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            የደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ክለብ አባልነት ምዝገባ
+            Debre Berhan University Student Club Registration
           </h1>
           <p className="text-sm sm:text-base text-slate-600 mt-1 font-medium">
-            DBU All-Years Student Club Registration Portal (ከፍሬሽማን እስከ 5ኛ ዓመት)
+            Official Registration Portal for All Academic Years (Freshman to 5th Year)
           </p>
         </div>
 
@@ -378,14 +378,14 @@ export const Home = () => {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-amber-900 flex items-center gap-2">
-                🛠️ ስርዓቱ በጥገና ላይ ነው (Scheduled Maintenance)
+                🛠️ System Under Scheduled Maintenance
               </h2>
               <p className="text-xs sm:text-sm text-amber-800 mt-1 leading-relaxed">
-                ዋናው የፖርታል ዳሽቦርድ አገልግሎት ለተወሰነ ጊዜ በጥገና ላይ ነው። ነገር ግን ለሁሉም ዓመት ተማሪዎች (ከፍሬሽማን እስከ 5ኛ ዓመት) የክለብ አባልነት ምዝገባ ክፍት ስለሆነ ከታች ያለውን ፎርም ሞልተው ይመዝገቡ!
+                The main student union portal is undergoing scheduled maintenance. However, Student Club Registration is actively open for all students (Freshman to 5th Year). Please complete the form below to register for your club!
               </p>
               <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-md border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                የሁሉም ዓመት ተማሪዎች ምዝገባ ክፍት ነው (All-Years Registration Active)
+                Club Registration Active for All Academic Years
               </div>
             </div>
           </div>
@@ -403,34 +403,34 @@ export const Home = () => {
                 <CheckCircle className="w-10 h-10" />
               </div>
               <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full uppercase tracking-wider mb-2">
-                ምዝገባው ተሳክቷል • Registration Confirmed
+                Registration Confirmed
               </span>
               <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                ምዝገባዎ በተሳካ ሁኔታ ተጠናቋል!
+                Your Registration Has Been Successfully Submitted!
               </h3>
               <p className="text-slate-600 text-sm sm:text-base max-w-md mx-auto mb-6">
-                ውድ <strong>{registeredName}</strong>፣ ወደ <strong>{registeredClub}</strong> ያቀረቡት የምዝገባ ጥያቄ ተመዝግቧል። የክለቡ አመራሮች በቅርቡ ያነጋግሩዎታል።
+                Dear <strong>{registeredName}</strong>, your membership application for <strong>{registeredClub}</strong> has been successfully recorded. Club leadership will contact you shortly.
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-sm mx-auto mb-6 text-left text-xs sm:text-sm space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">ተማሪ:</span>
+                  <span className="text-slate-500">Student Name:</span>
                   <span className="font-semibold text-slate-800">{registeredName}</span>
                 </div>
                 {registeredYear && (
                   <div className="flex justify-between">
-                    <span className="text-slate-500">የጥናት ዓመት:</span>
+                    <span className="text-slate-500">Year of Study:</span>
                     <span className="font-semibold text-slate-800">{registeredYear}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-slate-500">የተመረጠው ክለብ:</span>
+                  <span className="text-slate-500">Selected Club:</span>
                   <span className="font-semibold text-blue-700">{registeredClub}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">ሁኔታ:</span>
+                  <span className="text-slate-500">Status:</span>
                   <span className="inline-flex items-center text-emerald-700 font-medium">
-                    ተመዝግቧል (Recorded)
+                    Recorded (Active)
                   </span>
                 </div>
               </div>
@@ -441,7 +441,7 @@ export const Home = () => {
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition shadow-md hover:shadow-lg text-sm cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                ሌላ ተማሪ መዝግብ (Register Another Student)
+                Register Another Student
               </button>
             </div>
           ) : (
@@ -450,10 +450,10 @@ export const Home = () => {
               <div className="border-b border-slate-100 pb-4 mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Users className="w-5 h-5 text-blue-600" />
-                  የክለብ አባልነት ማመልከቻ ፎርም (Club Application)
+                  Club Membership Application Form
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  ለሁሉም ዓመት የደብረ ብርሃን ዩኒቨርሲቲ ተማሪዎች ክፍት ነው • Open to All DBU Students
+                  Open to All Debre Berhan University Students (Freshman – 5th Year)
                 </p>
               </div>
 
@@ -462,7 +462,7 @@ export const Home = () => {
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
                   <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong>ማሳሰቢያ (Notice):</strong> በዚህ ክለብ አስቀድመው ተመዝግበዋል! (You have already registered for this club with this Student ID).
+                    <strong>Notice:</strong> You have already registered for this club with this Student ID.
                   </div>
                 </div>
               )}
@@ -472,7 +472,7 @@ export const Home = () => {
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800 text-sm">
                   <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <div>
-                    {errorMessage || "የኔትወርክ ችግር አለ፤ እባክዎ እንደገና ይሞክሩ።"}
+                    {errorMessage || "Network issue encountered. Please try again."}
                   </div>
                 </div>
               )}
@@ -484,7 +484,7 @@ export const Home = () => {
                     htmlFor="fullName"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
-                    ሙሉ ስም (Full Name) <span className="text-red-500">*</span>
+                    Full Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -495,7 +495,7 @@ export const Home = () => {
                       required
                       value={formData.fullName}
                       onChange={handleChange}
-                      placeholder="e.g. አበበ ከበደ / Abebe Kebede"
+                      placeholder="e.g. Abebe Kebede"
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
                     />
                   </div>
@@ -507,7 +507,7 @@ export const Home = () => {
                     htmlFor="studentId"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
-                    የተማሪ መታወቂያ ቁጥር (Student ID) <span className="text-red-500">*</span>
+                    Student ID <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <BookOpen className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -530,7 +530,7 @@ export const Home = () => {
                     htmlFor="department"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
-                    የትምህርት ክፍል / ዘርፍ (Department / Stream) <span className="text-red-500">*</span>
+                    Department / Field of Study <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Building className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -553,7 +553,7 @@ export const Home = () => {
                     htmlFor="year"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
-                    የጥናት ዓመት (Year of Study) <span className="text-red-500">*</span>
+                    Year of Study <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
@@ -566,7 +566,7 @@ export const Home = () => {
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
                     >
                       <option value="" disabled>
-                        -- የጥናት ዓመት ይምረጡ (Select Year of Study) --
+                        -- Select Year of Study --
                       </option>
                       {STUDY_YEARS.map((yr) => (
                         <option key={yr} value={yr}>
@@ -583,7 +583,7 @@ export const Home = () => {
                     htmlFor="phone"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
-                    ስልክ ቁጥር (Phone Number) <span className="text-red-500">*</span>
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -606,7 +606,7 @@ export const Home = () => {
                     htmlFor="clubName"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
-                    መቀላቀል የሚፈልጉት ክለብ (Select Club) <span className="text-red-500">*</span>
+                    Select Club to Join <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="clubName"
@@ -617,7 +617,7 @@ export const Home = () => {
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
                   >
                     <option value="" disabled>
-                      -- ክለብ ይምረጡ (Select a Club) --
+                      -- Select a Club --
                     </option>
                     {DBU_CLUBS.map((club) => (
                       <option key={club} value={club}>
@@ -626,7 +626,7 @@ export const Home = () => {
                     ))}
                   </select>
                   <p className="text-xs text-slate-500 mt-1">
-                    ተማሪዎች ከአንድ በላይ ክለቦችን መርጠው በተናጠል መመዝገብ ይችላሉ።
+                    Students may register for multiple clubs by submitting separate applications.
                   </p>
                 </div>
 
@@ -640,11 +640,11 @@ export const Home = () => {
                     {loading ? (
                       <>
                         <RefreshCw className="w-5 h-5 animate-spin" />
-                        በመመዝገብ ላይ... (Submitting...)
+                        Submitting Application...
                       </>
                     ) : (
                       <>
-                        ይመዝገቡ (Submit Registration)
+                        Submit Club Registration
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -658,7 +658,7 @@ export const Home = () => {
         {/* Footer info */}
         <div className="mt-8 text-center text-xs text-slate-500 space-y-1">
           <p>© 2026 Debre Berhan University Student Union. All rights reserved.</p>
-          <p>ደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ህብረት • ተማሪዎችን ማብቃት ለላቀ ውጤት</p>
+          <p>Debre Berhan University Student Union • Empowering Students for Excellence</p>
         </div>
       </div>
     </div>
