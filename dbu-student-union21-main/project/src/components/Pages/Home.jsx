@@ -219,14 +219,21 @@ export const Home = () => {
     setStatus("idle");
     setErrorMessage("");
 
+    // Basic input trimming and normalization
+    const cleanFullName = formData.fullName.trim();
+    const cleanStudentId = formData.studentId.trim().toUpperCase();
+    const cleanDepartment = formData.department.trim();
+    const rawPhone = formData.phone.trim().replace(/[\s\-\(\)]/g, "");
+    const cleanClubName = formData.clubName;
+
     // Comprehensive frontend validation
     if (
-      !formData.fullName.trim() ||
-      !formData.studentId.trim() ||
-      !formData.department.trim() ||
+      !cleanFullName ||
+      !cleanStudentId ||
+      !cleanDepartment ||
       !formData.year ||
-      !formData.phone.trim() ||
-      !formData.clubName
+      !rawPhone ||
+      !cleanClubName
     ) {
       setStatus("error");
       setErrorMessage(
@@ -236,13 +243,54 @@ export const Home = () => {
       return;
     }
 
+    // Phone number format validation (Ethiopian numbers: 09..., 07..., or +251...)
+    const ethiopianPhoneRegex = /^(?:\+251|0)?([79]\d{8})$/;
+    const phoneMatch = rawPhone.match(ethiopianPhoneRegex);
+    if (!phoneMatch) {
+      setStatus("error");
+      setErrorMessage(
+        "Invalid phone number. Please enter a valid Ethiopian mobile number (e.g., 0912345678 or 0712345678)."
+      );
+      setLoading(false);
+      return;
+    }
+
+    // Standardize phone to 10-digit local format: "09..." or "07..."
+    const standardizedPhone = "0" + phoneMatch[1];
+
+    // Client-side quick check: prevent duplicate Student ID or Phone on the same device
+    try {
+      const existingIds = JSON.parse(localStorage.getItem("dbu_reg_ids") || "[]");
+      const existingPhones = JSON.parse(localStorage.getItem("dbu_reg_phones") || "[]");
+
+      if (existingIds.includes(cleanStudentId)) {
+        setStatus("duplicate");
+        setErrorMessage(
+          `Duplicate Not Allowed: Student ID ${cleanStudentId} has already been registered on this device.`
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (existingPhones.includes(standardizedPhone)) {
+        setStatus("duplicate");
+        setErrorMessage(
+          `Duplicate Not Allowed: Phone number ${standardizedPhone} has already been registered on this device.`
+        );
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // LocalStorage access fallback (e.g. private browsing)
+    }
+
     // Exact 5 payload keys matching Google Apps Script doPost(e) contract
     const payload = {
-      fullName: formData.fullName.trim(),
-      studentId: formData.studentId.trim().toUpperCase(),
-      department: formData.department.trim(),
-      phone: formData.phone.trim(),
-      clubName: formData.clubName,
+      fullName: cleanFullName,
+      studentId: cleanStudentId,
+      department: cleanDepartment,
+      phone: standardizedPhone,
+      clubName: cleanClubName,
     };
 
     try {
@@ -264,9 +312,24 @@ export const Home = () => {
         setRegisteredClub(formData.clubName);
         setRegisteredName(formData.fullName.trim());
         setRegisteredYear(formData.year);
+        // Persist submitted Student ID & Phone locally to prevent future duplicates on this device
+        try {
+          const ids = JSON.parse(localStorage.getItem("dbu_reg_ids") || "[]");
+          const phones = JSON.parse(localStorage.getItem("dbu_reg_phones") || "[]");
+          if (!ids.includes(cleanStudentId)) ids.push(cleanStudentId);
+          if (!phones.includes(standardizedPhone)) phones.push(standardizedPhone);
+          localStorage.setItem("dbu_reg_ids", JSON.stringify(ids));
+          localStorage.setItem("dbu_reg_phones", JSON.stringify(phones));
+        } catch {
+          // ignore storage error
+        }
         setStatus("success");
       } else if (result.status === "duplicate") {
         setStatus("duplicate");
+        setErrorMessage(
+          result.message ||
+            "Duplicate Not Allowed: This Student ID or Phone Number has already been registered."
+        );
       } else {
         setStatus("error");
         setErrorMessage(
@@ -473,7 +536,9 @@ export const Home = () => {
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
                   <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong>Notice:</strong> You have already registered for this club with this Student ID.
+                    <strong>Duplicate Not Allowed:</strong>{" "}
+                    {errorMessage ||
+                      "This Student ID or Phone Number has already been registered. Duplicates are strictly not allowed."}
                   </div>
                 </div>
               )}
