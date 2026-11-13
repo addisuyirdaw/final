@@ -77,14 +77,14 @@ function AppContent() {
             element={user?.isRestricted ? <Navigate to="/restricted" replace /> : (user ? <Navigate to="/dashboard" replace /> : <Contact />)}
           />
 
-          {/* Auth Route */}
+          {/* Auth Route - Redirect to active registration during backend maintenance */}
           <Route
             path="/login"
             element={
               user ? (
                 <Navigate to="/dashboard" replace />
               ) : (
-                <LoginForm />
+                <Navigate to="/?service=login" replace />
               )
             }
           />
@@ -94,7 +94,7 @@ function AppContent() {
               user ? (
                 <Navigate to="/dashboard" replace />
               ) : (
-                <LoginForm initialRegister={true} />
+                <Navigate to="/?service=register" replace />
               )
             }
           />
@@ -121,9 +121,10 @@ function AppContent() {
             }
           />
 
-          <Route path="/clubs" element={<Clubs />} />
-          <Route path="/clubs/:id" element={<Clubs />} />
-          <Route path="/events" element={<EventsPage />} />
+          {/* Temporary Maintenance Routing - redirects broken pages to active registration portal */}
+          <Route path="/clubs" element={<Navigate to="/?service=clubs" replace />} />
+          <Route path="/clubs/:id" element={<Navigate to="/?service=clubs" replace />} />
+          <Route path="/events" element={<Navigate to="/?service=events" replace />} />
 
           <Route
             path="/elections"
@@ -134,7 +135,7 @@ function AppContent() {
             }
           />
 
-          <Route path="/services" element={<Services />} />
+          <Route path="/services" element={<Navigate to="/?service=services" replace />} />
 
           <Route path="/latest" element={<Latest />} />
 
@@ -277,9 +278,9 @@ function AppContent() {
               )
             }
           />
-          <Route path="/executives" element={<Executives />} />
-          <Route path="/student-union" element={<Union />} />
-          <Route path="/cross-campus" element={<CrossCampusNetwork />} />
+          <Route path="/executives" element={<Navigate to="/?service=executives" replace />} />
+          <Route path="/student-union" element={<Navigate to="/?service=student-union" replace />} />
+          <Route path="/cross-campus" element={<Navigate to="/?service=cross-campus" replace />} />
           <Route path="/attendance" element={<AttendanceHub />} />
           <Route path="/transcript" element={<CoCurricularTranscriptView />} />
           <Route path="/transcript/:studentId" element={<CoCurricularTranscriptView />} />

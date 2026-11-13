@@ -1,13 +1,15 @@
 /**
- * DBU Student Union - Temporary Freshman Club Registration & Scheduled Maintenance Page
+ * DBU Student Union - All-Years Student Club Registration & Scheduled Maintenance Page
  *
  * Connected directly to Google Sheets via Apps Script Webhook.
- * Bypasses Render backend to ensure 100% uptime for freshman registration.
+ * Bypasses backend to ensure 100% uptime for all-years student registration.
  *
  * @format
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   CheckCircle,
   AlertTriangle,
@@ -21,6 +23,9 @@ import {
   ArrowRight,
   RefreshCw,
   Sparkles,
+  Calendar,
+  X,
+  Lock,
 } from "lucide-react";
 
 // Google Apps Script Webhook URL (configured via Vercel env or fallback)
@@ -53,11 +58,24 @@ const DBU_CLUBS = [
   "ሆሄ ተስፋ ክበብ",
 ];
 
+// Study Years for All DBU Students
+const STUDY_YEARS = [
+  "Freshman (የመጀመሪያ ዓመት ፍሬሽማን)",
+  "1st Year (1ኛ ዓመት)",
+  "2nd Year (2ኛ ዓመት)",
+  "3rd Year (3ኛ ዓመት)",
+  "4th Year (4ኛ ዓመት)",
+  "5th Year (5ኛ ዓመት)",
+  "Postgraduate (ድህረ-ምረቃ / ማስተርስ)",
+];
+
 export const Home = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     fullName: "",
     studentId: "",
     department: "",
+    year: "",
     phone: "",
     clubName: "",
   });
@@ -66,7 +84,121 @@ export const Home = () => {
   const [status, setStatus] = useState("idle"); // "idle" | "success" | "duplicate" | "error"
   const [registeredClub, setRegisteredClub] = useState("");
   const [registeredName, setRegisteredName] = useState("");
+  const [registeredYear, setRegisteredYear] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+
+  // Auto-show maintenance notice if redirected via ?service=...
+  useEffect(() => {
+    const serviceParam = searchParams.get("service");
+    if (serviceParam) {
+      setShowNoticeModal(true);
+      toast(
+        "ይቅርታ! ይህ አገልግሎት በጊዜያዊ ጥገና ላይ ነው። በአሁኑ ሰዓት የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው። እባክዎ ከታች ያለውን ፎርም ይጠቀሙ።",
+        {
+          id: "service-redirect-notice",
+          icon: "🛠️",
+          duration: 5000,
+          style: {
+            borderRadius: "12px",
+            background: "#0f172a",
+            color: "#f8fafc",
+            fontSize: "13px",
+            fontWeight: "500",
+            border: "1px solid #334155",
+          },
+        }
+      );
+      searchParams.delete("service");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Intercept navigation on Header / Navbar links to prevent navigating to broken pages
+  useEffect(() => {
+    const handleNavIntercept = (e) => {
+      // Don't intercept clicks inside the registration form, modal, or success card
+      if (
+        e.target.closest("#registration-form") ||
+        e.target.closest("#maintenance-modal") ||
+        e.target.closest("#success-card")
+      ) {
+        return;
+      }
+
+      const anchor = e.target.closest("a, [role='link']");
+      const button = e.target.closest("button");
+
+      if (anchor) {
+        const href = anchor.getAttribute("href") || anchor.getAttribute("to") || "";
+        // If clicking external link to DBU portal or an internal path that is not root/hash
+        if (
+          href &&
+          href !== "/" &&
+          href !== "#" &&
+          !href.startsWith("#") &&
+          !href.startsWith("tel:") &&
+          !href.startsWith("mailto:")
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation?.();
+          setShowNoticeModal(true);
+          toast(
+            "ይቅርታ! ይህ አገልግሎት በጊዜያዊ ጥገና ላይ ነው። በአሁኑ ሰዓት የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው። እባክዎ ከታች ያለውን ፎርም ይጠቀሙ።",
+            {
+              id: "nav-maintenance-notice",
+              icon: "🛠️",
+              duration: 5000,
+              style: {
+                borderRadius: "12px",
+                background: "#0f172a",
+                color: "#f8fafc",
+                fontSize: "13px",
+                fontWeight: "500",
+                border: "1px solid #334155",
+              },
+            }
+          );
+          return false;
+        }
+      }
+
+      if (button) {
+        const text = (button.innerText || button.textContent || "").toLowerCase().trim();
+        if (
+          text.includes("login") ||
+          text.includes("admin panel") ||
+          text.includes("staff directory")
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation?.();
+          setShowNoticeModal(true);
+          toast(
+            "ይቅርታ! ይህ አገልግሎት በጊዜያዊ ጥገና ላይ ነው። በአሁኑ ሰዓት የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው።",
+            {
+              id: "btn-maintenance-notice",
+              icon: "🔒",
+              duration: 5000,
+              style: {
+                borderRadius: "12px",
+                background: "#0f172a",
+                color: "#f8fafc",
+                fontSize: "13px",
+                fontWeight: "500",
+                border: "1px solid #334155",
+              },
+            }
+          );
+          return false;
+        }
+      }
+    };
+
+    document.addEventListener("click", handleNavIntercept, true);
+    return () => document.removeEventListener("click", handleNavIntercept, true);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,16 +212,19 @@ export const Home = () => {
     setStatus("idle");
     setErrorMessage("");
 
-    // Basic frontend validation
+    // Comprehensive frontend validation
     if (
       !formData.fullName.trim() ||
       !formData.studentId.trim() ||
       !formData.department.trim() ||
+      !formData.year ||
       !formData.phone.trim() ||
       !formData.clubName
     ) {
       setStatus("error");
-      setErrorMessage("እባክዎ ሁሉንም አስፈላጊ መረጃዎች በትክክል ይሙሉ (Please fill in all required fields).");
+      setErrorMessage(
+        "እባክዎ ሁሉንም አስፈላጊ መረጃዎች (የጥናት ዓመት እና ክለብ ጨምሮ) በትክክል ይሙሉ (Please fill in all required fields)."
+      );
       setLoading(false);
       return;
     }
@@ -97,7 +232,8 @@ export const Home = () => {
     const payload = {
       fullName: formData.fullName.trim(),
       studentId: formData.studentId.trim().toUpperCase(),
-      department: formData.department.trim(),
+      department: `${formData.department.trim()} [${formData.year}]`,
+      year: formData.year,
       phone: formData.phone.trim(),
       clubName: formData.clubName,
       timestamp: new Date().toISOString(),
@@ -118,6 +254,7 @@ export const Home = () => {
       if (result.status === "success") {
         setRegisteredClub(formData.clubName);
         setRegisteredName(formData.fullName.trim());
+        setRegisteredYear(formData.year);
         setStatus("success");
       } else if (result.status === "duplicate") {
         setStatus("duplicate");
@@ -129,8 +266,6 @@ export const Home = () => {
       }
     } catch (err) {
       console.error("Submission network error:", err);
-      // Fallback: If Google Apps Script redirects with an opaque response (common with CORS),
-      // we still treat a 200 response or verify error
       setStatus("error");
       setErrorMessage("የኔትወርክ ችግር አለ፤ እባክዎ እንደገና ይሞክሩ።");
     } finally {
@@ -143,6 +278,7 @@ export const Home = () => {
       fullName: "",
       studentId: "",
       department: "",
+      year: "",
       phone: "",
       clubName: "",
     });
@@ -152,6 +288,73 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/40 to-slate-100 text-slate-800 py-8 px-4 sm:px-6 lg:px-8">
+      {/* 🛑 Navigation Intercept Modal */}
+      {showNoticeModal && (
+        <div
+          id="maintenance-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setShowNoticeModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-100 text-left relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowNoticeModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-amber-100 text-amber-700 rounded-xl shrink-0 mt-0.5">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                  ይቅርታ! ይህ አገልግሎት በጥገና ላይ ነው
+                </h3>
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 mt-0.5">
+                  Service Temporarily Under Maintenance
+                </p>
+                <div className="mt-3 text-xs sm:text-sm text-slate-600 space-y-2 leading-relaxed">
+                  <p>
+                    ዋናው የፖርታል ዳሽቦርድና ሌሎች አገልግሎቶች ለተወሰነ ጊዜ በጥገና ላይ ናቸው።
+                  </p>
+                  <p className="font-semibold text-blue-900 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+                    ✨ በአሁኑ ሰዓት ለሁሉም ዓመት ተማሪዎች (ከፍሬሽማን እስከ 5ኛ ዓመት) የክለብ አባልነት ምዝገባ ብቻ ክፍት ነው። እባክዎ ከታች ያለውን ፎርም ይጠቀሙ!
+                  </p>
+                </div>
+
+                <div className="mt-5 flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNoticeModal(false);
+                      document
+                        .getElementById("registration-form")
+                        ?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow transition cursor-pointer"
+                  >
+                    ወደ ምዝገባው ቅጽ ሂድ (Go to Registration)
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowNoticeModal(false)}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer"
+                  >
+                    እሺ (Close)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto">
         {/* University Header Branding */}
         <div className="text-center mb-6">
@@ -160,10 +363,10 @@ export const Home = () => {
             Debre Berhan University • Student Union
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            የፍሬሽማን ተማሪዎች የክለብ ምዝገባ
+            የደብረ ብርሃን ዩኒቨርሲቲ የተማሪዎች ክለብ አባልነት ምዝገባ
           </h1>
-          <p className="text-sm sm:text-base text-slate-600 mt-1">
-            2026/2027 Freshman Student Clubs Registration Portal
+          <p className="text-sm sm:text-base text-slate-600 mt-1 font-medium">
+            DBU All-Years Student Club Registration Portal (ከፍሬሽማን እስከ 5ኛ ዓመት)
           </p>
         </div>
 
@@ -175,24 +378,27 @@ export const Home = () => {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-amber-900 flex items-center gap-2">
-                🛠️ ስርዓቱ በዝግጅት ላይ ነው (Scheduled Maintenance)
+                🛠️ ስርዓቱ በጥገና ላይ ነው (Scheduled Maintenance)
               </h2>
               <p className="text-xs sm:text-sm text-amber-800 mt-1 leading-relaxed">
-                ዋናው የፖርታል አገልግሎት ለተወሰነ ጊዜ በጥገና ላይ ነው። ነገር ግን የፍሬሽማን ተማሪዎች የክለብ ምዝገባ ክፍት ስለሆነ ከታች ያለውን ፎርም ሞልተው ይመዝገቡ!
+                ዋናው የፖርታል ዳሽቦርድ አገልግሎት ለተወሰነ ጊዜ በጥገና ላይ ነው። ነገር ግን ለሁሉም ዓመት ተማሪዎች (ከፍሬሽማን እስከ 5ኛ ዓመት) የክለብ አባልነት ምዝገባ ክፍት ስለሆነ ከታች ያለውን ፎርም ሞልተው ይመዝገቡ!
               </p>
-              <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100/70 px-2.5 py-1 rounded-md">
+              <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-md border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                የምዝገባ አገልግሎት ያለማቋረጥ ይሰራል (Live Registration Active)
+                የሁሉም ዓመት ተማሪዎች ምዝገባ ክፍት ነው (All-Years Registration Active)
               </div>
             </div>
           </div>
         </div>
 
         {/* Registration Card / Success State */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden">
+        <div
+          id="registration-form"
+          className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden"
+        >
           {status === "success" ? (
             /* 🎉 Success Card */
-            <div className="p-6 sm:p-10 text-center">
+            <div id="success-card" className="p-6 sm:p-10 text-center">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-10 h-10" />
               </div>
@@ -211,6 +417,12 @@ export const Home = () => {
                   <span className="text-slate-500">ተማሪ:</span>
                   <span className="font-semibold text-slate-800">{registeredName}</span>
                 </div>
+                {registeredYear && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">የጥናት ዓመት:</span>
+                    <span className="font-semibold text-slate-800">{registeredYear}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-500">የተመረጠው ክለብ:</span>
                   <span className="font-semibold text-blue-700">{registeredClub}</span>
@@ -226,7 +438,7 @@ export const Home = () => {
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition shadow-md hover:shadow-lg text-sm"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition shadow-md hover:shadow-lg text-sm cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
                 ሌላ ተማሪ መዝግብ (Register Another Student)
@@ -241,7 +453,7 @@ export const Home = () => {
                   የክለብ አባልነት ማመልከቻ ፎርም (Club Application)
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  እባክዎ ትክክለኛ መረጃዎችን በመጠቀም ቅጹን ይሙሉ
+                  ለሁሉም ዓመት የደብረ ብርሃን ዩኒቨርሲቲ ተማሪዎች ክፍት ነው • Open to All DBU Students
                 </p>
               </div>
 
@@ -329,9 +541,39 @@ export const Home = () => {
                       required
                       value={formData.department}
                       onChange={handleChange}
-                      placeholder="Freshman Natural / Social"
+                      placeholder="e.g. Computer Science, Medicine, Civil Eng, Natural Science..."
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
                     />
+                  </div>
+                </div>
+
+                {/* Year of Study Dropdown */}
+                <div>
+                  <label
+                    htmlFor="year"
+                    className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
+                  >
+                    የጥናት ዓመት (Year of Study) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                    <select
+                      id="year"
+                      name="year"
+                      required
+                      value={formData.year}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
+                    >
+                      <option value="" disabled>
+                        -- የጥናት ዓመት ይምረጡ (Select Year of Study) --
+                      </option>
+                      {STUDY_YEARS.map((yr) => (
+                        <option key={yr} value={yr}>
+                          {yr}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -352,7 +594,7 @@ export const Home = () => {
                       required
                       value={formData.phone}
                       onChange={handleChange}
-                      placeholder="09..."
+                      placeholder="09... / 07..."
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
                     />
                   </div>
