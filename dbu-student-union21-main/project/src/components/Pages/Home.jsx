@@ -31,24 +31,26 @@ const SCRIPT_URL =
       import.meta.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL)) ||
   "https://script.google.com/macros/s/AKfycbzzaz6SauYQRNyiyTyqhlchUH0tghfx2qObh5yJ8GiLjRPVrVaiq-5CFddGbKxATh1_vg/exec";
 
-// The 16 Official DBU Student Clubs
+// The Authentic DBU Student Union Clubs (from DBU Portal Database)
 const DBU_CLUBS = [
-  "Rotaract Club",
-  "Anti-AIDS & Health Club",
-  "Charity & Volunteer Club",
-  "Tech & Innovation Club",
-  "Gender & Development Club",
-  "Red Cross Youth Club",
-  "Peace & Tolerance Club",
-  "Literature & Arts Club",
-  "Debate & Public Speaking Club",
-  "Environmental Protection Club",
-  "Entrepreneurship Club",
-  "Sports & Fitness Club",
-  "Ethical & Anti-Corruption Club",
-  "Family & Reproductive Health Club",
-  "Disaster Prevention Club",
-  "Special Needs Support Club",
+  "Rotaract Club of Debre Berhan",
+  "Booking Club",
+  "Career Development Club",
+  "Charity Club (በጎ አድራጎት ክበብ)",
+  "Charity and Community Service Club",
+  "Civil Engineering Club",
+  "DBU Legal Practice and Advocacy Club",
+  "Debate Society",
+  "Finance Club",
+  "Food Engineering Student Association club",
+  "Hult Prize Club",
+  "Idea Hub",
+  "Law Association Club",
+  "Mechanical Club",
+  "Tecktonic Club",
+  "Technology and Innovation Club",
+  "Truth Culture Club",
+  "ሆሄ ተስፋ ክበብ",
 ];
 
 export const Home = () => {
@@ -57,7 +59,7 @@ export const Home = () => {
     studentId: "",
     department: "",
     phone: "",
-    clubName: DBU_CLUBS[0],
+    clubName: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -142,7 +144,7 @@ export const Home = () => {
       studentId: "",
       department: "",
       phone: "",
-      clubName: DBU_CLUBS[0],
+      clubName: "",
     });
     setStatus("idle");
     setErrorMessage("");
@@ -356,7 +358,7 @@ export const Home = () => {
                   </div>
                 </div>
 
-                {/* Club Selection Dropdown (16 Clubs) */}
+                {/* Club Selection Dropdown (DBU Clubs) */}
                 <div>
                   <label
                     htmlFor="clubName"
@@ -372,6 +374,9 @@ export const Home = () => {
                     onChange={handleChange}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
                   >
+                    <option value="" disabled>
+                      -- ክለብ ይምረጡ (Select a Club) --
+                    </option>
                     {DBU_CLUBS.map((club) => (
                       <option key={club} value={club}>
                         {club}
