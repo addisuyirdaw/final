@@ -21,24 +21,14 @@ import {
   ArrowRight,
   RefreshCw,
   Calendar,
+  Mail,
 } from "lucide-react";
 
-// Verified Google Apps Script Webhook URL (Official DBU Deployment)
-const VERIFIED_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzzaz6SauYQRNyiyTyqhlchUH0tghfx2qObh5yJ8GiLjRPVrVaiq-5CFddGbKxATh1_vg/exec";
+// Google Apps Script Webhook URL (Dashin Beer & DBU Club Registration)
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbxG4BseqySnV7RXP7V4Db_HAX7h7S21tHTu7MoE9Zn2wc2vqTzKY8BpeBt56mAvjnhf1w/exec";
 
-// Resolve script URL and automatically sanitize any lowercase 'Ath1_vg' env typo to 'ATh1_vg'
-const SCRIPT_URL = (() => {
-  const envUrl =
-    (typeof import.meta !== "undefined" &&
-      import.meta.env &&
-      (import.meta.env.VITE_GOOGLE_SCRIPT_URL ||
-        import.meta.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL)) ||
-    VERIFIED_SCRIPT_URL;
-  return envUrl.replace("Ath1_vg", "ATh1_vg").trim();
-})();
-
-// The Authentic DBU Student Union Clubs (from DBU Portal Database)
+// The Authentic DBU Student Union Clubs
 const DBU_CLUBS = [
   "Rotaract Club of Debre Berhan",
   "Booking Club",
@@ -60,15 +50,13 @@ const DBU_CLUBS = [
   "Truth Culture Club",
 ];
 
-// Study Years for All DBU Students
+// Study Years specified for DBU Students
 const STUDY_YEARS = [
   "Freshman",
-  "1st Year",
   "2nd Year",
   "3rd Year",
   "4th Year",
-  "5th Year",
-  "Postgraduate",
+  "Graduating Class",
 ];
 
 export const Home = () => {
@@ -76,16 +64,18 @@ export const Home = () => {
     fullName: "",
     studentId: "",
     department: "",
-    year: "",
+    yearOfStudy: "",
     phone: "",
     clubName: "",
+    email: "",
   });
 
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("idle"); // "idle" | "success" | "duplicate" | "error"
+  const [status, setStatus] = useState("idle"); // "idle" | "success" | "error"
   const [registeredClub, setRegisteredClub] = useState("");
   const [registeredName, setRegisteredName] = useState("");
   const [registeredYear, setRegisteredYear] = useState("");
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   // Smooth scroll to registration form when clicking any inactive navbar links
@@ -159,20 +149,32 @@ export const Home = () => {
     const cleanFullName = formData.fullName.trim();
     const cleanStudentId = formData.studentId.trim().toUpperCase();
     const cleanDepartment = formData.department.trim();
+    const cleanYearOfStudy = formData.yearOfStudy.trim();
     const rawPhone = formData.phone.trim().replace(/[\s\-\(\)]/g, "");
-    const cleanClubName = formData.clubName;
+    const cleanClubName = formData.clubName.trim();
+    const cleanEmail = formData.email.trim();
 
-    // Validation
+    // Required fields validation
     if (
       !cleanFullName ||
       !cleanStudentId ||
       !cleanDepartment ||
-      !formData.year ||
+      !cleanYearOfStudy ||
       !rawPhone ||
-      !cleanClubName
+      !cleanClubName ||
+      !cleanEmail
     ) {
       setStatus("error");
       setErrorMessage("Please fill in all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setStatus("error");
+      setErrorMessage("Please enter a valid email address (e.g., name@gmail.com).");
       setLoading(false);
       return;
     }
@@ -191,51 +193,50 @@ export const Home = () => {
 
     const standardizedPhone = "0" + phoneMatch[1];
 
-    // Payload strictly matching Google Apps Script doPost(e) contract
+    // Payload matching Google Apps Script requirements exactly
     const payload = {
       fullName: cleanFullName,
       studentId: cleanStudentId,
       department: cleanDepartment,
+      yearOfStudy: cleanYearOfStudy,
       phone: standardizedPhone,
       clubName: cleanClubName,
+      email: cleanEmail,
     };
 
     try {
-      const response = await fetch(SCRIPT_URL, {
+      await fetch(SCRIPT_URL, {
         method: "POST",
+        mode: "no-cors",
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
         },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        throw new Error(`Server returned HTTP ${response.status}`);
-      }
+      // Save info for confirmation view
+      setRegisteredClub(cleanClubName);
+      setRegisteredName(cleanFullName);
+      setRegisteredYear(cleanYearOfStudy);
+      setRegisteredEmail(cleanEmail);
 
-      const result = await response.json();
+      // Clear all fields as requested
+      setFormData({
+        fullName: "",
+        studentId: "",
+        department: "",
+        yearOfStudy: "",
+        phone: "",
+        clubName: "",
+        email: "",
+      });
 
-      if (result.status === "success") {
-        setRegisteredClub(cleanClubName);
-        setRegisteredName(cleanFullName);
-        setRegisteredYear(formData.year);
-        setStatus("success");
-      } else if (result.status === "duplicate") {
-        setStatus("duplicate");
-        setErrorMessage(
-          result.message || `You are already registered for ${cleanClubName}!`
-        );
-      } else {
-        setStatus("error");
-        setErrorMessage(
-          result.message || "An error occurred while saving your registration."
-        );
-      }
+      setStatus("success");
     } catch (err) {
       console.error("Submission error:", err);
       setStatus("error");
       setErrorMessage(
-        "Network issue: Unable to save registration. Please check your connection and try again."
+        "የኔትወርክ ችግር አጋጥሟል፤ እባክዎ ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ። (Network error. Please check your connection and try again.)"
       );
     } finally {
       setLoading(false);
@@ -247,9 +248,10 @@ export const Home = () => {
       fullName: "",
       studentId: "",
       department: "",
-      year: "",
+      yearOfStudy: "",
       phone: "",
       clubName: "",
+      email: "",
     });
     setStatus("idle");
     setErrorMessage("");
@@ -268,7 +270,7 @@ export const Home = () => {
             Student Club Registration
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Open to All Academic Years (Freshman to 5th Year Students)
+            Open to All Academic Years (Freshman to Graduating Class)
           </p>
         </div>
 
@@ -288,20 +290,16 @@ export const Home = () => {
           {status === "success" ? (
             /* Confirmation Screen */
             <div id="success-card" className="p-6 sm:p-8 text-center">
-              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8" />
               </div>
-              <span className="inline-block px-3 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full uppercase tracking-wider mb-2">
-                Registration Confirmed
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-                Registration Submitted Successfully!
-              </h2>
-              <p className="text-slate-600 text-sm max-w-md mx-auto mb-6">
-                Dear <strong>{registeredName}</strong>, your application to join <strong>{registeredClub}</strong> has been recorded.
-              </p>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-sm mx-auto mb-6 text-left text-xs sm:text-sm space-y-1.5">
+              {/* Required Exact Success Message in Amharic */}
+              <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 sm:p-5 mb-6 text-emerald-900 font-semibold text-sm sm:text-base leading-relaxed shadow-sm text-center">
+                ✅ የክለብ ምዝገባዎ በተሳካ ሁኔታ ተጠናቋል! ለዳሸን ቢራ ጉዞ የተመረጡ ተማሪዎች ዝርዝር ምዝገባው እንደተጠናቀቀ በኢሜይል ይፋ ይደረጋል።
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-sm mx-auto mb-6 text-left text-xs sm:text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Student Name:</span>
                   <span className="font-semibold text-slate-800">{registeredName}</span>
@@ -316,6 +314,12 @@ export const Home = () => {
                   <span className="text-slate-500">Selected Club:</span>
                   <span className="font-semibold text-blue-700">{registeredClub}</span>
                 </div>
+                {registeredEmail && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Email:</span>
+                    <span className="font-semibold text-slate-800">{registeredEmail}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status:</span>
                   <span className="inline-flex items-center text-emerald-700 font-medium">
@@ -330,7 +334,7 @@ export const Home = () => {
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow text-sm cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                Register for Another Club
+                ተጨማሪ ክለብ ይመዝገቡ (Register for Another Club)
               </button>
             </div>
           ) : (
@@ -345,17 +349,6 @@ export const Home = () => {
                   Students may register for multiple clubs by submitting separate applications.
                 </p>
               </div>
-
-              {/* Duplicate Submission Alert */}
-              {status === "duplicate" && (
-                <div className="mb-5 p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-amber-900 text-xs sm:text-sm">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Already Registered:</strong>{" "}
-                    {errorMessage || "You have already registered for this club with this Student ID. You may choose any other club!"}
-                  </div>
-                </div>
-              )}
 
               {/* Error Alert */}
               {status === "error" && (
@@ -440,7 +433,7 @@ export const Home = () => {
                 {/* Year of Study */}
                 <div>
                   <label
-                    htmlFor="year"
+                    htmlFor="yearOfStudy"
                     className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
                   >
                     Year of Study <span className="text-red-500">*</span>
@@ -448,10 +441,10 @@ export const Home = () => {
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
                     <select
-                      id="year"
-                      name="year"
+                      id="yearOfStudy"
+                      name="yearOfStudy"
                       required
-                      value={formData.year}
+                      value={formData.yearOfStudy}
                       onChange={handleChange}
                       className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition font-medium"
                     >
@@ -464,6 +457,29 @@ export const Home = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+                </div>
+
+                {/* Email Address */}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1"
+                  >
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      required
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="e.g. name@gmail.com"
+                      className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition"
+                    />
                   </div>
                 </div>
 
