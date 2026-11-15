@@ -288,7 +288,7 @@ const sanitizeMongoUri = (uri) => {
 // Database connection with safe environment management
 let mongodInstance = null;
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/student_union_db";
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://localhost:27017/student_union_db";
   const isProduction = process.env.NODE_ENV === "production";
   const isTest = process.env.NODE_ENV === "test";
   const allowMemoryFallback = process.env.ALLOW_IN_MEMORY_DB === "true" || isTest;
