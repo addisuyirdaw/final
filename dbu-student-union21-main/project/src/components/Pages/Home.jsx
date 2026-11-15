@@ -234,7 +234,7 @@ export const Home = () => {
       console.error("Submission error:", err);
       setStatus("error");
       setErrorMessage(
-        "የኔትወርክ ችግር አጋጥሟል፤ እባክዎ ኢንተርኔትዎን ያረጋግጡና እንደገና ይሞክሩ። (Network error. Please check your connection and try again.)"
+        "Network error. Please check your connection and try again."
       );
     } finally {
       setLoading(false);
@@ -292,9 +292,9 @@ export const Home = () => {
                 <CheckCircle className="w-8 h-8" />
               </div>
 
-              {/* Required Exact Success Message in Amharic */}
+              {/* Success Message */}
               <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 sm:p-5 mb-6 text-emerald-900 font-semibold text-sm sm:text-base leading-relaxed shadow-sm text-center">
-                ✅ የክለብ ምዝገባዎ በተሳካ ሁኔታ ተጠናቋል! ለዳሸን ቢራ ጉዞ የተመረጡ ተማሪዎች ዝርዝር ምዝገባው እንደተጠናቀቀ በኢሜይል ይፋ ይደረጋል።
+                ✅ Your club registration has been successfully submitted! The list of students selected for the Dashen Brewery tour will be announced via email once registration closes.
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-sm mx-auto mb-6 text-left text-xs sm:text-sm space-y-2">
@@ -332,7 +332,7 @@ export const Home = () => {
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow text-sm cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                ተጨማሪ ክለብ ይመዝገቡ (Register for Another Club)
+                Register for Another Club
               </button>
             </div>
           ) : (
