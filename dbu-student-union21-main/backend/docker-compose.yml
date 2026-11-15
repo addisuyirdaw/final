@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  campusnexus-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: campusnexus-backend:latest
+    container_name: campusnexus-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5050}:5050"
+    env_file:
+      - .env
+    environment:
+      - PORT=5050
+      - NODE_ENV=production
+    volumes:
+      # Persist user-uploaded files on host machine
+      - ./uploads:/app/uploads
