@@ -34,7 +34,6 @@ const DBU_CLUBS = [
   "Booking Club",
   "Career Development Club",
   "Charity Club",
-  "Charity and Community Service Club",
   "Civil Engineering Club",
   "DBU Legal Practice and Advocacy Club",
   "Debate Society",
@@ -46,7 +45,6 @@ const DBU_CLUBS = [
   "Law Association Club",
   "Mechanical Club",
   "Tecktonic Club",
-  "Technology and Innovation Club",
   "Truth Culture Club",
 ];
 
