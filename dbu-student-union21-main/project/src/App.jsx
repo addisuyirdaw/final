@@ -77,66 +77,20 @@ function AppContent() {
             element={user?.isRestricted ? <Navigate to="/restricted" replace /> : (user ? <Navigate to="/dashboard" replace /> : <Contact />)}
           />
 
-          {/* Auth Route */}
-          <Route
-            path="/login"
-            element={
-              user ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <LoginForm />
-              )
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              user ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <LoginForm initialRegister={true} />
-              )
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <ForgotPassword />
-            }
-          />
-          <Route
-            path="/reset-password/:resetToken"
-            element={
-              user ? <Navigate to="/dashboard" replace /> : <ResetPassword />
-            }
-          />
+          {/* Auth Routes - Maintenance redirect to active Club Registration */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/register" element={<Navigate to="/" replace />} />
+          <Route path="/forgot-password" element={<Navigate to="/" replace />} />
+          <Route path="/reset-password/:resetToken" element={<Navigate to="/" replace />} />
 
-          {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route path="/clubs" element={<Clubs />} />
-          <Route path="/clubs/:id" element={<Clubs />} />
-          <Route path="/events" element={<EventsPage />} />
-
-          <Route
-            path="/elections"
-            element={
-              <ProtectedRoute>
-                <Elections />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route path="/services" element={<Services />} />
-
-          <Route path="/latest" element={<Latest />} />
+          {/* Maintenance Mode Routing: redirects dashboard and broken services to active registration portal */}
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/clubs" element={<Navigate to="/" replace />} />
+          <Route path="/clubs/:id" element={<Navigate to="/" replace />} />
+          <Route path="/events" element={<Navigate to="/" replace />} />
+          <Route path="/elections" element={<Navigate to="/" replace />} />
+          <Route path="/services" element={<Navigate to="/" replace />} />
+          <Route path="/latest" element={<Navigate to="/" replace />} />
 
           <Route path="/complaints" element={<Complaints />} />
 
