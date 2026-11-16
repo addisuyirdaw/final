@@ -48,8 +48,8 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
         if (updated) setSelectedProposal(updated);
       }
     } catch (err) {
-      console.error("Failed to fetch club proposals:", err);
-      toast.error(err.message || "Failed to load club proposals");
+      console.warn("Failed to fetch club proposals:", err?.message || err);
+      setProposals([]);
     } finally {
       setLoading(false);
     }

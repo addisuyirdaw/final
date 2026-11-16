@@ -1424,6 +1424,13 @@ export function Clubs() {
   const handleViewPublicOverview = async (club) => {
     try {
       const clubId = club._id || club.id;
+      if (typeof clubId === 'string' && clubId.startsWith('fallback-')) {
+        setSelectedClub(club);
+        setSelectedClubDetails(club);
+        setActiveWorkspaceTab('overview');
+        setShowClubDetails(true);
+        return;
+      }
       const detailedClub = await apiService.getClub(clubId);
       if (detailedClub) {
         setSelectedClub(club);
@@ -2123,7 +2130,8 @@ export function Clubs() {
       const response = await fetch(`${targetUrl}/reports/club/${clubId}`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${user.token}`
+          Authorization: `Bearer ${user.token}`,
+          'bypass-tunnel-reminder': 'true'
         },
         body: formData
       });
@@ -2168,16 +2176,14 @@ export function Clubs() {
       setPendingReports(reports || []);
       setShowPendingReports(true);
     } catch (error) {
-      console.error("Gracefully caught reports fetch failure:", error);
-      toast.error("Failed to load pending reports");
+      console.warn("Gracefully caught reports fetch failure:", error?.message || error);
       setPendingReports([]);
     }
   };
 
   const fetchManagerPendingReports = async (clubId, silentRefresh = false) => {
-    // Guard: never fire the request with an undefined or invalid clubId
-    if (!clubId || clubId === 'undefined') {
-      console.warn("fetchManagerPendingReports called with invalid clubId:", clubId);
+    // Guard: never fire the request with an undefined, invalid, or fallback clubId
+    if (!clubId || clubId === 'undefined' || (typeof clubId === 'string' && clubId.startsWith('fallback-'))) {
       setManagerPendingReports([]);
       return;
     }
@@ -2186,8 +2192,7 @@ export function Clubs() {
       setManagerPendingReports(reports || []);
       if (!silentRefresh) setShowManagerPendingReports(true);
     } catch (error) {
-      console.error("Failed to fetch manager reports:", error);
-      if (!silentRefresh) toast.error("Failed to load member reports");
+      console.warn("Manager reports fetch skipped or backend offline:", error?.message || error);
       setManagerPendingReports([]);
     }
   };
@@ -2514,6 +2519,13 @@ export function Clubs() {
 
     try {
       const clubId = club._id || club.id;
+      if (typeof clubId === 'string' && clubId.startsWith('fallback-')) {
+        setSelectedClub(club);
+        setSelectedClubDetails(club);
+        setActiveWorkspaceTab('overview');
+        setShowClubDetails(true);
+        return;
+      }
       const detailedClub = await apiService.getClub(clubId);
       
       if (!detailedClub) {
@@ -7401,7 +7413,10 @@ export function Clubs() {
                             const user = JSON.parse(localStorage.getItem('user') || '{}');
                             const filename = tmpl.pdfUrl?.split('/').pop();
                             const res = await fetch(`${apiService.baseURL}/templates/download/${filename}`, {
-                              headers: { Authorization: `Bearer ${user.token}` }
+                              headers: { 
+                                Authorization: `Bearer ${user.token}`,
+                                'bypass-tunnel-reminder': 'true'
+                              }
                             });
                             if (!res.ok) throw new Error('Download failed');
                             const blob = await res.blob();

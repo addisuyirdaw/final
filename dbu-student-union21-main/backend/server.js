@@ -59,6 +59,7 @@ app.use(
       if (!origin) return callback(null, true);
 
       const allowedOrigins = [
+        "https://dbu-ss.vercel.app",
         // Local development
         "http://localhost:3000",
         "http://localhost:5173",
@@ -74,10 +75,12 @@ app.use(
       const isVercelUrl = /^https:\/\/.*\.vercel\.app$/.test(origin);
       // Allow Cloudflare Quick Tunnels for easy public testing
       const isCloudflareUrl = /^https:\/\/.*\.trycloudflare\.com$/.test(origin);
+      // Allow Localtunnel URLs
+      const isLocaltunnelUrl = /^https:\/\/.*\.loca\.lt$/.test(origin);
       // Allow exact matches
       const isAllowed = allowedOrigins.includes(origin);
 
-      if (isVercelUrl || isCloudflareUrl || isAllowed) {
+      if (isVercelUrl || isCloudflareUrl || isLocaltunnelUrl || isAllowed) {
         callback(null, true);
       } else {
         console.warn(`CORS blocked origin: ${origin}`);
@@ -85,8 +88,22 @@ app.use(
       }
     },
     credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'bypass-tunnel-reminder',
+      'Bypass-Tunnel-Reminder',
+      'X-Requested-With',
+      'Accept',
+      'Origin'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    exposedHeaders: ['Authorization', 'bypass-tunnel-reminder', 'Bypass-Tunnel-Reminder']
   })
 );
+
+// Explicitly handle all OPTIONS preflight requests
+app.options('*', cors());
 
 // Rate limiting
 const limiter = rateLimit({

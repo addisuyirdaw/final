@@ -1,11 +1,23 @@
 // In production the VITE_API_URL env var points to the Render backend.
 // In development, dynamically resolve from window.location.hostname so that
 // mobile phones and other devices on the same network don't drop to localhost.
-const API_BASE_URL =
+// Clean and normalize API_BASE_URL: ensure no trailing slash, and ensure it ends with /api
+const normalizeApiUrl = (url) => {
+  if (!url) return '/api';
+  let cleaned = url.trim().replace(/\/+$/, '');
+  if (cleaned.startsWith('http') && !cleaned.endsWith('/api')) {
+    cleaned = `${cleaned}/api`;
+  }
+  return cleaned;
+};
+
+const rawApiUrl =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD
     ? 'https://dbu-student-portal-2.onrender.com/api'
     : '/api');
+
+const API_BASE_URL = normalizeApiUrl(rawApiUrl);
 
 class ApiService {
   constructor() {
@@ -18,16 +30,25 @@ class ApiService {
       const token = localStorage.getItem('token') || user.token;
       return {
         'Content-Type': 'application/json',
+        'bypass-tunnel-reminder': 'true',
         ...(token && { Authorization: `Bearer ${token}` })
       };
     } catch {
-      return { 'Content-Type': 'application/json' };
+      return {
+        'Content-Type': 'application/json',
+        'bypass-tunnel-reminder': 'true'
+      };
     }
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-    const headers = { ...this.getAuthHeaders(), ...(options.headers || {}) };
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.baseURL}${cleanEndpoint}`;
+    const headers = {
+      'bypass-tunnel-reminder': 'true',
+      ...this.getAuthHeaders(),
+      ...(options.headers || {})
+    };
 
     const isFormData = options.body && typeof options.body.append === 'function';
     if (isFormData) {
@@ -395,6 +416,9 @@ class ApiService {
   }
 
   async getClub(id) {
+    if (typeof id === 'string' && id.startsWith('fallback-')) {
+      return null;
+    }
     const response = await this.request(`/clubs/${id}`);
     return response.club || response;
   }
@@ -1108,7 +1132,11 @@ class ApiService {
    */
   async verifyCertificatePublic(certNumber) {
     const url = `${this.baseURL}/certificates/verify/${encodeURIComponent(certNumber)}`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        'bypass-tunnel-reminder': 'true'
+      }
+    });
     return res.json();
   }
 
@@ -1320,6 +1348,7 @@ class ApiService {
     const token = localStorage.getItem('token') || user.token;
     const response = await fetch(url, {
       headers: {
+        'bypass-tunnel-reminder': 'true',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
     });
