@@ -157,31 +157,29 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
                   tab.id === "All"
                     ? "all"
                     : tab.id === "Pending Review"
-                    ? "pending"
-                    : tab.id === "Under Review"
-                    ? "underReview"
-                    : tab.id === "Additional Information Requested"
-                    ? "needsInfo"
-                    : tab.id === "Approved"
-                    ? "approved"
-                    : "rejected";
+                      ? "pending"
+                      : tab.id === "Under Review"
+                        ? "underReview"
+                        : tab.id === "Additional Information Requested"
+                          ? "needsInfo"
+                          : tab.id === "Approved"
+                            ? "approved"
+                            : "rejected";
                 const countVal = counts[countKey] || 0;
 
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                      activeTab === tab.id
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeTab === tab.id
                         ? "bg-slate-900 text-white shadow-sm"
                         : "bg-white text-slate-600 hover:bg-slate-200/80 border border-slate-200"
-                    }`}
+                      }`}
                   >
                     <span>{tab.label}</span>
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        activeTab === tab.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                      }`}
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === tab.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        }`}
                     >
                       {countVal}
                     </span>
@@ -226,22 +224,21 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
                   item.status === "Approved"
                     ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                     : item.status === "Rejected"
-                    ? "bg-rose-100 text-rose-800 border-rose-200"
-                    : item.status === "Additional Information Requested"
-                    ? "bg-purple-100 text-purple-800 border-purple-200"
-                    : item.status === "Under Review"
-                    ? "bg-blue-100 text-blue-800 border-blue-200"
-                    : "bg-amber-100 text-amber-800 border-amber-200";
+                      ? "bg-rose-100 text-rose-800 border-rose-200"
+                      : item.status === "Additional Information Requested"
+                        ? "bg-purple-100 text-purple-800 border-purple-200"
+                        : item.status === "Under Review"
+                          ? "bg-blue-100 text-blue-800 border-blue-200"
+                          : "bg-amber-100 text-amber-800 border-amber-200";
 
                 return (
                   <div
                     key={item._id}
                     onClick={() => setSelectedProposal(item)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                      isSelected
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${isSelected
                         ? "bg-white border-blue-500 shadow-md ring-2 ring-blue-100"
                         : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-xs"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
@@ -307,17 +304,16 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
 
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                          selectedProposal.status === "Approved"
+                        className={`text-xs font-bold px-3 py-1 rounded-full border ${selectedProposal.status === "Approved"
                             ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                             : selectedProposal.status === "Rejected"
-                            ? "bg-rose-100 text-rose-800 border-rose-200"
-                            : selectedProposal.status === "Additional Information Requested"
-                            ? "bg-purple-100 text-purple-800 border-purple-200"
-                            : selectedProposal.status === "Under Review"
-                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                            : "bg-amber-100 text-amber-800 border-amber-200"
-                        }`}
+                              ? "bg-rose-100 text-rose-800 border-rose-200"
+                              : selectedProposal.status === "Additional Information Requested"
+                                ? "bg-purple-100 text-purple-800 border-purple-200"
+                                : selectedProposal.status === "Under Review"
+                                  ? "bg-blue-100 text-blue-800 border-blue-200"
+                                  : "bg-amber-100 text-amber-800 border-amber-200"
+                          }`}
                       >
                         {selectedProposal.status}
                       </span>
@@ -598,8 +594,8 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
                     {actionPrompt.type === "REJECT"
                       ? "Rejection Reason (Visible to Student)"
                       : actionPrompt.type === "NEEDS_INFO"
-                      ? "Specific Information Requested (Visible to Student)"
-                      : "Internal Comment (Admin Only)"}
+                        ? "Specific Information Requested (Visible to Student)"
+                        : "Internal Comment (Admin Only)"}
                   </label>
                   <textarea
                     rows={4}
@@ -610,8 +606,8 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
                       actionPrompt.type === "REJECT"
                         ? "Explain the criteria or reasons why this proposal cannot be approved..."
                         : actionPrompt.type === "NEEDS_INFO"
-                        ? "Specify the missing details or documents needed from the proposer..."
-                        : "Write internal observation or notes for the committee..."
+                          ? "Specify the missing details or documents needed from the proposer..."
+                          : "Write internal observation or notes for the committee..."
                     }
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500"
                   />
@@ -647,13 +643,12 @@ export function AdminClubProposalsModal({ isOpen, onClose, user, onClubCreated }
                       handleAddAdminNote(selectedProposal._id);
                     }
                   }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition disabled:opacity-50 ${
-                    actionPrompt.type === "REJECT"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition disabled:opacity-50 ${actionPrompt.type === "REJECT"
                       ? "bg-rose-600 hover:bg-rose-700"
                       : actionPrompt.type === "CREATE_CLUB"
-                      ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
+                        ? "bg-emerald-600 hover:bg-emerald-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
                 >
                   {actionLoading ? "Processing..." : "Confirm"}
                 </button>

@@ -40,228 +40,1934 @@ const DEFAULT_LOGOS = {
 
 const FALLBACK_DBU_CLUBS = [
   {
-    _id: "fallback-rotaract",
-    id: "fallback-rotaract",
-    name: "Rotaract Club of Debre Berhan",
-    category: "Service",
-    description: "Community service, youth leadership development, humanitarian projects, and global fellowship.",
-    founded: "2020",
-    status: "active",
-    meetingSchedule: "Weekly on Saturdays at 9:00 AM",
-    officeLocation: "Student Center, Room 102",
-    contactEmail: "rotaract@dbu.edu.et",
-    contactPhone: "0911002233",
-    members: []
+    "_id": "6aa071cdc96e9d8546761ad1",
+    "id": "6aa071cdc96e9d8546761ad1",
+    "name": "Booking Club",
+    "category": "Academic",
+    "description": "Official Booking Club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "approved"
+      },
+      {
+        "user": "6aa317a0f4eebfcfa42ad06a",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "6aa81cc724a60133627bd0d9",
+        "status": "approved"
+      },
+      {
+        "user": "6aa92187ee145ed3c3e8578e",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8c7b99680b71db76a8cd2",
+        "status": "approved"
+      },
+      {
+        "user": "6aaaef4d70f414f979795c7d",
+        "status": "approved"
+      },
+      {
+        "user": "6aad083eb1bdb9398e7b77cb",
+        "status": "approved"
+      },
+      {
+        "user": "6aad0bb5b1bdb9398e7b8605",
+        "status": "approved"
+      },
+      {
+        "user": "6ab81c24196cbe5bd6467e14",
+        "status": "approved"
+      },
+      {
+        "user": "6ab829311f9761cece2bdd88",
+        "status": "approved"
+      },
+      {
+        "user": "6ad25399d7d0bbc1c9a85399",
+        "status": "approved"
+      },
+      {
+        "user": "6ad25399d7d0bbc1c9a85399",
+        "status": "approved"
+      },
+      {
+        "user": "6adb62b542e09dcdf4029e4c",
+        "status": "approved"
+      },
+      {
+        "user": "6adb62b542e09dcdf4029e4c",
+        "status": "approved"
+      },
+      {
+        "user": "6adb62b542e09dcdf4029e4c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae76ff0ee10139b27410ba7",
+        "status": "approved"
+      },
+      {
+        "user": "6aeafe23537d5358dbae81ce",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd0afb36185fa1637fe28",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd542b36185fa16384719",
+        "status": "approved"
+      },
+      {
+        "user": "6aecda3ab36185fa1638883d",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccc10b36185fa163794e3",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "6aef5b66167131624ac42b7e",
+        "status": "approved"
+      },
+      {
+        "user": "6af00df8e065d743fa20cfd0",
+        "status": "approved"
+      },
+      {
+        "user": "6af01ee7e065d743fa21d29d",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af0a3c9dcceb616922c41ca",
+        "status": "approved"
+      }
+    ],
+    "events": [
+      {
+        "title": "hgfh",
+        "description": "gfhg",
+        "date": "2026-09-10T00:00:00.000Z",
+        "location": "gfhgf",
+        "attendees": [
+          "6aa7ce30d2215dfea29937be",
+          "6aa317a0f4eebfcfa42ad06a"
+        ],
+        "status": "ongoing",
+        "activeCheckIn": true,
+        "_id": "6aa2854175a25d753c61d9c3",
+        "createdAt": "2026-09-10T10:24:01.309Z",
+        "updatedAt": "2026-09-25T21:35:08.340Z",
+        "attendanceCode": "36EA11"
+      }
+    ]
   },
   {
-    _id: "fallback-tecktonic",
-    id: "fallback-tecktonic",
-    name: "Tecktonic Club",
-    category: "Technology",
-    description: "Software development, robotics, artificial intelligence, competitive programming, and campus hackathons.",
-    founded: "2021",
-    status: "active",
-    meetingSchedule: "Weekly on Wednesdays at 4:30 PM",
-    officeLocation: "Computing Hall, Lab 3",
-    contactEmail: "tecktonic@dbu.edu.et",
-    contactPhone: "0912334455",
-    members: []
+    "_id": "6aa071cdc96e9d8546761ad4",
+    "id": "6aa071cdc96e9d8546761ad4",
+    "name": "Mechanical Club",
+    "category": "Academic",
+    "description": "Official Mechanical Club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "pending"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-ideahub",
-    id: "fallback-ideahub",
-    name: "Idea Hub",
-    category: "Technology",
-    description: "Fostering startup incubations, innovative student ventures, enterprise pitch decks, and tech entrepreneurship.",
-    founded: "2021",
-    status: "active",
-    meetingSchedule: "Bi-weekly on Thursdays at 3:00 PM",
-    officeLocation: "Innovation Center, Room 201",
-    contactEmail: "ideahub@dbu.edu.et",
-    contactPhone: "0913445566",
-    members: []
+    "_id": "6aa071cec96e9d8546761ad7",
+    "id": "6aa071cec96e9d8546761ad7",
+    "name": "Civil Engineering Club",
+    "category": "Academic",
+    "description": "Official Civil Engineering Club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "approved"
+      },
+      {
+        "user": "6aa317a0f4eebfcfa42ad06a",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "pending"
+      },
+      {
+        "user": "6aace57f7fd41b9b674c017e",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-civil",
-    id: "fallback-civil",
-    name: "Civil Engineering Club",
-    category: "Academic",
-    description: "Structural design, BIM modeling, architectural innovation, and campus engineering projects.",
-    founded: "2022",
-    status: "active",
-    meetingSchedule: "Weekly on Fridays at 4:00 PM",
-    officeLocation: "Engineering Block 4, Room 12",
-    contactEmail: "civileng@dbu.edu.et",
-    contactPhone: "0914556677",
-    members: []
+    "_id": "6aa071cec96e9d8546761ada",
+    "id": "6aa071cec96e9d8546761ada",
+    "name": "Idea Hub",
+    "category": "Academic",
+    "description": "Official Idea Hub",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "approved"
+      },
+      {
+        "user": "6aa317a0f4eebfcfa42ad06a",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "6aad225ab1bdb9398e7bacc0",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c440bc75a67c0169a01",
+        "status": "approved"
+      },
+      {
+        "user": "6aa96b1f0a68e4dbf54987af",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7aa5abb6e90477972a04c",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8eb7146dd4a1ba0610369",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "pending"
+      },
+      {
+        "user": "6af03466e065d743fa232c9d",
+        "status": "approved"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-mech",
-    id: "fallback-mech",
-    name: "Mechanical Club",
-    category: "Academic",
-    description: "Automotive innovation, machine prototyping, robotics workshops, and mechanical engineering excellence.",
-    founded: "2022",
-    status: "active",
-    meetingSchedule: "Weekly on Thursdays at 4:00 PM",
-    officeLocation: "Mechanical Workshop Lab",
-    contactEmail: "mechanical@dbu.edu.et",
-    contactPhone: "0915667788",
-    members: []
+    "_id": "6aa071cec96e9d8546761add",
+    "id": "6aa071cec96e9d8546761add",
+    "name": "Career Development Club",
+    "category": "Academic",
+    "description": "Official Career Development Club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "rejected"
+      },
+      {
+        "user": "6aa317a0f4eebfcfa42ad06a",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "6aaa20eb9ed1df75d6fe5e95",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c440bc75a67c0169a01",
+        "status": "approved"
+      },
+      {
+        "user": "6aaecb35d70a897f7efe86ac",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7ba46bb6e90477973072e",
+        "status": "approved"
+      },
+      {
+        "user": "6aace57f7fd41b9b674c017e",
+        "status": "approved"
+      },
+      {
+        "user": "6ab81c24196cbe5bd6467e14",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8a245f83a5e501430e631",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8c311b403c85195629f48",
+        "status": "approved"
+      },
+      {
+        "user": "6acce46486dbcafc2e9c914f",
+        "status": "approved"
+      },
+      {
+        "user": "6aea3e53b5795537990933be",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6aeafe23537d5358dbae81ce",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb1a61e92a8856b7d420d8",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccc00b36185fa16378d08",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb0271537d5358dbae9fe5",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd0afb36185fa1637fe28",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd542b36185fa16384719",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccc10b36185fa163794e3",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af0106ee065d743fa20f748",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "6af017fce065d743fa21903c",
+        "status": "approved"
+      },
+      {
+        "user": "6af01d81e065d743fa21ba09",
+        "status": "approved"
+      },
+      {
+        "user": "6af01ee7e065d743fa21d29d",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      }
+    ],
+    "events": [
+      {
+        "title": "we",
+        "description": "",
+        "date": "2026-10-08T00:00:00.000Z",
+        "location": "",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 4,
+        "hasExternalGuests": false,
+        "isOffCampus": false,
+        "riskFlags": [],
+        "status": "draft",
+        "submittedBy": null,
+        "submittedAt": null,
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6ac7e605875e3831cae2371a",
+        "createdAt": "2026-10-08T18:50:45.082Z",
+        "updatedAt": "2026-10-08T18:50:45.082Z"
+      }
+    ]
   },
   {
-    _id: "fallback-food",
-    id: "fallback-food",
-    name: "Food Engineering Student Association club",
-    category: "Academic",
-    description: "Agro-processing, food preservation science, nutrition research, and industrial quality assurance.",
-    founded: "2023",
-    status: "active",
-    meetingSchedule: "Weekly on Tuesdays at 4:00 PM",
-    officeLocation: "Chemical & Food Eng Building, Room 104",
-    contactEmail: "foodeng@dbu.edu.et",
-    contactPhone: "0916778899",
-    members: []
+    "_id": "6aa071cfc96e9d8546761ae0",
+    "id": "6aa071cfc96e9d8546761ae0",
+    "name": "Law Association Club",
+    "category": "Academic",
+    "description": "Official Law Association Club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ad1fd2215dfea29928c8",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "6aacdc147fd41b9b674bf37d",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8ad6ab403c8519562420f",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8b2aeb403c8519562513a",
+        "status": "approved"
+      },
+      {
+        "user": "6ad0ece3b19cf700d9b2808f",
+        "status": "approved"
+      },
+      {
+        "user": "6ad25399d7d0bbc1c9a85399",
+        "status": "approved"
+      },
+      {
+        "user": "6aea3a96b57955379909199a",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb0271537d5358dbae9fe5",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "6af00de6e065d743fa20cbe9",
+        "status": "pending"
+      },
+      {
+        "user": "6aea3e53b5795537990933be",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd542b36185fa16384719",
+        "status": "approved"
+      }
+    ],
+    "events": [
+      {
+        "title": "gdfgdf",
+        "description": "Traveling? On public Wi-Fi? Need to get around location restrictions? It's time to get your content on your terms, with the whole-device protection of Brave VPN. Access content anywhere Protect up to 10 devices Unlimited with speeds up to 500mbps Desktop, Android, & iOS No logs policy Independent software & infrastructure audits Cancel any time 7-day free trial",
+        "date": "2026-09-15T00:00:00.000Z",
+        "location": "block 34",
+        "attendees": [],
+        "status": "draft",
+        "submittedBy": null,
+        "submittedAt": null,
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6aa986ac00e36925c7846c5b",
+        "createdAt": "2026-09-15T17:55:56.273Z",
+        "updatedAt": "2026-09-15T17:55:56.273Z"
+      }
+    ]
   },
   {
-    _id: "fallback-debate",
-    id: "fallback-debate",
-    name: "Debate Society",
-    category: "Academic",
-    description: "Competitive parliamentary debate, critical argumentation, public rhetoric, and national championships.",
-    founded: "2015",
-    status: "active",
-    meetingSchedule: "Weekly on Saturdays at 2:00 PM",
-    officeLocation: "Social Sciences Hall, Room 302",
-    contactEmail: "debate@dbu.edu.et",
-    contactPhone: "0917889900",
-    members: []
+    "_id": "6aa071cfc96e9d8546761ae3",
+    "id": "6aa071cfc96e9d8546761ae3",
+    "name": "Truth Culture Club",
+    "category": "Academic",
+    "description": "Official Truth Culture Club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa0886fd6a311dadc475500",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ad1fd2215dfea29928c8",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8fd900cb162fcd02e2f25",
+        "status": "approved"
+      },
+      {
+        "user": "6aacdc147fd41b9b674bf37d",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c440bc75a67c0169a01",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c480bc75a67c0169a67",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd075b36185fa1637f6fa",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7f3e0564584586bc90697",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-legal",
-    id: "fallback-legal",
-    name: "DBU Legal Practice and Advocacy Club",
-    category: "Professional",
-    description: "Practical legal defense, moot court trials, public interest advocacy, and human rights empowerment.",
-    founded: "2021",
-    status: "active",
-    meetingSchedule: "Weekly on Fridays at 3:00 PM",
-    officeLocation: "Law Faculty Building, Moot Court Room",
-    contactEmail: "legaladvocacy@dbu.edu.et",
-    contactPhone: "0918990011",
-    members: []
+    "_id": "6aa3eacb9d08f3f55690e40b",
+    "id": "6aa3eacb9d08f3f55690e40b",
+    "name": "Tecktonic Club",
+    "category": "Technology",
+    "description": "teck based club",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa96b1f0a68e4dbf54987af",
+        "status": "approved"
+      },
+      {
+        "user": "6aad225ab1bdb9398e7bacc0",
+        "status": "approved"
+      },
+      {
+        "user": "6aad65920bc75a67c016902e",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7ba46bb6e90477973072e",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7ba6dbb6e904779730a26",
+        "status": "approved"
+      },
+      {
+        "user": "6ab81fdb196cbe5bd6468aed",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8a6bdf83a5e501430ee8d",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8b2c0b403c851956252df",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8c311b403c85195629f48",
+        "status": "approved"
+      },
+      {
+        "user": "6abaaeb796d04a342fa27b71",
+        "status": "approved"
+      },
+      {
+        "user": "6abb44fa291699e5f8356905",
+        "status": "approved"
+      },
+      {
+        "user": "6abbdf37f1d16d2cdcfc59b8",
+        "status": "approved"
+      },
+      {
+        "user": "6abf5a1e626d0ed99aa4a79a",
+        "status": "approved"
+      },
+      {
+        "user": "6adf24aa655e5b50366fd3b9",
+        "status": "approved"
+      },
+      {
+        "user": "6ae740ca961aa58cc64cc65d",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccc00b36185fa16378d08",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccccfb36185fa1637ac09",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccd3bb36185fa1637bc1c",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aed5800420caaa98edc4084",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aefff40e065d743fa2006a1",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af020aee065d743fa21f5c0",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-law",
-    id: "fallback-law",
-    name: "Law Association Club",
-    category: "Academic",
-    description: "Legal studies support, academic seminars, jurisprudence workshops, and law student mentorship.",
-    founded: "2020",
-    status: "active",
-    meetingSchedule: "Weekly on Mondays at 4:00 PM",
-    officeLocation: "Law Faculty, Room 205",
-    contactEmail: "lawassociation@dbu.edu.et",
-    contactPhone: "0919001122",
-    members: []
+    "_id": "6aa79f23d2215dfea2991eb0",
+    "id": "6aa79f23d2215dfea2991eb0",
+    "name": "Rotaract Club of Debre Berhan",
+    "category": "Service",
+    "description": "Rotaract is a global community of young adults who come together to develop leadership skills, build connections, exchange ideas, and create positive change through community service.",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa7a037d2215dfea2991f84",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c06ad2215dfea2992e31",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c6b5d2215dfea2993245",
+        "status": "approved"
+      },
+      {
+        "user": "6aa805fec639a4c7627d966f",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8175724a60133627bc90e",
+        "status": "approved"
+      },
+      {
+        "user": "6aa81cc724a60133627bd0d9",
+        "status": "approved"
+      },
+      {
+        "user": "6aa82ca18399b4149e1eeb7f",
+        "status": "approved"
+      },
+      {
+        "user": "6aa85a48929f7dc3ecdc3403",
+        "status": "approved"
+      },
+      {
+        "user": "6aa86a6a3177b2bae94eaa36",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8184d24a60133627bcac5",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8b290d81f578b263666d7",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8f3ed0cb162fcd02e2740",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8fd900cb162fcd02e2f25",
+        "status": "approved"
+      },
+      {
+        "user": "6aa913b49a10d90dd8735e1c",
+        "status": "approved"
+      },
+      {
+        "user": "6aa92bacae6b651f952c3205",
+        "status": "approved"
+      },
+      {
+        "user": "6aa981540a68e4dbf549a07d",
+        "status": "approved"
+      },
+      {
+        "user": "6aaa20eb9ed1df75d6fe5e95",
+        "status": "approved"
+      },
+      {
+        "user": "6aa96b1f0a68e4dbf54987af",
+        "status": "approved"
+      },
+      {
+        "user": "6aa8c7b99680b71db76a8cd2",
+        "status": "approved"
+      },
+      {
+        "user": "6aab920be03a907101d99169",
+        "status": "approved"
+      },
+      {
+        "user": "6aab92b0e03a907101d993ed",
+        "status": "approved"
+      },
+      {
+        "user": "6aaba51cfe8381516e2a9897",
+        "status": "approved"
+      },
+      {
+        "user": "6aabcdeee70b11982fd22885",
+        "status": "approved"
+      },
+      {
+        "user": "6aabdde851326fe8e8f65870",
+        "status": "approved"
+      },
+      {
+        "user": "6aacdc147fd41b9b674bf37d",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c480bc75a67c0169a67",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c440bc75a67c0169a01",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6b990bc75a67c0169942",
+        "status": "approved"
+      },
+      {
+        "user": "6aa975850a68e4dbf54996f7",
+        "status": "approved"
+      },
+      {
+        "user": "6aad8a1e605c91841dca2f75",
+        "status": "approved"
+      },
+      {
+        "user": "6aadb1d245767ad698ce77b6",
+        "status": "approved"
+      },
+      {
+        "user": "6aa82beb8399b4149e1eea2e",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7ba46bb6e90477973072e",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7fe64564584586bc919b2",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7fba8564584586bc90f20",
+        "status": "approved"
+      },
+      {
+        "user": "6aa81e9824a60133627bd54d",
+        "status": "approved"
+      },
+      {
+        "user": "6ab21a5c8f47b5ecaba1b81d",
+        "status": "approved"
+      },
+      {
+        "user": "6ab6aa001453ce0f80c6f11a",
+        "status": "approved"
+      },
+      {
+        "user": "6acce46486dbcafc2e9c914f",
+        "status": "approved"
+      },
+      {
+        "user": "6adda3e4fc020d2adac4be2d",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ad1fd2215dfea29928c8",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6ad86bbff2d634d59754abfb",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aedc1c402b7d814a3f8e89c",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af00729e065d743fa20711f",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af03c48e065d743fa23520a",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7f3e0564584586bc90697",
+        "status": "approved"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af0a3c9dcceb616922c41ca",
+        "status": "approved"
+      }
+    ],
+    "events": [
+      {
+        "title": "Build meaningful connections 💡 Develop your skills ,Serve your community ,Become a leader",
+        "description": "A new chapter of service, friendship, leadership, and impact is about to begin! ❤️💙  We are excited to announce the Launch of Rotaract Club of Debre Berhan — bringing together young people who are ready to connect, grow, serve, lead, and create lasting change. 🌍✨ 🤝 Build meaningful connections 💡 Develop your skills 🌱 Serve your community 🚀 Become a leader ⭐️ Create lasting impact And guess what? 👀🔥  🎉 A special launch event is coming soon! 📍 Debre Berhan University – Main Campus 📅 Date & time — ቅዳሜ 30/01/19 ከቀኑ 8፡00 ጀምሮ   This is more than a club. It’s an opportunity to be part of something bigger.  ✨ Stay tuned. The countdown begins now!",
+        "date": "2026-03-01T00:00:00.000Z",
+        "location": "PR HALL",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 100,
+        "hasExternalGuests": true,
+        "isOffCampus": false,
+        "riskFlags": [
+          {
+            "code": "EXTERNAL_GUEST",
+            "generatedAt": "2026-11-08T12:55:44.523Z",
+            "_id": "6af07150e065d743fa25865e"
+          }
+        ],
+        "status": "pending_approval",
+        "submittedBy": "6aa7a037d2215dfea2991f84",
+        "submittedAt": "2026-11-08T12:55:44.548Z",
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6ac7775d56a360a7f48fe759",
+        "createdAt": "2026-10-08T10:58:38.036Z",
+        "updatedAt": "2026-11-08T12:55:44.647Z"
+      },
+      {
+        "title": "A new chapter of service, friendship, leadership, and impact is about to begin",
+        "description": "We are excited to announce the Launch of Rotaract Club of Debre Berhan — bringing together young people who are ready to connect, grow, serve, lead, and create lasting change. 🌍✨ 🤝 Build meaningful connections 💡 Develop your skills 🌱 Serve your community 🚀 Become a leader ⭐️ Create lasting impact And guess what?",
+        "date": "2026-03-01T00:00:00.000Z",
+        "location": "PR HALL",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 101,
+        "hasExternalGuests": true,
+        "isOffCampus": false,
+        "riskFlags": [],
+        "status": "draft",
+        "submittedBy": null,
+        "submittedAt": null,
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6ac77a0956a360a7f48fee55",
+        "createdAt": "2026-10-08T11:10:01.484Z",
+        "updatedAt": "2026-10-08T11:10:01.484Z"
+      },
+      {
+        "title": "Rotract clubs",
+        "description": "",
+        "date": "2026-10-08T00:00:00.000Z",
+        "location": "Block",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 198,
+        "hasExternalGuests": false,
+        "isOffCampus": true,
+        "riskFlags": [],
+        "status": "draft",
+        "submittedBy": null,
+        "submittedAt": null,
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6ac7dce2fa24204816d61db1",
+        "createdAt": "2026-10-08T18:11:46.287Z",
+        "updatedAt": "2026-10-08T18:11:46.287Z"
+      }
+    ]
   },
   {
-    _id: "fallback-finance",
-    id: "fallback-finance",
-    name: "Finance Club",
-    category: "Professional",
-    description: "Financial literacy, investment strategy, accounting workshops, and national business case competitions.",
-    founded: "2022",
-    status: "active",
-    meetingSchedule: "Weekly on Wednesdays at 4:00 PM",
-    officeLocation: "Business & Economics Block, Room 110",
-    contactEmail: "finance@dbu.edu.et",
-    contactPhone: "0920112233",
-    members: []
+    "_id": "6aa7a041d2215dfea2991fe0",
+    "id": "6aa7a041d2215dfea2991fe0",
+    "name": "Finance Club",
+    "category": "Academic",
+    "description": "finance",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "6aa96b1f0a68e4dbf54987af",
+        "status": "approved"
+      },
+      {
+        "user": "6aaecb35d70a897f7efe86ac",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8a245f83a5e501430e631",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8c311b403c85195629f48",
+        "status": "approved"
+      },
+      {
+        "user": "6ab8c311b403c85195629f48",
+        "status": "approved"
+      },
+      {
+        "user": "6abcc425baa862e05329e191",
+        "status": "approved"
+      },
+      {
+        "user": "6ae76ff0ee10139b27410ba7",
+        "status": "approved"
+      },
+      {
+        "user": "6aec108aca819bab45abc57f",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "6af0862757dc8bb2fbf89ca5",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-booking",
-    id: "fallback-booking",
-    name: "Booking Club",
-    category: "Academic",
-    description: "Academic book exchange, rare literature access, reading circles, and peer-to-peer tutoring.",
-    founded: "2023",
-    status: "active",
-    meetingSchedule: "Weekly on Saturdays at 10:00 AM",
-    officeLocation: "Main Campus Library, 2nd Floor",
-    contactEmail: "booking@dbu.edu.et",
-    contactPhone: "0921223344",
-    members: []
+    "_id": "6aacc9397fd41b9b674bce9b",
+    "id": "6aacc9397fd41b9b674bce9b",
+    "name": "Charity Club",
+    "category": "Cultural",
+    "description": "The Begoadragot Charity Club is a student-led organization dedicated to serving the local community through outreach, fundraising, and volunteer activities. The club organizes regular events to raise awareness and support for underprivileged groups, including food drives, health and education campaigns, and community service projects. Its purpose is to foster a spirit of generosity and social responsibility among students while making a tangible difference in the lives of those in need.",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aaccc3d7fd41b9b674bd617",
+        "status": "approved"
+      },
+      {
+        "user": "6aacdc147fd41b9b674bf37d",
+        "status": "approved"
+      },
+      {
+        "user": "6aad083eb1bdb9398e7b77cb",
+        "status": "approved"
+      },
+      {
+        "user": "6aad0bb5b1bdb9398e7b8605",
+        "status": "approved"
+      },
+      {
+        "user": "6aad0eeab1bdb9398e7b8ed3",
+        "status": "approved"
+      },
+      {
+        "user": "6aad6c480bc75a67c0169a67",
+        "status": "approved"
+      },
+      {
+        "user": "6aa81cc724a60133627bd0d9",
+        "status": "approved"
+      },
+      {
+        "user": "6ab21a5c8f47b5ecaba1b81d",
+        "status": "approved"
+      },
+      {
+        "user": "6aa96b1f0a68e4dbf54987af",
+        "status": "approved"
+      },
+      {
+        "user": "6ab62c93676a31bbb2027b02",
+        "status": "approved"
+      },
+      {
+        "user": "6ab658c91251bb8a1566ff53",
+        "status": "approved"
+      },
+      {
+        "user": "6aa82beb8399b4149e1eea2e",
+        "status": "approved"
+      },
+      {
+        "user": "6ab6aa001453ce0f80c6f11a",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7a50bbb6e9047797292c3",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7c1d0bb6e904779734662",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7aa5abb6e90477972a04c",
+        "status": "approved"
+      },
+      {
+        "user": "6abbde8cf1d16d2cdcfc5902",
+        "status": "approved"
+      },
+      {
+        "user": "6aca5f6a6a15dad44d04b921",
+        "status": "approved"
+      },
+      {
+        "user": "6aca61646a15dad44d04c160",
+        "status": "approved"
+      },
+      {
+        "user": "6acce46486dbcafc2e9c914f",
+        "status": "approved"
+      },
+      {
+        "user": "6ad84777ed175fa7ffe6ff7f",
+        "status": "approved"
+      },
+      {
+        "user": "6abcc425baa862e05329e191",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ad1fd2215dfea29928c8",
+        "status": "approved"
+      },
+      {
+        "user": "6aea3a96b57955379909199a",
+        "status": "approved"
+      },
+      {
+        "user": "6aea3e53b5795537990933be",
+        "status": "approved"
+      },
+      {
+        "user": "6aeadb36537d5358dbadd7d6",
+        "status": "approved"
+      },
+      {
+        "user": "6ae4cbe5708f446495e18482",
+        "status": "approved"
+      },
+      {
+        "user": "6aeade11537d5358dbadf2a2",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6aeafe23537d5358dbae81ce",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb0271537d5358dbae9fe5",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb0366537d5358dbaea8ef",
+        "status": "pending"
+      },
+      {
+        "user": "6aeb1a61e92a8856b7d420d8",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb1b2de92a8856b7d42845",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb51dbe54888799cc8ac3e",
+        "status": "approved"
+      },
+      {
+        "user": "6aec6c762085dcbff5530cc1",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd542b36185fa16384719",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aece8460765fba7dbcc3893",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aed610b420caaa98edc4e41",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccc10b36185fa163794e3",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb0b82c71f0faf19e23b81",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb721da64cfe1aaf30a6c1",
+        "status": "approved"
+      },
+      {
+        "user": "6aedc1c402b7d814a3f8e89c",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aeebe45c424e5a9d89185e6",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af00b85e065d743fa20acfe",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af0134be065d743fa212aad",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "6af017fce065d743fa21903c",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af024afe065d743fa22533e",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af03466e065d743fa232c9d",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "6ab7f3e0564584586bc90697",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "6af077ebe065d743fa25af42",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      }
+    ],
+    "events": [
+      {
+        "title": "Welcome and registration",
+        "description": "For the purpose of welcome to new academic year and new interested students",
+        "date": "2019-01-11T00:00:00.000Z",
+        "location": "LH-01",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 0,
+        "hasExternalGuests": true,
+        "isOffCampus": true,
+        "riskFlags": [
+          {
+            "code": "EXTERNAL_GUEST",
+            "generatedAt": "2026-09-18T05:53:13.809Z",
+            "_id": "6aacd1c97fd41b9b674be738"
+          },
+          {
+            "code": "OFF_CAMPUS",
+            "generatedAt": "2026-09-18T05:53:13.809Z",
+            "_id": "6aacd1c97fd41b9b674be739"
+          }
+        ],
+        "status": "completed",
+        "submittedBy": "6aaccc3d7fd41b9b674bd617",
+        "submittedAt": "2026-09-18T05:53:13.813Z",
+        "reviewedBy": "6aa070704d5efab580be800a",
+        "reviewedAt": "2026-09-18T09:56:51.109Z",
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6aacd1947fd41b9b674be578",
+        "createdAt": "2026-09-18T05:52:20.790Z",
+        "updatedAt": "2026-09-18T10:07:15.812Z",
+        "attendanceCode": "87D2C1"
+      },
+      {
+        "title": "Welcome",
+        "description": "We join together and sharing the greating",
+        "date": "2019-01-11T00:00:00.000Z",
+        "location": "LH-01",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 0,
+        "hasExternalGuests": true,
+        "isOffCampus": false,
+        "riskFlags": [],
+        "status": "draft",
+        "submittedBy": null,
+        "submittedAt": null,
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6aad0a71b1bdb9398e7b8080",
+        "createdAt": "2026-09-18T09:54:57.050Z",
+        "updatedAt": "2026-09-18T09:54:57.050Z"
+      },
+      {
+        "title": "ffghgf",
+        "description": "",
+        "date": "2026-10-08T00:00:00.000Z",
+        "location": "block",
+        "resourceId": null,
+        "attendees": [],
+        "expectedAttendance": 324,
+        "hasExternalGuests": false,
+        "isOffCampus": false,
+        "riskFlags": [],
+        "status": "draft",
+        "submittedBy": null,
+        "submittedAt": null,
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "rejectionReason": null,
+        "activeCheckIn": false,
+        "_id": "6ac7e4db875e3831cae2349e",
+        "createdAt": "2026-10-08T18:45:47.821Z",
+        "updatedAt": "2026-10-08T18:45:47.821Z"
+      }
+    ]
   },
   {
-    _id: "fallback-career",
-    id: "fallback-career",
-    name: "Career Development Club",
-    category: "Professional",
-    description: "Resume building, corporate interview prep, industrial networking, and professional graduate readiness.",
-    founded: "2023",
-    status: "active",
-    meetingSchedule: "Bi-weekly on Thursdays at 4:00 PM",
-    officeLocation: "Career Center, Room 101",
-    contactEmail: "career@dbu.edu.et",
-    contactPhone: "0922334455",
-    members: []
+    "_id": "6ab7a9a0bb6e904779729efc",
+    "id": "6ab7a9a0bb6e904779729efc",
+    "name": "Food Engineering Student Association club",
+    "category": "Academic",
+    "description": "Building Engineers, Empowering Innovators, Serving Communities.",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "dbufesaclub@gmail.com",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6ab7aa5abb6e90477972a04c",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7b4bdbb6e90477972d92e",
+        "status": "approved"
+      },
+      {
+        "user": "6aba6a36b46e425a3743adb3",
+        "status": "approved"
+      },
+      {
+        "user": "6abb6febd345969ce9ac98c9",
+        "status": "approved"
+      },
+      {
+        "user": "6aca6f2e8d86569a0c6aa5bf",
+        "status": "approved"
+      },
+      {
+        "user": "6ae4cbe5708f446495e18482",
+        "status": "approved"
+      },
+      {
+        "user": "6ae76ff0ee10139b27410ba7",
+        "status": "approved"
+      },
+      {
+        "user": "6ae779601f5bf63f38b6e92c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6af03466e065d743fa232c9d",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-charity",
-    id: "fallback-charity",
-    name: "Charity Club",
-    category: "Service",
-    description: "Humanitarian relief, blood drives, support for disadvantaged students, and community empowerment.",
-    founded: "2019",
-    status: "active",
-    meetingSchedule: "Weekly on Sundays at 9:00 AM",
-    officeLocation: "Student Affairs Building, Room 108",
-    contactEmail: "charity@dbu.edu.et",
-    contactPhone: "0923445566",
-    members: []
+    "_id": "6ab8b28db403c8519562503d",
+    "id": "6ab8b28db403c8519562503d",
+    "name": "Hohe Tesfa Club",
+    "category": "Social",
+    "description": "......",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6ab8eb7146dd4a1ba0610369",
+        "status": "approved"
+      },
+      {
+        "user": "6aea3e53b5795537990933be",
+        "status": "approved"
+      },
+      {
+        "user": "6aed5800420caaa98edc4084",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-hohetesfa",
-    id: "fallback-hohetesfa",
-    name: "Hohe Tesfa Club",
-    category: "Social",
-    description: "Student welfare, peer counseling support, youth empowerment, and mutual aid across university faculties.",
-    founded: "2022",
-    status: "active",
-    meetingSchedule: "Weekly on Fridays at 4:00 PM",
-    officeLocation: "Counseling & Welfare Bureau, Room 301",
-    contactEmail: "hohetesfa@dbu.edu.et",
-    contactPhone: "0924556677",
-    members: []
+    "_id": "6ac8da4b7ff387dc5ffa3ac8",
+    "id": "6ac8da4b7ff387dc5ffa3ac8",
+    "name": "DBU Legal Practice and Advocacy Club",
+    "category": "Academic",
+    "description": "CLUBS for law students",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6ac8dbc27ff387dc5ffa408d",
+        "status": "approved"
+      },
+      {
+        "user": "6aea3a96b57955379909199a",
+        "status": "approved"
+      },
+      {
+        "user": "6aeb0366537d5358dbaea8ef",
+        "status": "approved"
+      },
+      {
+        "user": "6aeccc10b36185fa163794e3",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "pending"
+      },
+      {
+        "user": "6aeb51dbe54888799cc8ac3e",
+        "status": "approved"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd542b36185fa16384719",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-hult",
-    id: "fallback-hult",
-    name: "Hult Prize Club",
-    category: "Social",
-    description: "Empowering university entrepreneurs to launch high-impact social enterprises solving global challenges.",
-    founded: "2020",
-    status: "active",
-    meetingSchedule: "Weekly on Thursdays at 3:30 PM",
-    officeLocation: "Incubation Center, Room 105",
-    contactEmail: "hultprize@dbu.edu.et",
-    contactPhone: "0925667788",
-    members: []
+    "_id": "6adb74ea023857c4eca1a167",
+    "id": "6adb74ea023857c4eca1a167",
+    "name": "Debate Society",
+    "category": "Academic",
+    "description": "Developing critical thinking and public speaking skills through competitive debates.",
+    "founded": "2015",
+    "status": "active",
+    "meetingSchedule": "Weekly on Fridays at 4:00 PM",
+    "officeLocation": "Student Center",
+    "contactEmail": "debatesociety@dbu.edu.et",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6aa070704d5efab580be800a",
+        "status": "approved"
+      },
+      {
+        "user": "6aed4aaa420caaa98edc2ab2",
+        "status": "approved"
+      },
+      {
+        "user": "6af0106ee065d743fa20f748",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      },
+      {
+        "user": "6aecd542b36185fa16384719",
+        "status": "approved"
+      }
+    ],
+    "events": []
   },
   {
-    _id: "fallback-truth",
-    id: "fallback-truth",
-    name: "Truth Culture Club",
-    category: "Cultural",
-    description: "Promoting cultural diversity, performing arts, traditional literature, and harmonious campus dialogue.",
-    founded: "2021",
-    status: "active",
-    meetingSchedule: "Weekly on Saturdays at 3:00 PM",
-    officeLocation: "Cultural Arts Hall, Room 102",
-    contactEmail: "truthculture@dbu.edu.et",
-    contactPhone: "0926778899",
-    members: []
+    "_id": "6adf2158655e5b50366fccff",
+    "id": "6adf2158655e5b50366fccff",
+    "name": "Hult Prize Club",
+    "category": "Other",
+    "description": "The Hult Prize challenges young people around the world to solve the planet's most pressing issues through social entrepreneurship.",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "Weekly",
+    "officeLocation": "Student Center",
+    "contactEmail": "",
+    "contactPhone": "",
+    "members": [
+      {
+        "user": "6adf24aa655e5b50366fd3b9",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ce30d2215dfea29937be",
+        "status": "approved"
+      },
+      {
+        "user": "6aace5f47fd41b9b674c0305",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9d923e42eb7705313ba1c",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7ad1fd2215dfea29928c8",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6aa7c178d2215dfea2992f6f",
+        "status": "approved"
+      },
+      {
+        "user": "6ae9da45e42eb7705313c1e7",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6ab7ba46bb6e90477973072e",
+        "status": "approved"
+      },
+      {
+        "user": "6af01523e065d743fa21520e",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af06e0ce065d743fa2530d4",
+        "status": "approved"
+      }
+    ],
+    "events": []
+  },
+  {
+    "_id": "6aefe98cacd84f6c0748dabc",
+    "id": "6aefe98cacd84f6c0748dabc",
+    "name": "DBU Creative Arts & Design Club",
+    "category": "Arts",
+    "description": "Fostering a vibrant community for student artists to explore pencil sketching, painting, digital graphics, and visual storytelling while nurturing creative talents across campus.",
+    "founded": "2026",
+    "status": "active",
+    "meetingSchedule": "To be announced",
+    "officeLocation": "Student Center",
+    "contactEmail": "leulmehari164@gmail.com",
+    "contactPhone": "0923224688",
+    "members": [
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6af0106ee065d743fa20f748",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      },
+      {
+        "user": "6aed4aaa420caaa98edc2ab2",
+        "status": "approved"
+      },
+      {
+        "user": "6af04cdce065d743fa23a12a",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "rejected"
+      },
+      {
+        "user": "6aeec867c83371376343e3ec",
+        "status": "approved"
+      },
+      {
+        "user": "null",
+        "status": "approved"
+      }
+    ],
+    "events": []
   }
 ];
 
