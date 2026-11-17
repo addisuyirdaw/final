@@ -199,12 +199,17 @@ export function Header() {
 								className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain rounded-md border border-sky-100 bg-white p-1"
 							/>
 							<div>
-							<p className="text-xl sm:text-2xl md:text-4xl font-bold text-sky-700 leading-none">
-								Debre Berhan University
-							</p>
-							<p className="text-xs md:text-sm text-gray-600 mt-1">
-								Practical Education for a Better Success
-							</p>
+								<div className="flex items-center gap-2">
+									<p className="text-xl sm:text-2xl md:text-4xl font-extrabold text-sky-800 leading-none tracking-tight">
+										CampusNexus
+									</p>
+									<span className="hidden sm:inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase tracking-wider">
+										DBU Portal
+									</span>
+								</div>
+								<p className="text-xs md:text-sm text-gray-600 mt-1 font-medium">
+									Debre Berhan University • Student Union & Service Nexus
+								</p>
 							</div>
 						</div>
 						<a

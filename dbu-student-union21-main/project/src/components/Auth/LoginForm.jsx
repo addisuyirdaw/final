@@ -196,13 +196,16 @@ export function LoginForm({ initialRegister = false }) {
           </motion.div>
 
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              {showRegister ? "Register" : "Login"}
+            <div className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800 uppercase tracking-wider mb-2">
+              CampusNexus
+            </div>
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-1">
+              {showRegister ? "Register for CampusNexus" : "Sign In to CampusNexus"}
             </h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm">
               {showRegister
-                ? "Create your account"
-                : "Please enter your credentials"}
+                ? "Join Debre Berhan University's Student Union Portal"
+                : "Please enter your university credentials"}
             </p>
           </div>
         </div>

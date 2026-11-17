@@ -16,12 +16,12 @@ export function Footer() {
 								<span className="text-white font-bold">DBU</span>
 							</div>
 							<div>
-								<h3 className="text-lg font-bold">DBU Campus Life & Leadership Portal</h3>
-								<p className="text-gray-400 text-sm">Debre Berhan University</p>
+								<h3 className="text-lg font-bold text-white">CampusNexus</h3>
+								<p className="text-gray-400 text-sm">Debre Berhan University Student Union</p>
 							</div>
 						</div>
 						<p className="text-gray-400 mb-4">
-							Your unified gateway to student governance, campus services, and organization directories at Debre Berhan University.
+							CampusNexus is the unified gateway to student governance, campus services, club ecosystems, and student life at Debre Berhan University.
 						</p>
 
 						<div className="flex space-x-3">
