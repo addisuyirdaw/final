@@ -52,58 +52,30 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: false, // Allow images/files to be loaded cross-origin (needed for frontend on :5173 loading uploads from :5000)
 }));
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, curl)
-      if (!origin) return callback(null, true);
 
-      const allowedOrigins = [
-        "https://dbu-ss.vercel.app",
-        // Local development
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:8080",
-        // Custom domain from env
-        process.env.FRONTEND_URL,
-        // Dynamic origins from CORS_ORIGINS env var (comma-separated)
-        ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : []),
-      ].filter(Boolean);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Reflect origin to dynamically allow all origins with credentials (Vercel, localhost, Localtunnel, etc.)
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'bypass-tunnel-reminder',
+    'Bypass-Tunnel-Reminder',
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ],
+  exposedHeaders: ['Authorization', 'bypass-tunnel-reminder', 'Bypass-Tunnel-Reminder']
+};
 
-      // Allow any Vercel deployment URL (covers all preview and production deployments)
-      const isVercelUrl = /^https:\/\/.*\.vercel\.app$/.test(origin);
-      // Allow Cloudflare Quick Tunnels for easy public testing
-      const isCloudflareUrl = /^https:\/\/.*\.trycloudflare\.com$/.test(origin);
-      // Allow Localtunnel URLs
-      const isLocaltunnelUrl = /^https:\/\/.*\.loca\.lt$/.test(origin);
-      // Allow exact matches
-      const isAllowed = allowedOrigins.includes(origin);
-
-      if (isVercelUrl || isCloudflareUrl || isLocaltunnelUrl || isAllowed) {
-        callback(null, true);
-      } else {
-        console.warn(`CORS blocked origin: ${origin}`);
-        callback(new Error(`CORS: Origin ${origin} not allowed`));
-      }
-    },
-    credentials: true,
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'bypass-tunnel-reminder',
-      'Bypass-Tunnel-Reminder',
-      'X-Requested-With',
-      'Accept',
-      'Origin'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    exposedHeaders: ['Authorization', 'bypass-tunnel-reminder', 'Bypass-Tunnel-Reminder']
-  })
-);
+app.use(cors(corsOptions));
 
 // Explicitly handle all OPTIONS preflight requests
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -283,6 +255,15 @@ app.use("/api/clubs/:clubId/announcements", announcementRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/proposals", proposalRoutes);
 app.use("/api/club-proposals", clubProposalRoutes);
+
+// Root Aliases (in case requests arrive without /api prefix)
+app.use("/auth", authRoutes);
+app.use("/clubs", clubRoutes);
+app.use("/club-proposals", clubProposalRoutes);
+app.use("/users", userRoutes);
+app.use("/complaints", complaintRoutes);
+app.use("/elections", electionRoutes);
+app.use("/posts", postRoutes);
 
 
 // 404 handler

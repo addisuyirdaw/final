@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // In production the VITE_API_URL env var points to the Render backend.
 // In development, dynamically resolve from window.location.hostname so that
 // mobile phones and other devices on the same network don't drop to localhost.
@@ -18,6 +20,30 @@ const rawApiUrl =
     : '/api');
 
 const API_BASE_URL = normalizeApiUrl(rawApiUrl);
+
+// Global Axios configuration and instance
+axios.defaults.headers.common['bypass-tunnel-reminder'] = 'true';
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+export const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'bypass-tunnel-reminder': 'true',
+    'Content-Type': 'application/json'
+  }
+});
+
+axiosInstance.interceptors.request.use((config) => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token') || user.token;
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {}
+  config.headers['bypass-tunnel-reminder'] = 'true';
+  return config;
+});
 
 class ApiService {
   constructor() {
@@ -155,6 +181,10 @@ class ApiService {
   async login(credentials) {
     return this.request('/auth/login', {
       method: 'POST',
+      headers: {
+        'bypass-tunnel-reminder': 'true',
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(credentials)
     });
   }
@@ -162,6 +192,10 @@ class ApiService {
   async adminLogin(credentials) {
     return this.request('/auth/admin-login', {
       method: 'POST',
+      headers: {
+        'bypass-tunnel-reminder': 'true',
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(credentials)
     });
   }
@@ -169,6 +203,10 @@ class ApiService {
   async register(userData) {
     return this.request('/auth/register', {
       method: 'POST',
+      headers: {
+        'bypass-tunnel-reminder': 'true',
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(userData)
     });
   }
