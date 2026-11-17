@@ -11,6 +11,8 @@ import { LoginForm } from "./components/Auth/LoginForm";
 import { ForgotPassword } from "./components/Auth/ForgotPassword";
 import { ResetPassword } from "./components/Auth/ResetPassword";
 import { Home } from "./components/Pages/Home";
+import { MaintenanceHome } from "./components/Pages/MaintenanceHome";
+import { IS_MAINTENANCE_MODE } from "./config/maintenance";
 import { Clubs } from "./components/Pages/Clubs";
 import { Elections } from "./components/Pages/Elections";
 import { Services } from "./components/Pages/Services";
@@ -68,7 +70,7 @@ function AppContent() {
       <Layout>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={IS_MAINTENANCE_MODE ? <MaintenanceHome /> : <Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/verify/:certNumber" element={<VerifyPage />} />
@@ -77,20 +79,105 @@ function AppContent() {
             element={user?.isRestricted ? <Navigate to="/restricted" replace /> : (user ? <Navigate to="/dashboard" replace /> : <Contact />)}
           />
 
-          {/* Auth Routes - Maintenance redirect to active Club Registration */}
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/register" element={<Navigate to="/" replace />} />
-          <Route path="/forgot-password" element={<Navigate to="/" replace />} />
-          <Route path="/reset-password/:resetToken" element={<Navigate to="/" replace />} />
+          {/* Auth Routes */}
+          <Route
+            path="/login"
+            element={
+              IS_MAINTENANCE_MODE ? (
+                <Navigate to="/" replace />
+              ) : user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <LoginForm />
+              )
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              IS_MAINTENANCE_MODE ? (
+                <Navigate to="/" replace />
+              ) : user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <LoginForm initialRegister={true} />
+              )
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              IS_MAINTENANCE_MODE ? (
+                <Navigate to="/" replace />
+              ) : user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <ForgotPassword />
+              )
+            }
+          />
+          <Route
+            path="/reset-password/:resetToken"
+            element={
+              IS_MAINTENANCE_MODE ? (
+                <Navigate to="/" replace />
+              ) : user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <ResetPassword />
+              )
+            }
+          />
 
-          {/* Maintenance Mode Routing: redirects dashboard and broken services to active registration portal */}
-          <Route path="/dashboard" element={<Navigate to="/" replace />} />
-          <Route path="/clubs" element={<Navigate to="/" replace />} />
-          <Route path="/clubs/:id" element={<Navigate to="/" replace />} />
-          <Route path="/events" element={<Navigate to="/" replace />} />
-          <Route path="/elections" element={<Navigate to="/" replace />} />
-          <Route path="/services" element={<Navigate to="/" replace />} />
-          <Route path="/latest" element={<Navigate to="/" replace />} />
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              IS_MAINTENANCE_MODE ? (
+                <Navigate to="/" replace />
+              ) : (
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              )
+            }
+          />
+
+          <Route
+            path="/clubs"
+            element={IS_MAINTENANCE_MODE ? <Navigate to="/" replace /> : <Clubs />}
+          />
+          <Route
+            path="/clubs/:id"
+            element={IS_MAINTENANCE_MODE ? <Navigate to="/" replace /> : <Clubs />}
+          />
+          <Route
+            path="/events"
+            element={IS_MAINTENANCE_MODE ? <Navigate to="/" replace /> : <EventsPage />}
+          />
+
+          <Route
+            path="/elections"
+            element={
+              IS_MAINTENANCE_MODE ? (
+                <Navigate to="/" replace />
+              ) : (
+                <ProtectedRoute>
+                  <Elections />
+                </ProtectedRoute>
+              )
+            }
+          />
+
+          <Route
+            path="/services"
+            element={IS_MAINTENANCE_MODE ? <Navigate to="/" replace /> : <Services />}
+          />
+
+          <Route
+            path="/latest"
+            element={IS_MAINTENANCE_MODE ? <Navigate to="/" replace /> : <Latest />}
+          />
 
           <Route path="/complaints" element={<Complaints />} />
 
