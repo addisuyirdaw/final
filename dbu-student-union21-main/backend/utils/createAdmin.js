@@ -123,3 +123,31 @@ const createDefaultAdmin = async () => {
 };
 
 module.exports = { createDefaultAdmin };
+
+// Allow direct execution via: node utils/createAdmin.js
+if (require.main === module) {
+  const path = require("path");
+  require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+  const mongoose = require("mongoose");
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+  if (!uri) {
+    console.error("❌ MONGODB_URI not found in .env");
+    process.exit(1);
+  }
+
+  console.log("Connecting to MongoDB Atlas...");
+  mongoose
+    .connect(uri)
+    .then(async () => {
+      console.log("Connected! Verifying and creating default accounts...");
+      await createDefaultAdmin();
+      console.log("All accounts successfully verified!");
+      await mongoose.disconnect();
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error("Database connection error:", err.message);
+      process.exit(1);
+    });
+}
