@@ -262,10 +262,10 @@ export const MaintenanceHome = () => {
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider mb-2">
             <GraduationCap className="w-4 h-4" />
-            CampusNexus • DBU Student Union
+            TemariNet • DBU Student Union
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            CampusNexus Club Registration
+            TemariNet Club Registration
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Debre Berhan University • Open to All Academic Years

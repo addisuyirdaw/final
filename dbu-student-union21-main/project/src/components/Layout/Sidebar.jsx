@@ -25,6 +25,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { NotificationBadge } from "./NotificationBadge";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { TemariNetMark } from "../Common/TemariNetLogo";
 
 export function Sidebar({
   isExpanded = true,
@@ -154,17 +155,16 @@ export function Sidebar({
             className={`flex items-center gap-3 overflow-hidden group focus:outline-hidden ${
               !isExpanded ? "justify-center w-full" : ""
             }`}
-            title="CampusNexus Portal"
+            title="TemariNet Portal"
           >
-            <img
-              src="/image.png/dbu-logo.png"
-              alt="CampusNexus DBU Logo"
-              className="w-10 h-10 object-contain rounded-xl border border-sky-100 bg-white p-0.5 shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
-            />
+            <div className="w-10 h-10 rounded-xl border border-sky-100 bg-white p-1 shrink-0 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+              <TemariNetMark className="w-8 h-8 shrink-0" size={32} />
+            </div>
             {isExpanded && (
               <div className="flex flex-col min-w-0 transition-opacity duration-200">
-                <span className="text-base font-extrabold text-sky-900 tracking-tight leading-none truncate">
-                  CampusNexus
+                <span className="text-base font-black tracking-tight leading-none truncate">
+                  <span className="text-sky-950">Temari</span>
+                  <span className="text-[#FF7A00]">Net</span>
                 </span>
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1 truncate">
                   DBU Student Union

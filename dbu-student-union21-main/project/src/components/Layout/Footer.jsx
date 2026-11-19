@@ -16,12 +16,14 @@ export function Footer() {
 								<span className="text-white font-bold">DBU</span>
 							</div>
 							<div>
-								<h3 className="text-lg font-bold text-white">CampusNexus</h3>
+								<h3 className="text-lg font-bold text-white">
+									Temari<span className="text-[#FF7A00]">Net</span>
+								</h3>
 								<p className="text-gray-400 text-sm">Debre Berhan University Student Union</p>
 							</div>
 						</div>
 						<p className="text-gray-400 mb-4">
-							CampusNexus is the unified gateway to student governance, campus services, club ecosystems, and student life at Debre Berhan University.
+							TemariNet is the unified gateway to student governance, campus services, club ecosystems, and student life at Debre Berhan University.
 						</p>
 
 						<div className="flex space-x-3">

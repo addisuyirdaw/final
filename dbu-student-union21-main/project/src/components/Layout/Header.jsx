@@ -7,6 +7,7 @@ import { useNotifications } from "../../contexts/NotificationContext";
 import { useFeatureVisibility } from "../../contexts/FeatureVisibilityContext";
 import { NotificationBadge } from "./NotificationBadge";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { TemariNetMark } from "../Common/TemariNetLogo";
 import { apiService } from "../../services/api";
 import "../../app.css";
 
@@ -193,22 +194,26 @@ export function Header() {
 				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
 					<div className="flex items-center justify-between gap-4">
 						<div className="flex items-center gap-3">
-							<img
-								src="/image.png/dbu-logo.png"
-								alt="Debre Berhan University Logo"
-								className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain rounded-md border border-sky-100 bg-white p-1"
-							/>
+							<div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl border border-sky-100 bg-white p-1.5 flex items-center justify-center gap-1 shadow-xs shrink-0">
+								<TemariNetMark className="w-9 h-9 sm:w-11 sm:h-11 md:w-13 md:h-13 shrink-0" size={52} />
+								<img
+									src="/image.png/dbu-logo.png"
+									alt="Debre Berhan University Crest"
+									className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 object-contain rounded shrink-0 opacity-90"
+								/>
+							</div>
 							<div>
 								<div className="flex items-center gap-2">
-									<p className="text-xl sm:text-2xl md:text-4xl font-extrabold text-sky-800 leading-none tracking-tight">
-										CampusNexus
-									</p>
-									<span className="hidden sm:inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase tracking-wider">
+									<Link to="/" className="flex items-center text-xl sm:text-2xl md:text-4xl font-black tracking-tight leading-none hover:opacity-90 transition-opacity">
+										<span className="text-[#0a2540]">Temari</span>
+										<span className="text-[#FF7A00]">Net</span>
+									</Link>
+									<span className="hidden sm:inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 uppercase tracking-wider">
 										DBU Portal
 									</span>
 								</div>
 								<p className="text-xs md:text-sm text-gray-600 mt-1 font-medium">
-									Debre Berhan University • Student Union & Service Nexus
+									Debre Berhan University • Student Union & Service Network
 								</p>
 							</div>
 						</div>

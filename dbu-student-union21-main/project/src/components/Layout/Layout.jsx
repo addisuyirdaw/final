@@ -36,7 +36,7 @@ function AuthenticatedLayout({ children }) {
   // Sidebar expanded state on desktop (persisted in localStorage)
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
     try {
-      const saved = localStorage.getItem("campusnexus_sidebar_expanded");
+      const saved = localStorage.getItem("temarinet_sidebar_expanded");
       return saved !== null ? JSON.parse(saved) : true;
     } catch {
       return true;
@@ -49,7 +49,7 @@ function AuthenticatedLayout({ children }) {
   // Sync expanded state with localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("campusnexus_sidebar_expanded", JSON.stringify(isSidebarExpanded));
+      localStorage.setItem("temarinet_sidebar_expanded", JSON.stringify(isSidebarExpanded));
     } catch {
       // ignore
     }

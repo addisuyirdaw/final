@@ -197,10 +197,10 @@ export function LoginForm({ initialRegister = false }) {
 
           <div>
             <div className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800 uppercase tracking-wider mb-2">
-              CampusNexus
+              TEMARINET
             </div>
             <h2 className="text-3xl font-extrabold text-gray-900 mb-1">
-              {showRegister ? "Register for CampusNexus" : "Sign In to CampusNexus"}
+              {showRegister ? "Register for TemariNet" : "Sign In to TemariNet"}
             </h2>
             <p className="text-gray-600 text-sm">
               {showRegister
