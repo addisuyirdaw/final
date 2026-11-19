@@ -183,20 +183,20 @@ export function LoginForm({ initialRegister = false }) {
         {/* Header */}
         <div className="text-center">
           <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto w-24 h-24 flex items-center justify-center mb-6"
+            className="mx-auto w-24 h-24 flex items-center justify-center mb-5 p-2 rounded-full bg-white shadow-lg shadow-sky-500/10 border border-slate-100 ring-4 ring-sky-50/80"
           >
             <img
               src="/images/dblogo.png"
-              alt="DBU Logo"
-              className="w-full h-full object-contain rounded-2xl shadow-md hover:scale-105 transition-transform duration-300"
+              alt="Debre Berhan University Crest"
+              className="w-full h-full object-contain rounded-full hover:scale-105 transition-transform duration-300"
             />
           </motion.div>
 
           <div>
-            <div className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800 uppercase tracking-wider mb-2">
+            <div className="inline-block text-xs font-extrabold px-3.5 py-1 rounded-full bg-sky-100 text-sky-800 uppercase tracking-wider mb-2 shadow-2xs">
               TEMARINET
             </div>
             <h2 className="text-3xl font-extrabold text-gray-900 mb-1">

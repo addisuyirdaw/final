@@ -77,13 +77,10 @@ export function Header() {
 	const navigation = !user
 		? [
 			{ name: "Home", href: "/" },
-			...(clubsVisible ? [{ name: "Clubs", href: "/clubs" }] : []),
+			{ name: "Clubs", href: "/clubs" },
 			{ name: "Events", href: "/events" },
-			{ name: "Cross-Campus", href: "/cross-campus" },
-			...(servicesVisible ? [{ name: "Services", href: "/services" }] : []),
-			{ name: "Latest Announcements", href: "/latest" },
+			{ name: "Services", href: "/services" },
 			{ name: "About Us", href: "/about" },
-			{ name: "Contact Us", href: "/contact" },
 		]
 		: [];
 
@@ -162,58 +159,58 @@ export function Header() {
 
 	return (
 		<header className="bg-white shadow-sm border-b border-gray-200">
-			{/* Very Top Utility Bar */}
-			<div className="bg-sky-700 text-white">
-				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
-						<div className="flex flex-wrap items-center gap-4 sm:gap-6">
-							<span className="inline-flex items-center gap-1.5">
-								<MapPin className="w-4 h-4" />
-								Debre Berhan, Amhara, Ethiopia
-							</span>
-							<span className="inline-flex items-center gap-1.5">
-								<Mail className="w-4 h-4" />
-								pro@dbu.edu.et
-							</span>
+			{/* Clean Minimalist Top Utility Bar */}
+			<div className="bg-sky-900 text-white border-b border-sky-800/80">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
+					<div className="flex items-center justify-between text-xs">
+						<div className="flex items-center gap-2 text-sky-100 font-medium">
+							<span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+							<span>Debre Berhan University • Student Union Platform</span>
 						</div>
-						{!user && (
+						<div className="hidden sm:flex items-center gap-5 text-sky-200">
 							<a
-								href="/executives"
-								className="inline-flex items-center gap-1.5 hover:text-blue-100 transition-colors"
+								href="/about"
+								className="hover:text-white transition-colors"
 							>
-								<CircleUserRound className="w-4 h-4" />
-								Staff Directory
+								About
 							</a>
-						)}
+							<a
+								href="https://www.dbu.edu.et/"
+								target="_blank"
+								rel="noreferrer"
+								className="hover:text-white transition-colors"
+							>
+								Official University Site
+							</a>
+						</div>
 					</div>
 				</div>
 			</div>
 
 			{/* University Brand Bar */}
-			<div className="bg-white border-b border-gray-200">
-				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+			<div className="bg-white border-b border-gray-100">
+				<div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
 					<div className="flex items-center justify-between gap-4">
-						<div className="flex items-center gap-3">
-							<div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl border border-sky-100 bg-white p-1.5 flex items-center justify-center gap-1 shadow-xs shrink-0">
-								<TemariNetMark className="w-9 h-9 sm:w-11 sm:h-11 md:w-13 md:h-13 shrink-0" size={52} />
+						<div className="flex items-center gap-3.5">
+							{/* White rounded logo box showcasing BOTH logos side-by-side */}
+							<div className="h-16 sm:h-20 px-3 py-1.5 rounded-2xl border border-slate-200/90 bg-white flex items-center justify-center gap-2.5 shadow-xs shrink-0">
+								<TemariNetMark className="w-10 h-10 sm:w-12 sm:h-12 shrink-0" size={48} animated={true} />
+								<div className="h-8 w-px bg-slate-200"></div>
 								<img
-									src="/image.png/dbu-logo.png"
+									src="/images/dblogo.png"
 									alt="Debre Berhan University Crest"
-									className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 object-contain rounded shrink-0 opacity-90"
+									className="w-9 h-9 sm:w-11 sm:h-11 object-contain rounded-full shrink-0"
 								/>
 							</div>
 							<div>
 								<div className="flex items-center gap-2">
-									<Link to="/" className="flex items-center text-xl sm:text-2xl md:text-4xl font-black tracking-tight leading-none hover:opacity-90 transition-opacity">
-										<span className="text-[#0a2540]">Temari</span>
+									<Link to="/" className="flex items-center text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-none hover:opacity-95 transition-opacity">
+										<span className="text-slate-900">Temari</span>
 										<span className="text-[#FF7A00]">Net</span>
 									</Link>
-									<span className="hidden sm:inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 uppercase tracking-wider">
-										DBU Portal
-									</span>
 								</div>
-								<p className="text-xs md:text-sm text-gray-600 mt-1 font-medium">
-									Debre Berhan University • Student Union & Service Network
+								<p className="text-xs md:text-sm text-slate-500 mt-1 font-medium">
+									Student Union & Service Network
 								</p>
 							</div>
 						</div>
@@ -221,7 +218,7 @@ export function Header() {
 							href="https://www.dbu.edu.et/"
 							target="_blank"
 							rel="noreferrer"
-							className="hidden sm:inline-flex bg-sky-50 text-sky-700 px-4 py-2 rounded-lg hover:bg-sky-100 transition-colors font-semibold text-sm border border-sky-200"
+							className="hidden sm:inline-flex bg-sky-50 text-sky-700 px-4 py-2 rounded-xl hover:bg-sky-100 transition-colors font-semibold text-sm border border-sky-200"
 						>
 							Main University Site
 						</a>
