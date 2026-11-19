@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: campusnexus-backend
+    runtime: node
+    plan: free
+    rootDir: dbu-student-union21-main/backend
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        value: https://dbu-ss.vercel.app
+      - key: PORT
+        value: 5050
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
