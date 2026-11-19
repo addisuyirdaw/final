@@ -5,16 +5,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
 
-  // Dev server: proxy /api and /uploads through to the backend so images load correctly
+  // Dev server: proxy /api and /uploads through to the backend on port 5050 (or 5000)
   server: {
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5050',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5050',
         changeOrigin: true,
       },
     },

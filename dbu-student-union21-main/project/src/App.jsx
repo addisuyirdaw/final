@@ -319,6 +319,7 @@ function AppContent() {
             }
           />
           <Route path="/executives" element={<Executives />} />
+          <Route path="/union" element={<Union />} />
           <Route path="/student-union" element={<Union />} />
           <Route path="/cross-campus" element={<CrossCampusNetwork />} />
           <Route path="/attendance" element={<AttendanceHub />} />
